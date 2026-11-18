@@ -1,0 +1,285 @@
+import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { mkdir, readdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import {
+  assertId, assertSlug, assertVersionNum, commentsDir, isId, isSlug, isVersionNum, progressDir,
+  projectDir, repliesDir, requestsDir, rootDir, safeJoin, ValidationError, versionDir, versionLabel,
+} from './paths.ts'
+import { listJsonStems, listSubdirs, readJson, writeJsonNew } from './fsutil.ts'
+import {
+  COMMENT_STATUSES, PROGRESS_STATES, REQUEST_TYPES, TAGS,
+  type Comment, type CommentStatus, type CommentWithStatus, type ProgressEvent, type ProgressState,
+  type Project, type Reply, type Request, type RequestType, type RequestWithState, type VersionMeta,
+} from './types.ts'
+
+const nowIso = () => new Date().toISOString()
+/** 같은 스레드 안에서 created 가 단조 증가하도록 보정 (같은 ms 동률로 순서가 뒤집히는 것 방지) */
+const nextIso = (prev: { created: string }[]): string => {
+  let t = Date.now()
+  for (const p of prev) {
+    const pt = Date.parse(p.created)
+    if (Number.isFinite(pt) && pt >= t) t = pt + 1
+  }
+  return new Date(t).toISOString()
+}
+const byCreated = <T extends { created: string }>(a: T, b: T) =>
+  a.created < b.created ? -1 : a.created > b.created ? 1 : 0
+const str = (v: unknown, d = '') => (typeof v === 'string' ? v : d)
+const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
+const inList = <T extends string>(list: readonly T[], v: unknown): v is T => typeof v === 'string' && (list as readonly string[]).includes(v)
+
+// ---------- 프로젝트 ----------
+
+export async function initProject(slug: string, title?: string): Promise<Project> {
+  assertSlug(slug)
+  const dir = projectDir(slug)
+  const file = join(dir, 'project.json')
+  const existing = await readJson(file)
+  if (existing) return normalizeProject(slug, existing)
+  const p: Project = { schema: 1, id: slug, title: title ?? slug, created: nowIso() }
+  await mkdir(join(dir, 'versions'), { recursive: true })
+  await writeJsonNew(file, p)
+  return p
+}
+
+function normalizeProject(slug: string, j: any): Project {
+  return { schema: num(j.schema, 1), id: slug, title: str(j.title, slug), created: str(j.created) }
+}
+
+export async function getProject(slug: string): Promise<Project | null> {
+  assertSlug(slug)
+  const j = await readJson(join(projectDir(slug), 'project.json'))
+  return j ? normalizeProject(slug, j) : null
+}
+
+export async function listProjects(): Promise<Project[]> {
+  const out: Project[] = []
+  for (const name of await listSubdirs(rootDir())) {
+    if (!isSlug(name)) continue
+    const p = await getProject(name)
+    if (p) out.push(p)
+  }
+  return out.sort(byCreated)
+}
+
+export async function requireProject(slug: string): Promise<Project> {
+  const p = await getProject(slug)
+  if (!p) throw new ValidationError(`프로젝트 없음(또는 아직 내려받는 중): ${slug}`)
+  return p
+}
+
+// ---------- 버전 ----------
+
+export function normalizeMeta(version: number, j: any): VersionMeta {
+  return {
+    schema: num(j.schema, 1), version, label: versionLabel(version), file: 'preview.mp4',
+    duration: num(j.duration), fps: num(j.fps), width: num(j.width), height: num(j.height),
+    note: str(j.note), source: str(j.source), created: str(j.created),
+  }
+}
+
+export async function listVersions(slug: string): Promise<VersionMeta[]> {
+  assertSlug(slug)
+  const out: VersionMeta[] = []
+  for (const name of await listSubdirs(join(projectDir(slug), 'versions'))) {
+    const m = /^v(\d{3})$/.exec(name)
+    if (!m) continue
+    const n = Number(m[1])
+    if (!isVersionNum(n)) continue
+    const j = await readJson(join(versionDir(slug, n), 'meta.json'))
+    if (j) out.push(normalizeMeta(n, j))
+  }
+  return out.sort((a, b) => a.version - b.version)
+}
+
+export async function getVersion(slug: string, version: number): Promise<VersionMeta | null> {
+  assertVersionNum(version)
+  const j = await readJson(join(versionDir(slug, version), 'meta.json'))
+  return j ? normalizeMeta(version, j) : null
+}
+
+/** 다음 버전 번호 (폴더명 기준 최대+1, 임시폴더 제외) */
+export async function nextVersionNumber(slug: string): Promise<number> {
+  let max = 0
+  try {
+    for (const name of await readdir(join(projectDir(slug), 'versions'))) {
+      const m = /^v(\d{3})$/.exec(name)
+      if (m) max = Math.max(max, Number(m[1]))
+    }
+  } catch {}
+  return max + 1
+}
+
+export function previewPath(slug: string, version: number): string {
+  return join(versionDir(slug, version), 'preview.mp4')
+}
+
+// ---------- 코멘트 / 답글 ----------
+
+function normalizeComment(id: string, j: any): Comment | null {
+  if (!j || typeof j !== 'object') return null
+  const version = num(j.version, -1)
+  if (!Number.isInteger(version) || version < 0 || version > 999) return null
+  const t = num(j.t, 0)
+  return {
+    schema: num(j.schema, 1), id, version, t,
+    end: typeof j.end === 'number' && Number.isFinite(j.end) ? j.end : null,
+    tag: inList(TAGS, j.tag) ? j.tag : 'other',
+    text: str(j.text), author: str(j.author, 'user'), created: str(j.created),
+  }
+}
+
+function normalizeReply(commentId: string, id: string, j: any): Reply | null {
+  if (!j || typeof j !== 'object') return null
+  const r: Reply = {
+    schema: num(j.schema, 1), id, commentId, author: str(j.author, 'user'),
+    text: str(j.text), created: str(j.created),
+  }
+  if (inList(COMMENT_STATUSES, j.status)) r.status = j.status
+  if (isVersionNum(j.fixedIn)) r.fixedIn = j.fixedIn
+  return r
+}
+
+export async function listReplies(slug: string, commentId: string): Promise<Reply[]> {
+  const dir = repliesDir(slug, commentId)
+  const out: Reply[] = []
+  for (const stem of await listJsonStems(dir)) {
+    if (!isId(stem)) continue
+    const r = normalizeReply(commentId, stem, await readJson(join(dir, stem + '.json')))
+    if (r) out.push(r)
+  }
+  return out.sort(byCreated)
+}
+
+export function deriveStatus(replies: Reply[]): { status: CommentStatus; fixedIn: number | null } {
+  const sorted = [...replies].sort(byCreated)
+  let status: CommentStatus = 'open'
+  let fixedIn: number | null = null
+  for (const r of sorted) {
+    if (r.status) {
+      status = r.status
+      fixedIn = r.fixedIn ?? null
+    }
+  }
+  return { status, fixedIn }
+}
+
+export interface CommentFilter { version?: number; status?: CommentStatus; tag?: string }
+
+export async function listComments(slug: string, filter: CommentFilter = {}): Promise<CommentWithStatus[]> {
+  assertSlug(slug)
+  const dir = commentsDir(slug)
+  const out: CommentWithStatus[] = []
+  for (const stem of await listJsonStems(dir)) {
+    if (!isId(stem)) continue
+    const c = normalizeComment(stem, await readJson(join(dir, stem + '.json')))
+    if (!c) continue
+    if (filter.version !== undefined && c.version !== filter.version) continue
+    if (filter.tag && c.tag !== filter.tag) continue
+    const replies = await listReplies(slug, c.id)
+    const d = deriveStatus(replies)
+    if (filter.status && d.status !== filter.status) continue
+    out.push({ ...c, ...d, replyCount: replies.length })
+  }
+  return out.sort(byCreated)
+}
+
+export async function getComment(slug: string, commentId: string): Promise<Comment | null> {
+  assertId(commentId, 'commentId')
+  const j = await readJson(join(commentsDir(slug), commentId + '.json'))
+  return normalizeComment(commentId, j)
+}
+
+export async function getThread(slug: string, commentId: string) {
+  const comment = await getComment(slug, commentId)
+  if (!comment) throw new ValidationError(`코멘트 없음: ${commentId}`)
+  const replies = await listReplies(slug, commentId)
+  return { comment, replies, ...deriveStatus(replies) }
+}
+
+export interface ReplyInput { text: string; author: string; status?: CommentStatus; fixedIn?: number }
+
+export async function addReply(slug: string, commentId: string, input: ReplyInput): Promise<Reply> {
+  assertSlug(slug)
+  assertId(commentId, 'commentId')
+  if (!(await getComment(slug, commentId))) throw new ValidationError(`코멘트 없음: ${commentId}`)
+  if (!input.text || !input.text.trim()) throw new ValidationError('답글 내용이 비어 있습니다')
+  assertAuthor(input.author)
+  if (input.status !== undefined && !inList(COMMENT_STATUSES, input.status))
+    throw new ValidationError(`잘못된 status: ${input.status} (${COMMENT_STATUSES.join('|')})`)
+  if (input.fixedIn !== undefined) assertVersionNum(input.fixedIn)
+  const id = randomUUID()
+  const created = nextIso(await listReplies(slug, commentId))
+  const r: Reply = { schema: 1, id, commentId, author: input.author, text: input.text, created }
+  if (input.status) r.status = input.status
+  if (input.fixedIn !== undefined) r.fixedIn = input.fixedIn
+  await writeJsonNew(join(repliesDir(slug, commentId), id + '.json'), r)
+  return r
+}
+
+export function assertAuthor(a: string): string {
+  if (!/^[A-Za-z0-9_-]{1,32}$/.test(a)) throw new ValidationError(`잘못된 author: ${JSON.stringify(a)}`)
+  return a
+}
+
+// ---------- 요청 / 진행 ----------
+
+function normalizeRequest(id: string, j: any): Request | null {
+  if (!j || typeof j !== 'object') return null
+  if (!inList(REQUEST_TYPES, j.type)) return null // 화이트리스트 밖 type 은 무시
+  const version = num(j.version, -1)
+  if (!Number.isInteger(version) || version < 0 || version > 999) return null
+  let commentIds: string[] | null = null
+  if (Array.isArray(j.commentIds)) commentIds = j.commentIds.filter(isId)
+  return {
+    schema: num(j.schema, 1), id, type: j.type as RequestType, version, commentIds,
+    agent: str(j.agent), message: str(j.message), created: str(j.created),
+  }
+}
+
+export async function listProgress(slug: string, requestId: string): Promise<ProgressEvent[]> {
+  const dir = progressDir(slug, requestId)
+  const out: ProgressEvent[] = []
+  for (const stem of await listJsonStems(dir)) {
+    if (!isId(stem)) continue
+    const j = await readJson(join(dir, stem + '.json'))
+    if (!j || !inList(PROGRESS_STATES, j.state)) continue
+    out.push({
+      schema: num(j.schema, 1), id: stem, requestId, state: j.state,
+      message: str(j.message), agent: str(j.agent), created: str(j.created),
+    })
+  }
+  return out.sort(byCreated)
+}
+
+export async function listRequests(slug: string, opts: { pendingOnly?: boolean } = {}): Promise<RequestWithState[]> {
+  assertSlug(slug)
+  const dir = requestsDir(slug)
+  const out: RequestWithState[] = []
+  for (const stem of await listJsonStems(dir)) {
+    if (!isId(stem)) continue
+    const r = normalizeRequest(stem, await readJson(join(dir, stem + '.json')))
+    if (!r) continue
+    const events = await listProgress(slug, r.id)
+    const state = events.length ? events[events.length - 1]!.state : 'pending'
+    if (opts.pendingOnly && !(state === 'pending' || state === 'received')) continue
+    out.push({ ...r, state })
+  }
+  return out.sort(byCreated)
+}
+
+export async function addProgress(
+  slug: string, requestId: string, state: ProgressState, message: string, agent: string,
+): Promise<ProgressEvent> {
+  assertSlug(slug)
+  assertId(requestId, 'requestId')
+  if (!inList(PROGRESS_STATES, state)) throw new ValidationError(`잘못된 state: ${state} (${PROGRESS_STATES.join('|')})`)
+  assertAuthor(agent)
+  if (!existsSync(safeJoin(requestsDir(slug), requestId + '.json'))) throw new ValidationError(`요청 없음: ${requestId}`)
+  const id = randomUUID()
+  const created = nextIso(await listProgress(slug, requestId))
+  const e: ProgressEvent = { schema: 1, id, requestId, state, message, agent, created }
+  await writeJsonNew(join(progressDir(slug, requestId), id + '.json'), e)
+  return e
+}

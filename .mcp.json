@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "clip-review": {
+      "command": "bun",
+      "args": ["run", "--cwd", "${CLAUDE_PLUGIN_ROOT}", "--shell=bun", "--silent", "start"],
+      "env": { "CLIPREV_CHANNEL": "1", "CLIPREV_AGENT": "claude" }
+    }
+  }
+}
