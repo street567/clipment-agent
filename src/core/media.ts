@@ -51,32 +51,44 @@ export async function probe(file: string): Promise<ProbeResult> {
 
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2)
 
-/** 회전 적용 후 표시 크기와 목표 크기(긴 변 1280, 업스케일 안 함) 계산 */
-export function targetSize(p: Pick<ProbeResult, 'width' | 'height' | 'rotation'>) {
+export type PreviewPreset = 'default' | 'lite'
+export const PRESETS: Record<PreviewPreset, { longEdge: number; crf: number; maxFps: number; audioBitrate: string }> = {
+  default: { longEdge: 1280, crf: 26, maxFps: 60, audioBitrate: '128k' },
+  lite: { longEdge: 960, crf: 30, maxFps: 30, audioBitrate: '96k' },
+}
+
+/** 회전 적용 후 표시 크기와 목표 크기(기본 긴 변 1280, 업스케일 안 함) 계산 */
+export function targetSize(p: Pick<ProbeResult, 'width' | 'height' | 'rotation'>, longEdge = 1280) {
   const swap = Math.abs(Math.round(p.rotation)) % 180 === 90
   const dw = swap ? p.height : p.width
   const dh = swap ? p.width : p.height
-  const scale = Math.min(1, 1280 / Math.max(dw, dh))
+  const scale = Math.min(1, longEdge / Math.max(dw, dh))
   return { displayW: dw, displayH: dh, width: even(dw * scale), height: even(dh * scale) }
 }
 
-async function encodePreview(src: string, out: string, p: ProbeResult) {
-  const t = targetSize(p)
-  const args = [
+/** ffmpeg 인자 구성 (테스트 가능하도록 분리) */
+export function buildEncodeArgs(src: string, out: string, p: ProbeResult, preset: PreviewPreset = 'default'): string[] {
+  const cfg = PRESETS[preset]
+  const t = targetSize(p, cfg.longEdge)
+  return [
     '-y', '-v', 'error', '-i', src,
     '-map', '0:v:0', '-map', '0:a:0?',
     // ffmpeg 기본 autorotate 로 회전이 먼저 적용된 뒤 scale 이 동작한다
     '-vf', `scale=${t.width}:${t.height}`,
-    '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', '26', '-preset', 'veryfast',
-    ...(p.fps > 60 ? ['-r', '60'] : []),
-    '-c:a', 'aac', '-b:a', '128k',
+    '-c:v', 'libx264', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-crf', String(cfg.crf), '-preset', 'veryfast',
+    ...(p.fps > cfg.maxFps ? ['-r', String(cfg.maxFps)] : []),
+    '-c:a', 'aac', '-b:a', cfg.audioBitrate,
     '-movflags', '+faststart', out,
   ]
+}
+
+async function encodePreview(src: string, out: string, p: ProbeResult, preset: PreviewPreset) {
+  const args = buildEncodeArgs(src, out, p, preset)
   const r = await run(bin('ffmpeg'), args)
   if (r.code !== 0) throw new Error(`ffmpeg 인코딩 실패: ${r.err}`)
 }
 
-export interface PublishOptions { note?: string }
+export interface PublishOptions { note?: string; lite?: boolean }
 
 export async function publishVersion(slug: string, video: string, opts: PublishOptions = {}): Promise<VersionMeta> {
   await requireProject(slug)
@@ -87,7 +99,7 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
   const work = await mkdtemp(join(tmpdir(), 'cliprev-'))
   try {
     const tmpOut = join(work, 'preview.mp4')
-    await encodePreview(video, tmpOut, src)
+    await encodePreview(video, tmpOut, src, opts.lite ? 'lite' : 'default')
     const outProbe = await probe(tmpOut)
 
     const n = await nextVersionNumber(slug)
@@ -99,7 +111,7 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
     const meta: VersionMeta = {
       schema: 1, version: n, label: versionLabel(n), file: 'preview.mp4',
       duration: Math.round(outProbe.duration * 100) / 100,
-      fps: Math.round(Math.min(src.fps, 60) * 100) / 100,
+      fps: Math.round(Math.min(src.fps, PRESETS[opts.lite ? 'lite' : 'default'].maxFps) * 100) / 100,
       width: outProbe.width, height: outProbe.height,
       note: opts.note ?? '', source: basename(video), created: new Date().toISOString(),
     }

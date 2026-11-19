@@ -20,7 +20,7 @@ export interface VersionMeta {
 
 export interface Comment {
   schema: number; id: string; version: number; t: number; end: number | null
-  tag: Tag; text: string; author: string; created: string
+  tag: Tag; text: string; author: string; authorName?: string; created: string
 }
 
 export interface CommentWithStatus extends Comment {
@@ -30,13 +30,13 @@ export interface CommentWithStatus extends Comment {
 }
 
 export interface Reply {
-  schema: number; id: string; commentId: string; author: string; text: string
+  schema: number; id: string; commentId: string; author: string; authorName?: string; text: string
   status?: CommentStatus; fixedIn?: number; created: string
 }
 
 export interface Request {
   schema: number; id: string; type: RequestType; version: number
-  commentIds: string[] | null; agent: string; message: string; created: string
+  commentIds: string[] | null; agent: string; authorName?: string; message: string; created: string
 }
 
 export interface ProgressEvent {

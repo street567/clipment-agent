@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util'
 import { writeFile } from 'node:fs/promises'
 import {
-  addProgress, addReply, agentName, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
+  addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, rootDir, sleep, ValidationError,
   type CommentStatus, type ProgressState,
@@ -12,11 +12,11 @@ const HELP = `cliprev — Clip Review 맥 CLI  (루트: CLIPREV_ROOT 또는 iClo
 
   init <project> [--title T]
   projects [--json]
-  publish <project> <video> [--note N]
+  publish <project> <video> [--note N] [--lite]
   versions <project> [--json]
   comments <project> [--version N] [--status open|doing|done|question|wontfix] [--json]
   thread <project> <commentId> [--json]
-  reply <project> <commentId> <text> [--status S] [--fixed-in N] [--author A]
+  reply <project> <commentId> <text> [--status S] [--fixed-in N] [--author A] [--author-name 표시이름]
   requests <project> [--pending] [--json]
   progress <project> <requestId> <state> [message] [--agent A]
   frame <project> <commentId> [--out file.jpg]
@@ -27,6 +27,8 @@ const fmt = (t: number) => {
   const m = Math.floor(t / 60)
   return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`
 }
+const range = (c: { t: number; end: number | null }) =>
+  c.end !== null && c.end > c.t ? `${c.t.toFixed(1)}–${c.end.toFixed(1)}s` : fmt(c.t)
 const json = (v: unknown) => console.log(JSON.stringify(v, null, 2))
 const need = (v: string | undefined, name: string): string => {
   if (!v) throw new ValidationError(`인자 누락: <${name}>\n\n${HELP}`)
@@ -50,7 +52,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -64,7 +66,7 @@ async function main() {
       return o.json ? json(ps) : ps.forEach(x => console.log(`${x.id}\t${x.title}`))
     }
     case 'publish': {
-      const meta = await publishVersion(need(p[0], 'project'), need(p[1], 'video'), { note: o.note })
+      const meta = await publishVersion(need(p[0], 'project'), need(p[1], 'video'), { note: o.note, lite: o.lite })
       return json(meta)
     }
     case 'versions': {
@@ -79,30 +81,32 @@ async function main() {
       const cs = await listComments(need(p[0], 'project'), { version: intOpt(o.version, 'version'), status })
       if (o.json) return json(cs)
       for (const c of cs)
-        console.log(`[${c.status}] v${c.version} ${fmt(c.t)} (${c.tag}) ${c.text}  — ${c.id}`)
+        console.log(`[${c.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}  — ${c.id}`)
       return
     }
     case 'thread': {
       const th = await getThread(need(p[0], 'project'), need(p[1], 'commentId'))
       if (o.json) return json(th)
       const c = th.comment
-      console.log(`[${th.status}] v${c.version} ${fmt(c.t)} (${c.tag}) ${c.author}: ${c.text}`)
-      for (const r of th.replies) console.log(`  ↳ ${r.author}${r.status ? ` [${r.status}]` : ''}${r.fixedIn ? ` fixedIn v${r.fixedIn}` : ''}: ${r.text}`)
+      console.log(`[${th.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}`)
+      for (const r of th.replies) console.log(`  ↳ ${r.authorName ?? r.author}${r.status ? ` [${r.status}]` : ''}${r.fixedIn ? ` fixedIn v${r.fixedIn}` : ''}: ${r.text}`)
       return
     }
     case 'reply': {
       const r = await addReply(need(p[0], 'project'), need(p[1], 'commentId'), {
         text: need(p.slice(2).join(' ') || undefined, 'text'),
         author: o.author ?? agentName(),
+        authorName: o['author-name'] ?? process.env.CLIPREV_AGENT_NAME,
         status: o.status as CommentStatus | undefined,
         fixedIn: intOpt(o['fixed-in'], 'fixed-in'),
       })
       return json(r)
     }
     case 'requests': {
-      const rs = await listRequests(need(p[0], 'project'), { pendingOnly: o.pending })
+      const allow = allowedAuthors()
+      const rs = (await listRequests(need(p[0], 'project'), { pendingOnly: o.pending })).filter(r => isAuthorAllowed(r, allow))
       if (o.json) return json(rs)
-      for (const r of rs) console.log(`[${r.state}] ${r.type} v${r.version} agent=${r.agent || '-'} ${r.message}  — ${r.id}`)
+      for (const r of rs) console.log(`[${r.state}] ${r.type} v${r.version} agent=${r.agent || '-'}${r.authorName ? ` from=${r.authorName}` : ''} ${r.message}  — ${r.id}`)
       return
     }
     case 'progress': {

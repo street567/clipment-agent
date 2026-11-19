@@ -122,12 +122,14 @@ function normalizeComment(id: string, j: any): Comment | null {
   const version = num(j.version, -1)
   if (!Number.isInteger(version) || version < 0 || version > 999) return null
   const t = num(j.t, 0)
-  return {
+  const c: Comment = {
     schema: num(j.schema, 1), id, version, t,
-    end: typeof j.end === 'number' && Number.isFinite(j.end) ? j.end : null,
+    end: typeof j.end === 'number' && Number.isFinite(j.end) && j.end > t ? j.end : null,
     tag: inList(TAGS, j.tag) ? j.tag : 'other',
     text: str(j.text), author: str(j.author, 'user'), created: str(j.created),
   }
+  if (str(j.authorName).trim()) c.authorName = str(j.authorName).trim()
+  return c
 }
 
 function normalizeReply(commentId: string, id: string, j: any): Reply | null {
@@ -136,6 +138,7 @@ function normalizeReply(commentId: string, id: string, j: any): Reply | null {
     schema: num(j.schema, 1), id, commentId, author: str(j.author, 'user'),
     text: str(j.text), created: str(j.created),
   }
+  if (str(j.authorName).trim()) r.authorName = str(j.authorName).trim()
   if (inList(COMMENT_STATUSES, j.status)) r.status = j.status
   if (isVersionNum(j.fixedIn)) r.fixedIn = j.fixedIn
   return r
@@ -198,7 +201,7 @@ export async function getThread(slug: string, commentId: string) {
   return { comment, replies, ...deriveStatus(replies) }
 }
 
-export interface ReplyInput { text: string; author: string; status?: CommentStatus; fixedIn?: number }
+export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number }
 
 export async function addReply(slug: string, commentId: string, input: ReplyInput): Promise<Reply> {
   assertSlug(slug)
@@ -212,6 +215,8 @@ export async function addReply(slug: string, commentId: string, input: ReplyInpu
   const id = randomUUID()
   const created = nextIso(await listReplies(slug, commentId))
   const r: Reply = { schema: 1, id, commentId, author: input.author, text: input.text, created }
+  const an = input.authorName?.trim()
+  if (an) r.authorName = an.slice(0, 64)
   if (input.status) r.status = input.status
   if (input.fixedIn !== undefined) r.fixedIn = input.fixedIn
   await writeJsonNew(join(repliesDir(slug, commentId), id + '.json'), r)
@@ -232,10 +237,12 @@ function normalizeRequest(id: string, j: any): Request | null {
   if (!Number.isInteger(version) || version < 0 || version > 999) return null
   let commentIds: string[] | null = null
   if (Array.isArray(j.commentIds)) commentIds = j.commentIds.filter(isId)
-  return {
+  const req: Request = {
     schema: num(j.schema, 1), id, type: j.type as RequestType, version, commentIds,
     agent: str(j.agent), message: str(j.message), created: str(j.created),
   }
+  if (str(j.authorName).trim()) req.authorName = str(j.authorName).trim()
+  return req
 }
 
 export async function listProgress(slug: string, requestId: string): Promise<ProgressEvent[]> {

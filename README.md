@@ -15,7 +15,7 @@ bun run typecheck
 
 ```
 cliprev init simracing-vertical --title "심레이싱 버티컬"
-cliprev publish simracing-vertical ~/Movies/cut.mp4 --note "첫 컷"
+cliprev publish simracing-vertical ~/Movies/cut.mp4 --note "첫 컷" [--lite]   # lite: 960px/CRF30/30fps/AAC96k
 cliprev versions|comments|thread|requests|progress|reply|frame|watch ...
 cliprev comments simracing-vertical --version 1 --status open --json
 cliprev reply simracing-vertical <commentId> "반영했습니다" --status done --fixed-in 2
@@ -60,3 +60,5 @@ MCP 를 쓰지 않으면 AGENTS.md 의 CLI 명령을 그대로 쓰면 됩니다.
 - `agent` 가 비어 있지 않은 요청은 `CLIPREV_AGENT`(기본 claude)와 같을 때만 그 에이전트에게 전달됩니다.
 - 모든 파일은 불변 + 임시파일(`.name.tmp`) 후 rename. publish 는 `versions/.vNNN.tmp/` 에 만든 뒤 폴더째 rename 하므로 앱은 완성된 `vNNN/` 만 봅니다.
 - iCloud 자리표시자(`.name.icloud`)는 `brctl download` 요청 후 이번 회차에서 건너뜁니다.
+- 환경변수: `CLIPREV_ALLOW_AUTHORS="개미,사용자"` (선택, 기본 꺼짐) — 설정하면 `authorName` 이 목록에 없는 요청은 무시. `CLIPREV_AGENT_NAME` (선택) — 맥이 쓰는 답글의 `authorName`.
+- 코멘트/답글/요청의 `authorName`, 구간 코멘트의 `end` 는 CLI·MCP 출력에 그대로 담기고, CLI 텍스트 출력은 `12.5–15.0s` 와 표시 이름을 보여 줍니다.

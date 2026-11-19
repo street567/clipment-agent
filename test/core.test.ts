@@ -169,3 +169,37 @@ describe('atomic write & placeholders', () => {
     expect(asked).toContain(join(root, 'demo', 'comments', `${id2}.json`))
   })
 })
+
+describe('authorName / end / allowlist', () => {
+  test('comment carries authorName and range end; bad end -> null', async () => {
+    const a = mkComment({ authorName: '개미', t: 12.5, end: 15 })
+    const b = mkComment({ t: 20, end: 10 })
+    const cs = await listComments('demo')
+    const ca = cs.find(c => c.id === a)!
+    expect([ca.authorName, ca.t, ca.end]).toEqual(['개미', 12.5, 15])
+    const cb = cs.find(c => c.id === b)!
+    expect([cb.authorName, cb.end]).toEqual([undefined, null])
+  })
+  test('reply authorName optional', async () => {
+    const c = mkComment()
+    const r1 = await addReply('demo', c, { text: 'ok', author: 'claude', authorName: '클로드' })
+    const r2 = await addReply('demo', c, { text: 'ok2', author: 'claude' })
+    expect(r1.authorName).toBe('클로드')
+    expect('authorName' in r2).toBe(false)
+    expect((await getThread('demo', c)).replies.map(r => r.authorName)).toEqual(['클로드', undefined])
+  })
+  test('CLIPREV_ALLOW_AUTHORS filters pending requests', async () => {
+    const ok1 = mkRequest({ authorName: '개미' })
+    mkRequest({ authorName: '낯선사람' })
+    mkRequest({})
+    try {
+      delete process.env.CLIPREV_ALLOW_AUTHORS
+      expect((await pendingRequests('demo')).length).toBe(3)
+      process.env.CLIPREV_ALLOW_AUTHORS = '개미, 사용자'
+      expect((await pendingRequests('demo')).map(r => r.id)).toEqual([ok1])
+      expect(await waitForRequests({ project: 'demo', timeoutSec: 0 })).toHaveLength(1)
+    } finally {
+      delete process.env.CLIPREV_ALLOW_AUTHORS
+    }
+  })
+})

@@ -79,7 +79,7 @@ mcp.registerTool('reply', {
   description: '코멘트에 답글. status(open|doing|done|question|wontfix)와 fixedIn(반영 버전)은 선택.',
   inputSchema: { project, commentId: z.string(), text: z.string().min(1), status: status.optional(), fixedIn: z.number().int().optional() },
 }, safe(async ({ project, commentId, text, status, fixedIn }) =>
-  ok(await addReply(project, commentId, { text, status, fixedIn, author: agentName() }))))
+  ok(await addReply(project, commentId, { text, status, fixedIn, author: agentName(), authorName: process.env.CLIPREV_AGENT_NAME }))))
 
 mcp.registerTool('report_progress', {
   description: '요청 진행 상황을 폰에 알림 (received|working|done|failed).',
@@ -89,8 +89,8 @@ mcp.registerTool('report_progress', {
 
 mcp.registerTool('publish_version', {
   description: '렌더된 영상을 미리보기본으로 인코딩해 새 버전(vNNN)으로 게시. video_path 는 맥의 로컬 파일 경로.',
-  inputSchema: { project, video_path: z.string(), note: z.string().optional() },
-}, safe(async ({ project, video_path, note }) => ok(await publishVersion(project, video_path, { note }))))
+  inputSchema: { project, video_path: z.string(), note: z.string().optional(), lite: z.boolean().optional().describe('true 면 가벼운 미리보기(긴 변 960, CRF 30, 30fps 상한, AAC 96k) — 모바일 데이터 절약') },
+}, safe(async ({ project, video_path, note, lite }) => ok(await publishVersion(project, video_path, { note, lite }))))
 
 mcp.registerTool('wait_for_requests', {
   description: '폰에서 온 대기 요청(진행 이벤트가 없거나 received 뿐인 것)을 기다림. 화이트리스트 type 만 반환. 최대 timeout_sec(기본 600) 동안 롱폴. 시간 초과 시 빈 배열.',

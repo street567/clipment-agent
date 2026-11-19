@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  addReply, extractFrame, getVersion, initProject, listVersions, previewPath, probe, publishVersion, setDownloader, targetSize,
+  addReply, extractFrame, getVersion, initProject, listVersions, previewPath, probe, publishVersion, buildEncodeArgs, PRESETS, setDownloader, targetSize,
 } from '../src/core/index.ts'
 import { appWrite, iso, tempRoot, uid } from './helpers.ts'
 
@@ -29,6 +29,35 @@ describe('targetSize', () => {
     expect(targetSize({ width: 3840, height: 2160, rotation: -90 })).toMatchObject({ width: 720, height: 1280 })
     expect(targetSize({ width: 3840, height: 2160, rotation: 0 })).toMatchObject({ width: 1280, height: 720 })
     expect(targetSize({ width: 640, height: 360, rotation: 0 })).toMatchObject({ width: 640, height: 360 })
+  })
+})
+
+describe('lite preset args', () => {
+  const src = { width: 1920, height: 1080, rotation: 0, fps: 60, duration: 2 }
+  test('default stays', () => {
+    const a = buildEncodeArgs('in.mp4', 'out.mp4', { ...src, fps: 30 })
+    expect(a).toContain('scale=1280:720')
+    expect(a[a.indexOf('-crf') + 1]).toBe('26')
+    expect(a[a.indexOf('-b:a') + 1]).toBe('128k')
+    expect(a).not.toContain('-r')
+  })
+  test('lite: 960 edge, crf 30, fps cap 30, aac 96k, faststart', () => {
+    const a = buildEncodeArgs('in.mp4', 'out.mp4', src, 'lite')
+    expect(a).toContain('scale=960:540')
+    expect(a[a.indexOf('-crf') + 1]).toBe('30')
+    expect(a[a.indexOf('-r') + 1]).toBe('30')
+    expect(a[a.indexOf('-b:a') + 1]).toBe('96k')
+    expect(a).toContain('+faststart')
+    expect(PRESETS.lite.longEdge).toBe(960)
+  })
+  test('lite rotated portrait -> 540x960', () => {
+    expect(targetSize({ width: 3840, height: 2160, rotation: -90 }, 960)).toMatchObject({ width: 540, height: 960 })
+  })
+  test('lite publish end-to-end', async () => {
+    tempRoot(); setDownloader(null)
+    await initProject('lt')
+    const m = await publishVersion('lt', landscape, { lite: true })
+    expect([m.width, m.height]).toEqual([960, 540])
   })
 })
 
