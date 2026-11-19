@@ -1,11 +1,12 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 export function tempRoot(): string {
   const d = mkdtempSync(join(tmpdir(), 'cliprev-test-'))
   process.env.CLIPREV_ROOT = d
+  process.env.CLIPREV_CONFIG = join(d, '..', `cliprev-cfg-${basename(d)}.json`) // 실제 ~/.config 보호
   return d
 }
 

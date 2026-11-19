@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { versionDir, versionLabel, projectDir, safeJoin, ValidationError } from './paths.ts'
 import { isPlaceholder } from './fsutil.ts'
-import { getVersion, nextVersionNumber, previewPath, requireProject } from './store.ts'
+import { assertUnlocked, getVersion, nextVersionNumber, previewPath, requireProject } from './store.ts'
 import { buildDrawboxFilter } from './regions.ts'
 import type { Region, VersionMeta } from './types.ts'
 
@@ -89,10 +89,11 @@ async function encodePreview(src: string, out: string, p: ProbeResult, preset: P
   if (r.code !== 0) throw new Error(`ffmpeg 인코딩 실패: ${r.err}`)
 }
 
-export interface PublishOptions { note?: string; lite?: boolean }
+export interface PublishOptions { note?: string; lite?: boolean; force?: boolean }
 
 export async function publishVersion(slug: string, video: string, opts: PublishOptions = {}): Promise<VersionMeta> {
   await requireProject(slug)
+  if (!opts.force) await assertUnlocked(slug)
   if (!existsSync(video)) throw new ValidationError(`영상 파일 없음: ${video}`)
   if (isPlaceholder(video)) throw new ValidationError(`영상이 아직 iCloud에서 내려받아지지 않았습니다: ${video}`)
   const src = await probe(video)

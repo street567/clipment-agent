@@ -12,6 +12,11 @@ export type ProgressState = (typeof PROGRESS_STATES)[number]
 
 export interface Project { schema: number; id: string; title: string; created: string }
 
+export interface LockEvent {
+  schema: number; id: string; state: 'locked' | 'unlocked'; author: string; authorName?: string; note: string; created: string
+}
+export interface ProjectListing extends Project { workspace: string; ref: string; locked: boolean; lock?: LockEvent }
+
 export interface VersionMeta {
   schema: number; version: number; label: string; file: string
   duration: number; fps: number; width: number; height: number

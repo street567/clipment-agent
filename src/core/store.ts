@@ -3,15 +3,15 @@ import { existsSync } from 'node:fs'
 import { mkdir, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
-  assertId, assertSlug, assertVersionNum, commentsDir, isId, isSlug, isVersionNum, progressDir,
-  projectDir, repliesDir, requestsDir, rootDir, safeJoin, ValidationError, versionDir, versionLabel,
+  assertId, assertSlug, assertVersionNum, commentsDir, isId, isSlug, isVersionNum, locksDir, progressDir,
+  projectDir, repliesDir, requestsDir, resolveProject, safeJoin, workspaces, type Workspace, ValidationError, versionDir, versionLabel,
 } from './paths.ts'
 import { currentRegionViews, normalizeRegions } from './regions.ts'
 import { listJsonStems, listSubdirs, readJson, writeJsonNew } from './fsutil.ts'
 import {
   COMMENT_STATUSES, PROGRESS_STATES, REQUEST_TYPES, TAGS,
   type Comment, type CommentStatus, type CommentWithStatus, type ProgressEvent, type ProgressState,
-  type Project, type Reply, type Request, type RequestType, type RequestWithState, type VersionMeta,
+  type LockEvent, type Project, type ProjectListing, type Reply, type Request, type RequestType, type RequestWithState, type VersionMeta,
 } from './types.ts'
 
 const nowIso = () => new Date().toISOString()
@@ -32,13 +32,14 @@ const inList = <T extends string>(list: readonly T[], v: unknown): v is T => typ
 
 // ---------- 프로젝트 ----------
 
-export async function initProject(slug: string, title?: string): Promise<Project> {
-  assertSlug(slug)
-  const dir = projectDir(slug)
+export async function initProject(ref: string, title?: string): Promise<Project> {
+  const { slug, dir, workspace } = resolveProject(ref, { allowMissing: true })
   const file = join(dir, 'project.json')
   const existing = await readJson(file)
   if (existing) return normalizeProject(slug, existing)
   const p: Project = { schema: 1, id: slug, title: title ?? slug, created: nowIso() }
+  const { ensureWorkspaceJson } = await import('./workspaces.ts')
+  await ensureWorkspaceJson(workspace.path)
   await mkdir(join(dir, 'versions'), { recursive: true })
   await writeJsonNew(file, p)
   return p
@@ -48,18 +49,32 @@ function normalizeProject(slug: string, j: any): Project {
   return { schema: num(j.schema, 1), id: slug, title: str(j.title, slug), created: str(j.created) }
 }
 
-export async function getProject(slug: string): Promise<Project | null> {
-  assertSlug(slug)
-  const j = await readJson(join(projectDir(slug), 'project.json'))
+export async function getProject(ref: string): Promise<Project | null> {
+  const { slug, dir } = resolveProject(ref)
+  const j = await readJson(join(dir, 'project.json'))
   return j ? normalizeProject(slug, j) : null
 }
 
-export async function listProjects(): Promise<Project[]> {
+/** 워크스페이스 루트 아래 프로젝트들. workspace.json·점(.) 항목 무시, project.json 있는 slug 폴더만. */
+export async function listWorkspaceProjects(w: Workspace): Promise<Project[]> {
   const out: Project[] = []
-  for (const name of await listSubdirs(rootDir())) {
-    if (!isSlug(name)) continue
-    const p = await getProject(name)
-    if (p) out.push(p)
+  for (const name of await listSubdirs(w.path)) {
+    if (name.startsWith('.') || !isSlug(name)) continue
+    const j = await readJson(join(w.path, name, 'project.json'))
+    if (j) out.push(normalizeProject(name, j))
+  }
+  return out
+}
+
+/** 모든 워크스페이스의 프로젝트 (workspace/ref/locked 포함). 같은 이름이 여러 곳이면 ref 로만 구분됨. */
+export async function listProjects(): Promise<ProjectListing[]> {
+  const out: ProjectListing[] = []
+  for (const w of workspaces()) {
+    for (const p of await listWorkspaceProjects(w)) {
+      const ref = `${w.name}/${p.id}`
+      const lock = await currentLock(ref)
+      out.push({ ...p, workspace: w.name, ref, locked: !!lock, ...(lock ? { lock } : {}) })
+    }
   }
   return out.sort(byCreated)
 }
@@ -81,7 +96,7 @@ export function normalizeMeta(version: number, j: any): VersionMeta {
 }
 
 export async function listVersions(slug: string): Promise<VersionMeta[]> {
-  assertSlug(slug)
+  resolveProject(slug)
   const out: VersionMeta[] = []
   for (const name of await listSubdirs(join(projectDir(slug), 'versions'))) {
     const m = /^v(\d{3})$/.exec(name)
@@ -177,7 +192,7 @@ export function deriveStatus(replies: Reply[]): { status: CommentStatus; fixedIn
 export interface CommentFilter { version?: number; status?: CommentStatus; tag?: string }
 
 export async function listComments(slug: string, filter: CommentFilter = {}): Promise<CommentWithStatus[]> {
-  assertSlug(slug)
+  resolveProject(slug)
   const dir = commentsDir(slug)
   const out: CommentWithStatus[] = []
   for (const stem of await listJsonStems(dir)) {
@@ -207,11 +222,12 @@ export async function getThread(slug: string, commentId: string) {
   return { comment, replies, ...deriveStatus(replies), currentRegions: currentRegionViews(comment, replies) }
 }
 
-export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number }
+export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number; force?: boolean }
 
 export async function addReply(slug: string, commentId: string, input: ReplyInput): Promise<Reply> {
-  assertSlug(slug)
+  resolveProject(slug)
   assertId(commentId, 'commentId')
+  if (!input.force) await assertUnlocked(slug)
   if (!(await getComment(slug, commentId))) throw new ValidationError(`코멘트 없음: ${commentId}`)
   if (!input.text || !input.text.trim()) throw new ValidationError('답글 내용이 비어 있습니다')
   assertAuthor(input.author)
@@ -267,7 +283,7 @@ export async function listProgress(slug: string, requestId: string): Promise<Pro
 }
 
 export async function listRequests(slug: string, opts: { pendingOnly?: boolean } = {}): Promise<RequestWithState[]> {
-  assertSlug(slug)
+  resolveProject(slug)
   const dir = requestsDir(slug)
   const out: RequestWithState[] = []
   for (const stem of await listJsonStems(dir)) {
@@ -285,7 +301,7 @@ export async function listRequests(slug: string, opts: { pendingOnly?: boolean }
 export async function addProgress(
   slug: string, requestId: string, state: ProgressState, message: string, agent: string,
 ): Promise<ProgressEvent> {
-  assertSlug(slug)
+  resolveProject(slug)
   assertId(requestId, 'requestId')
   if (!inList(PROGRESS_STATES, state)) throw new ValidationError(`잘못된 state: ${state} (${PROGRESS_STATES.join('|')})`)
   assertAuthor(agent)
@@ -295,4 +311,50 @@ export async function addProgress(
   const e: ProgressEvent = { schema: 1, id, requestId, state, message, agent, created }
   await writeJsonNew(join(progressDir(slug, requestId), id + '.json'), e)
   return e
+}
+
+// ---------- 완료 잠금 (SPEC §8) ----------
+
+export async function listLocks(ref: string): Promise<LockEvent[]> {
+  const dir = locksDir(ref)
+  const out: LockEvent[] = []
+  for (const stem of await listJsonStems(dir)) {
+    if (!isId(stem)) continue
+    const j = await readJson(join(dir, stem + '.json'))
+    if (!j || (j.state !== 'locked' && j.state !== 'unlocked')) continue
+    const e: LockEvent = { schema: num(j.schema, 1), id: stem, state: j.state, author: str(j.author, 'user'), note: str(j.note), created: str(j.created) }
+    if (str(j.authorName).trim()) e.authorName = str(j.authorName).trim()
+    out.push(e)
+  }
+  return out.sort(byCreated)
+}
+
+/** 현재 잠겨 있으면 가장 최근 lock 이벤트, 아니면 null */
+export async function currentLock(ref: string): Promise<LockEvent | null> {
+  const ev = await listLocks(ref)
+  const last = ev[ev.length - 1]
+  return last && last.state === 'locked' ? last : null
+}
+
+export async function assertUnlocked(ref: string): Promise<void> {
+  const l = await currentLock(ref)
+  if (l) throw new ValidationError(`잠긴(완료) 프로젝트입니다: ${ref}${l.note ? ` — ${l.note}` : ''}${l.authorName ? ` (${l.authorName})` : ''}. 사람이 명시적으로 요청한 경우에만 force(--force)로 진행하세요.`)
+}
+
+export async function setLock(ref: string, state: 'locked' | 'unlocked', o: { author: string; authorName?: string; note?: string }): Promise<LockEvent> {
+  resolveProject(ref)
+  assertAuthor(o.author)
+  const id = randomUUID()
+  const created = nextIso(await listLocks(ref))
+  const e: LockEvent = { schema: 1, id, state, author: o.author, note: o.note ?? '', created }
+  const an = o.authorName?.trim()
+  if (an) e.authorName = an.slice(0, 64)
+  await writeJsonNew(join(locksDir(ref), id + '.json'), e)
+  return e
+}
+
+/** force 로 잠긴 프로젝트를 건드릴 때 붙일 경고 (잠겨 있지 않으면 null) */
+export async function forceWarning(ref: string): Promise<string | null> {
+  const l = await currentLock(ref)
+  return l ? `경고: 잠긴(완료) 프로젝트 ${ref} 에 --force 로 쓰기 작업을 했습니다${l.note ? ` (${l.note})` : ''}` : null
 }

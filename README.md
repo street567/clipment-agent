@@ -1,7 +1,15 @@
 # Clip Review — 맥 쪽 (cliprev CLI + MCP 서버 + Claude Code 플러그인)
 
 아이폰 앱과는 iCloud 폴더의 파일로만 대화합니다. 계약: `../docs/SPEC-mvp.md`.
-루트 폴더: `CLIPREV_ROOT` (기본 `~/Library/Mobile Documents/com~apple~CloudDocs/ClipReview`).
+워크스페이스(프로젝트 폴더들을 담는 루트, SPEC §7): 우선순위 `CLIPREV_ROOT`(하나만, 기존 호환) > `~/.config/cliprev/workspaces.json`(`CLIPREV_CONFIG` 로 경로 변경) > 기본 `~/Library/Mobile Documents/com~apple~CloudDocs/ClipReview`.
+
+```
+cliprev workspaces                                   # 이름/경로/접근 가능/프로젝트 수
+cliprev workspaces add ~/GoogleDrive/ClipReview --name gdrive --allow 개미,나   # workspace.json 이 없으면 만듦
+cliprev workspaces remove gdrive                     # 설정에서만 제거, 파일은 지우지 않음
+```
+설정 파일: `{ "workspaces": [ { "name": "icloud", "path": "...", "allowAuthors": ["개미"] } ] }`.
+프로젝트 지정은 `<워크스페이스>/<프로젝트>` 이고, 이름이 모든 워크스페이스에서 유일하면 `<프로젝트>` 만 써도 됩니다(모호하면 후보를 알려 주고 오류). 대기·채널·`watch` 는 모든 워크스페이스를 함께 봅니다. 허용 작성자는 워크스페이스의 `allowAuthors` 가 있으면 그것을, 없으면 `CLIPREV_ALLOW_AUTHORS` 를 씁니다.
 
 ## 준비
 ```
@@ -15,6 +23,8 @@ bun run typecheck
 
 ```
 cliprev init simracing-vertical --title "심레이싱 버티컬"
+cliprev projects                                     # 모든 워크스페이스의 프로젝트 (워크스페이스/프로젝트, 잠금 표시)
+cliprev lock simracing-vertical --note "최종본 v003"   # 완료 잠금 (SPEC §8). unlock 으로 해제
 cliprev publish simracing-vertical ~/Movies/cut.mp4 --note "첫 컷" [--lite]   # lite: 960px/CRF30/30fps/AAC96k
 cliprev versions|comments|thread|requests|progress|reply|frame|watch ...
 cliprev comments simracing-vertical --version 1 --status open --json
@@ -32,7 +42,7 @@ cliprev watch            # 2초 폴링, 새 코멘트/사용자 답글/요청을
 
 화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
-MCP 서버 이름은 `clip-review` 입니다. 도구: `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `wait_for_requests`. 스킬: `apply-feedback`.
+MCP 서버 이름은 `clip-review` 입니다. 도구: `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `wait_for_requests`. 스킬: `apply-feedback`.
 
 ### 채널(폰 요청이 세션으로 푸시됨)
 `.mcp.json` 이 `CLIPREV_CHANNEL=1` 로 서버를 띄우면 `claude/channel` 기능을 선언하고, 새 요청(화이트리스트 type 만)이 생기면 `notifications/claude/channel` 로 알립니다.
@@ -53,7 +63,7 @@ claude --plugin-dir <mac 경로> --dangerously-load-development-channels plugin:
 command = "/Users/pgzcore/.bun/bin/bun"
 args = ["/Users/pgzcore/Projects/delta-trend/clip-review/mac/src/mcp.ts"]
 env = { CLIPREV_AGENT = "codex" }
-# CLIPREV_ROOT 를 바꾸려면 env 에 추가
+# 워크스페이스는 ~/.config/cliprev/workspaces.json (cliprev workspaces add). 단일 폴더만 쓰려면 env 에 CLIPREV_ROOT 추가
 ```
 MCP 를 쓰지 않으면 AGENTS.md 의 CLI 명령을 그대로 쓰면 됩니다.
 
@@ -62,5 +72,6 @@ MCP 를 쓰지 않으면 AGENTS.md 의 CLI 명령을 그대로 쓰면 됩니다.
 - `agent` 가 비어 있지 않은 요청은 `CLIPREV_AGENT`(기본 claude)와 같을 때만 그 에이전트에게 전달됩니다.
 - 모든 파일은 불변 + 임시파일(`.name.tmp`) 후 rename. publish 는 `versions/.vNNN.tmp/` 에 만든 뒤 폴더째 rename 하므로 앱은 완성된 `vNNN/` 만 봅니다.
 - iCloud 자리표시자(`.name.icloud`)는 `brctl download` 요청 후 이번 회차에서 건너뜁니다.
+- 완료 잠금(SPEC §8): 잠긴 프로젝트의 요청은 `wait_for_requests`·채널·`requests`·`watch` 에서 제외되고, `publish`·`reply` 는 거부됩니다(`--force` / MCP `force: true` 로만 허용, 경고 출력). 사람이 명시적으로 요청한 경우가 아니면 force 를 쓰지 마세요. `cliprev lock|unlock <project> [--note N]` 은 `locks/<id>.json` 이벤트를 씁니다(author = `--author` 또는 `CLIPREV_AGENT`).
 - 환경변수: `CLIPREV_ALLOW_AUTHORS="개미,사용자"` (선택, 기본 꺼짐) — 설정하면 `authorName` 이 목록에 없는 요청은 무시. `CLIPREV_AGENT_NAME` (선택) — 맥이 쓰는 답글의 `authorName`.
 - 코멘트/답글/요청의 `authorName`, 구간 코멘트의 `end` 는 CLI·MCP 출력에 그대로 담기고, CLI 텍스트 출력은 `12.5–15.0s` 와 표시 이름을 보여 줍니다.

@@ -3,7 +3,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { NotificationSchema } from '@modelcontextprotocol/sdk/types.js'
 import { spawnSync } from 'node:child_process'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { initProject } from '../src/core/index.ts'
 import { appWrite, iso, tempRoot, uid } from './helpers.ts'
 
@@ -31,7 +31,7 @@ describe('mcp server', () => {
     const c = await connect({ CLIPREV_ROOT: root, CLIPREV_AGENT: 'codex' })
     try {
       const tools = (await c.listTools()).tools.map(t => t.name).sort()
-      expect(tools).toEqual(['get_frame', 'get_thread', 'list_comments', 'list_projects', 'list_versions', 'publish_version', 'reply', 'report_progress', 'wait_for_requests'])
+      expect(tools).toEqual(['get_frame', 'get_thread', 'list_comments', 'list_projects', 'list_versions', 'list_workspaces', 'publish_version', 'reply', 'report_progress', 'wait_for_requests'])
       expect(text(await c.callTool({ name: 'list_projects', arguments: {} }))[0].id).toBe('demo')
       const meta = text(await c.callTool({ name: 'publish_version', arguments: { project: 'demo', video_path: clip, note: 'n' } }))
       expect(meta.version).toBe(1)
@@ -88,7 +88,7 @@ describe('mcp server', () => {
       appWrite(root, 'demo', `requests/${rid}.json`, { schema: 1, type: 'apply_feedback', version: 3, commentIds: null, agent: 'claude', created: iso() })
       for (let i = 0; i < 40 && got.length === 0; i++) await new Promise(r => setTimeout(r, 250))
       expect(got).toHaveLength(1)
-      expect(got[0].meta).toEqual({ project: 'demo', requestId: rid, type: 'apply_feedback', version: '3', agent: 'claude' })
+      expect(got[0].meta).toEqual({ project: 'demo', workspace: basename(root), requestId: rid, type: 'apply_feedback', version: '3', agent: 'claude' })
       expect(got[0].content).toContain('demo v3')
       expect(got[0].content).toContain(rid)
     } finally {
