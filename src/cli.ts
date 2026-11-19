@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util'
 import { writeFile } from 'node:fs/promises'
 import {
-  addWorkspace, removeWorkspace, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
+  addWorkspace, removeWorkspace, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, sleep, ValidationError,
@@ -14,6 +14,8 @@ const HELP = `cliprev — Clip Review 맥 CLI  (워크스페이스: CLIPREV_ROOT
 
   workspaces [--json]                         등록된 워크스페이스 (이름/경로/접근 가능/프로젝트 수)
   workspaces add <path> [--name X] [--allow 개미,나]
+  workspaces add --google|--dropbox|--onedrive [--account 이메일일부] [--sub ClipReview] [--create] [--name X]
+                                              (~/Library/CloudStorage 자동 감지; 폴더가 없으면 --create 로 생성)
   workspaces remove <name>                    설정에서만 제거 (파일은 지우지 않음)
   init <project> [--title T]
   projects [--json]
@@ -59,7 +61,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, allow: { type: 'string' },  'no-regions': { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' },  'no-regions': { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -67,7 +69,11 @@ async function main() {
     case 'workspaces': {
       const sub = p[0]
       if (sub === 'add') {
-        const w = await addWorkspace(need(p[1], 'path'), { name: o.name, allowAuthors: o.allow?.split(',') })
+        const prov: CloudProvider | undefined = o.google ? 'google' : o.dropbox ? 'dropbox' : o.onedrive ? 'onedrive' : undefined
+        const path = prov ? resolveCloudWorkspace(prov, { account: o.account, sub: o.sub, create: o.create }) : need(p[1], 'path')
+        const defName = prov ? { google: '구글', dropbox: 'dropbox', onedrive: 'onedrive' }[prov] : undefined
+        const w = await addWorkspace(path, { name: o.name ?? defName, allowAuthors: o.allow?.split(',') })
+        if (prov === 'google') console.error('참고: 구글 드라이브 "스트리밍" 모드는 파일이 온라인 전용이라 늦게 내려받아질 수 있습니다. "미러링" 모드를 권장합니다.')
         if (o.json) return json(w)
         console.log(`워크스페이스 추가됨: ${w.name} — ${w.path}${w.allowAuthors ? ` (허용: ${w.allowAuthors.join(',')})` : ''}`)
         if (process.env.CLIPREV_ROOT?.trim()) console.log('참고: CLIPREV_ROOT 가 설정돼 있어 그 폴더만 사용합니다. 설정 파일을 쓰려면 환경변수를 해제하세요.')

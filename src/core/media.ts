@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { versionDir, versionLabel, projectDir, safeJoin, ValidationError } from './paths.ts'
-import { isPlaceholder } from './fsutil.ts'
+import { isPlaceholder, materialize } from './fsutil.ts'
 import { assertUnlocked, getVersion, nextVersionNumber, previewPath, requireProject } from './store.ts'
 import { buildDrawboxFilter } from './regions.ts'
 import type { Region, VersionMeta } from './types.ts'
@@ -131,6 +131,7 @@ export async function extractFrame(slug: string, version: number, t: number, opt
   if (!meta) throw new ValidationError(`버전 ${version} 을(를) 찾을 수 없습니다`)
   const file = previewPath(slug, version)
   if (!existsSync(file) || isPlaceholder(file)) throw new ValidationError(`preview.mp4 가 아직 없거나 내려받는 중입니다 (v${version})`)
+  await materialize(file) // 온라인 전용(구글 드라이브 스트리밍 등) 파일을 끝까지 읽어 내려받는다
   const at = Math.max(0, meta.duration > 0 ? Math.min(t, Math.max(0, meta.duration - 0.05)) : t)
   // 좌표 기준은 preview 의 표시 크기 (ffmpeg autorotate 후)
   const vf = opts.regions?.length ? buildDrawboxFilter(opts.regions, meta.width, meta.height) : null

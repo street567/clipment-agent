@@ -6,6 +6,7 @@
 ```
 cliprev workspaces                                   # 이름/경로/접근 가능/프로젝트 수
 cliprev workspaces add ~/GoogleDrive/ClipReview --name gdrive --allow 개미,나   # workspace.json 이 없으면 만듦
+cliprev workspaces add --google [--account 이메일일부] [--sub ClipReview] [--create]   # Google Drive 데스크톱 자동 감지 (--dropbox/--onedrive 도 가능). 스트리밍 모드는 온라인 전용이라 미러링 권장
 cliprev workspaces remove gdrive                     # 설정에서만 제거, 파일은 지우지 않음
 ```
 설정 파일: `{ "workspaces": [ { "name": "icloud", "path": "...", "allowAuthors": ["개미"] } ] }`.

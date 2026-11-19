@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -187,5 +187,44 @@ describe('completion lock', () => {
     expect(r.status).toBe(1)
     expect(r.stderr).toContain('워크스페이스 폴더를 지정하세요')
     expect(existsSync(cfg)).toBe(false)
+  })
+})
+
+describe('cloud drive detection', () => {
+  let cs: string
+  beforeEach(() => {
+    cs = join(tmp, 'CloudStorage')
+    mkdirSync(join(cs, 'GoogleDrive-me@x.com', '내 드라이브'), { recursive: true })
+    process.env.CLIPREV_CLOUDSTORAGE_DIR = cs
+  })
+  const run = (...args: string[]) => spawnSync(process.execPath, [CLI, ...args], { env: process.env as Record<string, string>, encoding: 'utf8' })
+
+  test('google: requires --create when subfolder is missing, then registers', async () => {
+    const { resolveCloudWorkspace } = await import('../src/core/index.ts')
+    expect(() => resolveCloudWorkspace('google', {})).toThrow(/--create/)
+    expect(existsSync(join(cs, 'GoogleDrive-me@x.com', '내 드라이브', 'ClipReview'))).toBe(false)
+    const r = run('workspaces', 'add', '--google', '--create')
+    expect(r.status).toBe(0)
+    expect(r.stderr).toContain('미러링')
+    const w = workspaces()
+    expect(w[0]!.name).toBe('구글')
+    expect(w[0]!.path).toBe(join(cs, 'GoogleDrive-me@x.com', '내 드라이브', 'ClipReview'))
+    expect(existsSync(join(w[0]!.path, 'workspace.json'))).toBe(true)
+  })
+  test('google: multiple accounts need --account; "My Drive" also detected', async () => {
+    mkdirSync(join(cs, 'GoogleDrive-b@y.com', 'My Drive', 'ClipReview'), { recursive: true })
+    const { resolveCloudWorkspace } = await import('../src/core/index.ts')
+    expect(() => resolveCloudWorkspace('google', {})).toThrow(/b@y.com[\s\S]*me@x.com/)
+    expect(resolveCloudWorkspace('google', { account: 'b@y' })).toBe(join(cs, 'GoogleDrive-b@y.com', 'My Drive', 'ClipReview'))
+    expect(() => resolveCloudWorkspace('google', { account: 'zzz' })).toThrow('맞는')
+  })
+  test('dropbox/onedrive detection and missing provider', async () => {
+    mkdirSync(join(cs, 'Dropbox', 'ClipReview'), { recursive: true })
+    mkdirSync(join(cs, 'OneDrive-Personal'), { recursive: true })
+    const { resolveCloudWorkspace } = await import('../src/core/index.ts')
+    expect(resolveCloudWorkspace('dropbox', {})).toBe(join(cs, 'Dropbox', 'ClipReview'))
+    expect(resolveCloudWorkspace('onedrive', { sub: 'CR', create: true })).toBe(join(cs, 'OneDrive-Personal', 'CR'))
+    rmSync(cs, { recursive: true })
+    expect(() => resolveCloudWorkspace('google', {})).toThrow('찾지 못했습니다')
   })
 })

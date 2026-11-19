@@ -96,6 +96,18 @@ export async function readJson(path: string): Promise<any | null> {
   }
 }
 
+/**
+ * 구글 드라이브 "스트리밍" 등 온라인 전용 파일은 읽을 때 내려받아진다. 끝까지 읽어 로컬에 실체화한다.
+ * (미러링 모드·iCloud 에서는 사실상 일반 읽기)
+ */
+export async function materialize(path: string): Promise<void> {
+  const { createReadStream } = await import('node:fs')
+  await new Promise<void>((res, rej) => {
+    const s = createReadStream(path)
+    s.on('data', () => {}); s.on('end', () => res()); s.on('error', rej)
+  })
+}
+
 /** 파일이 아직 내려받아지지 않았으면 true (요청도 보냄) */
 export function isPlaceholder(path: string): boolean {
   const ph = join(dirname(path), `.${basename(path)}.icloud`)
