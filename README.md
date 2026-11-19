@@ -30,7 +30,7 @@ cliprev watch            # 2초 폴링, 새 코멘트/사용자 답글/요청을
 - 검증: `claude plugin validate /Users/pgzcore/Projects/delta-trend/clip-review/mac`
 - 영구 설치는 로컬 마켓플레이스(`claude plugin marketplace add <경로>`)에 등록한 뒤 `claude plugin install clip-review@<마켓플레이스>` 형태입니다. 이 레포에는 마켓플레이스 매니페스트를 아직 만들지 않았습니다.
 
-화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 숫자 대신 라벨별 색 + 왼쪽 위 점 개수로 표시하고 출력에 범례를 붙입니다.
+화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
 MCP 서버 이름은 `clip-review` 입니다. 도구: `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `wait_for_requests`. 스킬: `apply-feedback`.
 

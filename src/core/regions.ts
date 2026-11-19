@@ -69,20 +69,66 @@ export const REGION_COLORS: { ff: string; ko: string }[] = [
 
 /**
  * drawbox 필터 문자열. drawtext 가 없는 ffmpeg 빌드가 흔해서 숫자 대신
- * (1) 라벨 번호별 다른 색, (2) 박스 왼쪽 위 안쪽에 라벨 번호만큼의 작은 채운 사각형(주사위식) 으로 번호를 표시한다.
+ * (1) 라벨 번호별 다른 색, (2) 박스 왼쪽 위 배지에 라벨 숫자를 7세그먼트(drawbox 조각)로 직접 그린다 (1~99).
  * 검은 외곽선 1px 으로 어떤 배경에서도 보이게 한다. 영역이 없으면 null.
  */
 /** 라벨이 숫자 문자열이면 그 번호(1~), 아니면 순번 */
 export function labelNumber(r: Pick<Region, 'label'>, i: number): number {
-  const n = r.label && /^\d{1,3}$/.test(r.label) ? Number(r.label) : 0
+  const n = r.label && /^\d{1,2}$/.test(r.label) ? Number(r.label) : 0
   return n >= 1 ? n : i + 1
 }
 const colorIdx = (n: number) => (n - 1) % REGION_COLORS.length
 
+/** 7세그먼트: 숫자 → 켜지는 세그먼트 (a 위, b 오른쪽 위, c 오른쪽 아래, d 아래, e 왼쪽 아래, f 왼쪽 위, g 가운데) */
+export const DIGIT_SEGMENTS: Record<string, string> = {
+  '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg',
+  '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg',
+}
+
+/** 글자(숫자) 높이: 프레임 높이의 약 4%, 최소 14px */
+export const digitHeight = (frameH: number) => Math.max(14, Math.round(frameH * 0.04))
+
+/** 숫자 하나의 세그먼트 사각형들 (원점 ox,oy 기준 픽셀) */
+export function digitRects(d: string, ox: number, oy: number, H: number): { x: number; y: number; w: number; h: number }[] {
+  const th = Math.max(2, Math.round(H / 7))
+  const W = Math.round(H * 0.55)
+  const midY = Math.floor((H - th) / 2)
+  const upH = midY + th // 위쪽 세로 획 높이 (가운데 가로획까지 포함)
+  const lowY = midY
+  const R: Record<string, { x: number; y: number; w: number; h: number }> = {
+    a: { x: 0, y: 0, w: W, h: th }, d: { x: 0, y: H - th, w: W, h: th }, g: { x: 0, y: midY, w: W, h: th },
+    f: { x: 0, y: 0, w: th, h: upH }, b: { x: W - th, y: 0, w: th, h: upH },
+    e: { x: 0, y: lowY, w: th, h: H - lowY }, c: { x: W - th, y: lowY, w: th, h: H - lowY },
+  }
+  return [...(DIGIT_SEGMENTS[d] ?? '')].map(k => { const r = R[k]!; return { x: ox + r.x, y: oy + r.y, w: r.w, h: r.h } })
+}
+
+/** 라벨 번호 배지: 검은 판 + 색 테두리 + 흰 7세그먼트 숫자 (박스 왼쪽 위 모서리) */
+export function badgeBoxes(num: number, bx: number, by: number, col: string, frameW: number, frameH: number): string[] {
+  const H = digitHeight(frameH)
+  const th = Math.max(2, Math.round(H / 7))
+  const W = Math.round(H * 0.55)
+  const digits = String(num)
+  const pad = th + 2
+  const gap = th + 1
+  const bw = pad * 2 + digits.length * W + (digits.length - 1) * gap
+  const bh = pad * 2 + H
+  const x0 = Math.max(0, Math.min(bx, frameW - bw))
+  const y0 = Math.max(0, Math.min(by, frameH - bh))
+  const out = [
+    `drawbox=x=${x0}:y=${y0}:w=${bw}:h=${bh}:color=black@1:t=fill`,
+    `drawbox=x=${x0}:y=${y0}:w=${bw}:h=${bh}:color=${col}@1:t=2`,
+  ]
+  ;[...digits].forEach((d, i) => {
+    for (const r of digitRects(d, x0 + pad + i * (W + gap), y0 + pad, H))
+      out.push(`drawbox=x=${r.x}:y=${r.y}:w=${r.w}:h=${r.h}:color=white@1:t=fill`)
+  })
+  return out
+}
+
 export function buildDrawboxFilter(regions: Region[], width: number, height: number): string | null {
   if (!regions.length || width <= 0 || height <= 0) return null
   const stroke = width >= 600 ? 3 : 2
-  const dot = Math.max(6, Math.round(Math.min(width, height) * 0.015))
   const parts: string[] = []
   regions.slice(0, MAX_REGIONS).forEach((r, i) => {
     const num = labelNumber(r, i)
@@ -93,14 +139,7 @@ export function buildDrawboxFilter(regions: Region[], width: number, height: num
     const h = Math.max(2, Math.min(height - y, Math.round(r.h * height)))
     parts.push(`drawbox=x=${x}:y=${y}:w=${w}:h=${h}:color=black@1:t=${stroke + 2}`)
     parts.push(`drawbox=x=${x + 1}:y=${y + 1}:w=${Math.max(1, w - 2)}:h=${Math.max(1, h - 2)}:color=${col}@1:t=${stroke}`)
-    // 번호 표식: i+1 개의 작은 사각형 (박스 안쪽 왼쪽 위, 좁으면 겹치지 않는 만큼만)
-    const gap = Math.max(2, Math.round(dot / 3))
-    for (let k = 0; k <= colorIdx(num); k++) {
-      const dx = x + stroke + 3 + k * (dot + gap)
-      if (dx + dot > x + w - stroke) break
-      if (y + stroke + 3 + dot > y + h) break
-      parts.push(`drawbox=x=${dx}:y=${y + stroke + 3}:w=${dot}:h=${dot}:color=${col}@1:t=fill`)
-    }
+    parts.push(...badgeBoxes(num, x, y, col, width, height))
   })
   return parts.join(',')
 }
@@ -109,8 +148,7 @@ export function buildDrawboxFilter(regions: Region[], width: number, height: num
 export function regionLegend(views: RegionView[]): string {
   if (!views.length) return ''
   const items = views.map((v, i) => {
-    const k = colorIdx(labelNumber(v, i))
-    return `${v.label}번=${REGION_COLORS[k]!.ko}(점 ${k + 1}개)`
+    return `${v.label}번=${REGION_COLORS[colorIdx(labelNumber(v, i))]!.ko}`
   }).join(', ')
-  return `이미지에 영역 ${views.length}개를 사각형으로 그렸습니다(이 ffmpeg 에는 drawtext 가 없어 숫자 대신 색+왼쪽 위 점 개수로 표시). 라벨→표시: ${items}. 코멘트의 "N번 영역"은 라벨 N 입니다.`
+  return `이미지에 영역 ${views.length}개를 사각형으로 그렸습니다(이 ffmpeg 에는 drawtext 가 없어 박스 왼쪽 위 배지에 7세그먼트 숫자로 표시, 박스 색도 라벨별). 라벨→표시: ${items}. 코멘트의 "N번 영역"은 라벨 N 입니다.`
 }

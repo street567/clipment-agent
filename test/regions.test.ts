@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  addReply, buildDrawboxFilter, regionLegend, currentRegions, extractFrame, formatRegions, getThread, initProject, listComments,
+  addReply, badgeBoxes, buildDrawboxFilter, digitHeight, digitRects, DIGIT_SEGMENTS, regionLegend, currentRegions, extractFrame, formatRegions, getThread, initProject, listComments,
   normalizeRegions, positionHint, publishVersion, setDownloader, toRegionViews, type Reply,
 } from '../src/core/index.ts'
 import { appWrite, iso, tempRoot, uid } from './helpers.ts'
@@ -76,8 +76,8 @@ describe('buildDrawboxFilter', () => {
     expect(f).toContain('drawbox=x=320:y=180:w=640:h=360:color=black@1:t=5')
     expect(f).toContain('color=red@1:t=3')
     expect(f).toContain('color=yellow@1:t=3')
-    // 1번 박스 점 1개 + 2번 박스 점 2개
-    expect(f.match(/t=fill/g)!.length).toBe(3)
+    // 배지(검정 판) 2개 + '1'(2 세그) + '2'(5 세그) 흰 조각
+    expect(f.match(/color=white@1:t=fill/g)!.length).toBe(2 + 5)
     expect(f).not.toContain('drawtext')
   })
   test('small frame uses 2px stroke', () => {
@@ -146,8 +146,51 @@ describe('stable numeric labels', () => {
   test('color and dots follow label, not position; legend maps label', () => {
     const f = buildDrawboxFilter([{ x: 0, y: 0, w: 0.5, h: 0.5, label: '3' }], 1280, 720)!
     expect(f).toContain('color=cyan@1:t=3')
-    expect(f.match(/t=fill/g)!.length).toBe(3)
+    expect(f.match(/color=white@1:t=fill/g)!.length).toBe(5) // '3' = abcdg
     const v = toRegionViews([{ x: 0, y: 0, w: 0.5, h: 0.5, label: '3' }])
-    expect(regionLegend(v)).toContain('3번=하늘(점 3개)')
+    expect(regionLegend(v)).toContain('3번=하늘')
+  })
+})
+
+describe('7-segment glyphs', () => {
+  test('digit -> segments', () => {
+    expect(DIGIT_SEGMENTS['1']).toBe('bc')
+    expect(DIGIT_SEGMENTS['7']).toBe('abc')
+    expect(DIGIT_SEGMENTS['8']).toBe('abcdefg')
+    expect(Object.keys(DIGIT_SEGMENTS).length).toBe(10)
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => digitRects(String(d), 0, 0, 28).length))
+      .toEqual([6, 2, 5, 5, 4, 5, 6, 3, 7, 6])
+  })
+  test('size scales with frame, min 14', () => {
+    expect(digitHeight(720)).toBe(29)
+    expect(digitHeight(180)).toBe(14)
+  })
+  test('multi-digit badge is wider and stays inside frame', () => {
+    const one = badgeBoxes(1, 0, 0, 'red', 1280, 720)
+    const two = badgeBoxes(12, 0, 0, 'red', 1280, 720)
+    const w = (b: string[]) => Number(/w=(\d+)/.exec(b[0]!)![1])
+    expect(w(two)).toBeGreaterThan(w(one))
+    const edge = badgeBoxes(99, 1279, 719, 'red', 1280, 720)
+    expect(Number(/x=(\d+)/.exec(edge[0]!)![1]) + w(edge)).toBeLessThanOrEqual(1280)
+  })
+  test('real ffmpeg: segment pixel is white', async () => {
+    tempRoot(); setDownloader(null)
+    const dir = mkdtempSync(join(tmpdir(), 'cliprev-seg-'))
+    const src = join(dir, 'gray.mp4')
+    expect(spawnSync(FF, ['-y', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=gray:size=1280x720:rate=10:duration=1',
+      '-c:v', 'libx264', '-pix_fmt', 'yuv420p', src]).status).toBe(0)
+    await initProject('demo')
+    await publishVersion('demo', src)
+    const jpg = await extractFrame('demo', 1, 0.3, { regions: [{ x: 0.25, y: 0.25, w: 0.5, h: 0.5, label: '8' }] })
+    const jf = join(dir, 'f.jpg')
+    writeFileSync(jf, jpg)
+    const px = (x: number, y: number) => [...spawnSync(FF, ['-v', 'error', '-i', jf, '-vf', `format=rgb24,crop=1:1:${x}:${y}`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1']).stdout]
+    const H = digitHeight(720), th = Math.max(2, Math.round(H / 7)), pad = th + 2
+    const [seg] = digitRects('8', 320 + pad, 180 + pad, H) // 세그먼트 a (위 가로획)
+    const [r, g, b] = px(seg!.x + Math.floor(seg!.w / 2), seg!.y + Math.floor(seg!.h / 2)) as number[]
+    expect(Math.min(r!, g!, b!)).toBeGreaterThan(215)
+    // 배지 안, 세그먼트 밖(숫자 8 안쪽 빈칸)은 어두움
+    const [dr] = px(320 + pad + Math.round(H * 0.275), 180 + pad + Math.round(H * 0.25)) as number[]
+    expect(dr!).toBeLessThan(60)
   })
 })

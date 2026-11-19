@@ -13,7 +13,7 @@
 2. 수신 알림: `report_progress` received / `cliprev progress <project> <requestId> received "확인"`
 3. 열린 코멘트: `list_comments`(status=open) / `cliprev comments <project> --version N --status open --json`
 4. 코멘트마다 프레임 확인: `get_frame` / `cliprev frame <project> <commentId> --out /tmp/x.jpg` 후 이미지 열람 (`--no-regions` 로 박스 끄기)
-   - 코멘트에 영역이 있으면(`currentRegions` / CLI "영역 N: [1] x… y… (아래쪽 가운데)") 프레임 이미지에 박스가 그려져 있으니 반드시 열어 보고, "여기/이 부분"은 박스 안으로 해석하세요. 본문의 "N번 영역"은 라벨 N 인 박스입니다(이미지에선 색 + 왼쪽 위 점 개수, 출력의 legend 에 라벨→색 대응).
+   - 코멘트에 영역이 있으면(`currentRegions` / CLI "영역 N: [1] x… y… (아래쪽 가운데)") 프레임 이미지에 박스가 그려져 있으니 반드시 열어 보고, "여기/이 부분"은 박스 안으로 해석하세요. 본문의 "N번 영역"은 라벨 N 인 박스입니다(이미지에선 왼쪽 위 배지의 7세그먼트 숫자 + 라벨별 색, 출력의 legend 에 라벨→색 대응).
 5. 편집 반영 (사용자 프로젝트에서)
 6. 답글: `reply`(status=done|question|wontfix, fixedIn) / `cliprev reply <project> <commentId> "<text>" --status done --fixed-in N --author codex`
 7. 새 버전 게시: `publish_version` / `cliprev publish <project> <video> --note "<요약>"`
