@@ -26,6 +26,7 @@ description: 아이폰 Clip Review 앱에서 남긴 영상 코멘트를 반영�
 4. **코멘트마다** (시간순)
    1. `report_progress` working ("3개 중 1번째 반영 중") 로 진행을 알린다.
    2. `get_frame`(commentId) 로 해당 시점 화면을 확인한다. 코멘트 `tag`(cut/subtitle/broll_swap/broll_remove/layout/audio/other)와 `t`(초), 본문을 함께 해석한다.
+      - 코멘트에 영역(`currentRegions`/CLI "영역 N:")이 있으면 `get_frame` 이미지에 박스가 그려져 있다. **이미지를 반드시 열어 박스 안을 보고**, "여기/이 부분/저기"는 박스 안 영역으로 해석한다. 본문의 "N번 영역"은 라벨이 N 인 박스다(번호는 색·왼쪽 위 점 개수로 표시되고, 응답의 `legend` 에 라벨→색 대응이 있다). 박스 위치는 출력의 힌트("아래쪽 가운데")로도 확인한다. 박스 없이 원본 프레임이 필요하면 `regions=false`.
    3. **편집 프로젝트 위치를 모르면 사용자에게 먼저 묻는다.** 원본 소스 영상, 편집 파이프라인(스크립트·프로젝트 파일), 렌더 명령이 어디 있는지 확인 전에는 추측해서 파일을 건드리지 않는다. 한 번 알게 된 위치는 이 세션 동안 기억한다.
    4. 의도가 불분명하면 수정하지 말고 `reply`(status=`question`, 구체적 질문)로 남기고 다음 코멘트로 넘어간다.
    5. 반영했다면 편집을 적용하고, 거절할 이유가 있으면 `reply`(status=`wontfix`, 이유).
@@ -35,6 +36,7 @@ description: 아이폰 Clip Review 앱에서 남긴 영상 코멘트를 반영�
 7. **마무리**: `report_progress` state=`done` 과 요약("5개 중 4개 반영, 1개 질문. v003 게시"). 실패하면 state=`failed` 와 원인. 사용자(터미널)에게도 같은 요약을 말한다.
 
 ## 참고
+- 영역은 답글(`kind: "regions"`)로 수정될 수 있다. `currentRegions` 가 항상 최신이다. 이런 답글은 AI 답변이 아니므로 상태에 영향이 없다.
 - 코멘트의 `version` 이 0 이면 영상 전체에 대한 코멘트다(프레임 없음, `get_frame` 불가).
 - 코멘트 상태는 답글에서 계산된다: 마지막으로 status 가 있는 답글이 현재 상태.
 - 같은 요청을 중복 처리하지 않는다: `report_progress` received 이후 working/done 이 오면 대기 목록에서 빠진다.

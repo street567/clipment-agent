@@ -18,20 +18,29 @@ export interface VersionMeta {
   note: string; source: string; created: string
 }
 
+/** 화면 영역: 영상 프레임 기준 0~1 정규화 사각형 (SPEC §6) */
+export interface Region { x: number; y: number; w: number; h: number; label?: string }
+/** 출력용: 순번·표시 라벨·위치 힌트 포함 */
+export interface RegionView extends Region { index: number; label: string; hint: string }
+
 export interface Comment {
   schema: number; id: string; version: number; t: number; end: number | null
   tag: Tag; text: string; author: string; authorName?: string; created: string
+  regions?: Region[]
 }
 
 export interface CommentWithStatus extends Comment {
   status: CommentStatus
   fixedIn: number | null
   replyCount: number
+  /** 현재 영역(답글의 최신 regions, 없으면 코멘트 것). 없으면 [] */
+  currentRegions: RegionView[]
 }
 
 export interface Reply {
   schema: number; id: string; commentId: string; author: string; authorName?: string; text: string
   status?: CommentStatus; fixedIn?: number; created: string
+  regions?: Region[]; kind?: 'regions'
 }
 
 export interface Request {

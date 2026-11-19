@@ -19,7 +19,7 @@ cliprev publish simracing-vertical ~/Movies/cut.mp4 --note "첫 컷" [--lite]   
 cliprev versions|comments|thread|requests|progress|reply|frame|watch ...
 cliprev comments simracing-vertical --version 1 --status open --json
 cliprev reply simracing-vertical <commentId> "반영했습니다" --status done --fixed-in 2
-cliprev frame simracing-vertical <commentId> --out /tmp/f.jpg
+cliprev frame simracing-vertical <commentId> --out /tmp/f.jpg   # 코멘트의 영역(regions)을 사각형으로 그림, --no-regions 로 끔
 cliprev watch            # 2초 폴링, 새 코멘트/사용자 답글/요청을 JSON 한 줄씩
 ```
 
@@ -29,6 +29,8 @@ cliprev watch            # 2초 폴링, 새 코멘트/사용자 답글/요청을
 - 개발용(한 세션만): `claude --plugin-dir /Users/pgzcore/Projects/delta-trend/clip-review/mac`
 - 검증: `claude plugin validate /Users/pgzcore/Projects/delta-trend/clip-review/mac`
 - 영구 설치는 로컬 마켓플레이스(`claude plugin marketplace add <경로>`)에 등록한 뒤 `claude plugin install clip-review@<마켓플레이스>` 형태입니다. 이 레포에는 마켓플레이스 매니페스트를 아직 만들지 않았습니다.
+
+화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 숫자 대신 라벨별 색 + 왼쪽 위 점 개수로 표시하고 출력에 범례를 붙입니다.
 
 MCP 서버 이름은 `clip-review` 입니다. 도구: `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `wait_for_requests`. 스킬: `apply-feedback`.
 

@@ -6,7 +6,8 @@ import { basename, join } from 'node:path'
 import { versionDir, versionLabel, projectDir, safeJoin, ValidationError } from './paths.ts'
 import { isPlaceholder } from './fsutil.ts'
 import { getVersion, nextVersionNumber, previewPath, requireProject } from './store.ts'
-import type { VersionMeta } from './types.ts'
+import { buildDrawboxFilter } from './regions.ts'
+import type { Region, VersionMeta } from './types.ts'
 
 const BIN_DIRS = ['/opt/homebrew/bin', '/usr/local/bin']
 function bin(name: string): string {
@@ -124,14 +125,16 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
 }
 
 /** 해당 버전 preview 의 t초 프레임을 JPEG 버퍼로 */
-export async function extractFrame(slug: string, version: number, t: number): Promise<Buffer> {
+export async function extractFrame(slug: string, version: number, t: number, opts: { regions?: Region[] } = {}): Promise<Buffer> {
   const meta = await getVersion(slug, version)
   if (!meta) throw new ValidationError(`버전 ${version} 을(를) 찾을 수 없습니다`)
   const file = previewPath(slug, version)
   if (!existsSync(file) || isPlaceholder(file)) throw new ValidationError(`preview.mp4 가 아직 없거나 내려받는 중입니다 (v${version})`)
   const at = Math.max(0, meta.duration > 0 ? Math.min(t, Math.max(0, meta.duration - 0.05)) : t)
+  // 좌표 기준은 preview 의 표시 크기 (ffmpeg autorotate 후)
+  const vf = opts.regions?.length ? buildDrawboxFilter(opts.regions, meta.width, meta.height) : null
   const r = await run(bin('ffmpeg'), [
-    '-v', 'error', '-ss', at.toFixed(3), '-i', file, '-frames:v', '1', '-q:v', '3', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1',
+    '-v', 'error', '-ss', at.toFixed(3), '-i', file, ...(vf ? ['-vf', vf] : []), '-frames:v', '1', '-q:v', '3', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1',
   ])
   if (r.code !== 0 || r.out.length === 0) throw new Error(`프레임 추출 실패: ${r.err}`)
   return r.out

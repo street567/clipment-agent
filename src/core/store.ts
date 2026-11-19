@@ -6,6 +6,7 @@ import {
   assertId, assertSlug, assertVersionNum, commentsDir, isId, isSlug, isVersionNum, progressDir,
   projectDir, repliesDir, requestsDir, rootDir, safeJoin, ValidationError, versionDir, versionLabel,
 } from './paths.ts'
+import { currentRegionViews, normalizeRegions } from './regions.ts'
 import { listJsonStems, listSubdirs, readJson, writeJsonNew } from './fsutil.ts'
 import {
   COMMENT_STATUSES, PROGRESS_STATES, REQUEST_TYPES, TAGS,
@@ -129,6 +130,8 @@ function normalizeComment(id: string, j: any): Comment | null {
     text: str(j.text), author: str(j.author, 'user'), created: str(j.created),
   }
   if (str(j.authorName).trim()) c.authorName = str(j.authorName).trim()
+  const regions = normalizeRegions(j.regions)
+  if (regions && regions.length) c.regions = regions
   return c
 }
 
@@ -141,6 +144,9 @@ function normalizeReply(commentId: string, id: string, j: any): Reply | null {
   if (str(j.authorName).trim()) r.authorName = str(j.authorName).trim()
   if (inList(COMMENT_STATUSES, j.status)) r.status = j.status
   if (isVersionNum(j.fixedIn)) r.fixedIn = j.fixedIn
+  const regions = normalizeRegions(j.regions)
+  if (regions) r.regions = regions // 빈 배열 = 영역 모두 삭제 (보존)
+  if (j.kind === 'regions') r.kind = 'regions'
   return r
 }
 
@@ -183,7 +189,7 @@ export async function listComments(slug: string, filter: CommentFilter = {}): Pr
     const replies = await listReplies(slug, c.id)
     const d = deriveStatus(replies)
     if (filter.status && d.status !== filter.status) continue
-    out.push({ ...c, ...d, replyCount: replies.length })
+    out.push({ ...c, ...d, replyCount: replies.length, currentRegions: currentRegionViews(c, replies) })
   }
   return out.sort(byCreated)
 }
@@ -198,7 +204,7 @@ export async function getThread(slug: string, commentId: string) {
   const comment = await getComment(slug, commentId)
   if (!comment) throw new ValidationError(`코멘트 없음: ${commentId}`)
   const replies = await listReplies(slug, commentId)
-  return { comment, replies, ...deriveStatus(replies) }
+  return { comment, replies, ...deriveStatus(replies), currentRegions: currentRegionViews(comment, replies) }
 }
 
 export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number }

@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util'
 import { writeFile } from 'node:fs/promises'
 import {
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
-  listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
+  formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, rootDir, sleep, ValidationError,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
@@ -19,7 +19,7 @@ const HELP = `cliprev — Clip Review 맥 CLI  (루트: CLIPREV_ROOT 또는 iClo
   reply <project> <commentId> <text> [--status S] [--fixed-in N] [--author A] [--author-name 표시이름]
   requests <project> [--pending] [--json]
   progress <project> <requestId> <state> [message] [--agent A]
-  frame <project> <commentId> [--out file.jpg]
+  frame <project> <commentId> [--out file.jpg] [--no-regions]   기본: 현재 영역을 사각형으로 그려 저장
   watch [project] [--all]      2초 폴링, 새 코멘트/사용자 답글/요청을 JSON 한 줄씩 출력
 `
 
@@ -52,7 +52,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, 'no-regions': { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -81,7 +81,8 @@ async function main() {
       const cs = await listComments(need(p[0], 'project'), { version: intOpt(o.version, 'version'), status })
       if (o.json) return json(cs)
       for (const c of cs)
-        console.log(`[${c.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}  — ${c.id}`)
+        console.log(`[${c.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}  — ${c.id}`
+          + (c.currentRegions.length ? `\n    ${formatRegions(c.currentRegions)}` : ''))
       return
     }
     case 'thread': {
@@ -89,7 +90,9 @@ async function main() {
       if (o.json) return json(th)
       const c = th.comment
       console.log(`[${th.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}`)
-      for (const r of th.replies) console.log(`  ↳ ${r.authorName ?? r.author}${r.status ? ` [${r.status}]` : ''}${r.fixedIn ? ` fixedIn v${r.fixedIn}` : ''}: ${r.text}`)
+      if (th.currentRegions.length) console.log(`  ${formatRegions(th.currentRegions)}`)
+      for (const r of th.replies)
+        console.log(`  ↳ ${r.authorName ?? r.author}${r.status ? ` [${r.status}]` : ''}${r.fixedIn ? ` fixedIn v${r.fixedIn}` : ''}: ${r.kind === 'regions' && !r.text ? '(영역을 수정했습니다)' : r.text}`)
       return
     }
     case 'reply': {
@@ -119,10 +122,14 @@ async function main() {
       const project = need(p[0], 'project')
       const th = await getThread(project, need(p[1], 'commentId'))
       if (th.comment.version < 1) throw new ValidationError('영상 전체 코멘트(version 0)는 프레임이 없습니다')
-      const jpg = await extractFrame(project, th.comment.version, th.comment.t)
+      const drawn = o['no-regions'] ? [] : th.currentRegions
+      const jpg = await extractFrame(project, th.comment.version, th.comment.t, { regions: drawn })
       const out = o.out ?? `${p[1]}.jpg`
       await writeFile(out, jpg)
-      return o.json ? json({ path: out, version: th.comment.version, t: th.comment.t }) : console.log(out)
+      if (o.json) return json({ path: out, version: th.comment.version, t: th.comment.t, regions: drawn, legend: regionLegend(drawn) })
+      console.log(out)
+      if (drawn.length) console.log(`${formatRegions(drawn)}\n${regionLegend(drawn)}`)
+      return
     }
     case 'watch':
       return watch(p[0], !!o.all)
