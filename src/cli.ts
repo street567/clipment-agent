@@ -9,7 +9,7 @@ import {
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
 
-const HELP = `cliprev — Clip Review 맥 CLI  (워크스페이스: CLIPREV_ROOT > ~/.config/cliprev/workspaces.json > iCloud ClipReview)
+const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLIPREV_ROOT > ~/.config/cliprev/workspaces.json > iCloud ClipReview)
   <project> = <워크스페이스>/<프로젝트> 또는 (유일할 때) <프로젝트>
 
   workspaces [--json]                         등록된 워크스페이스 (이름/경로/접근 가능/프로젝트 수)
