@@ -58,6 +58,8 @@ clipment index ~/Library/Mobile\ Documents/com~apple~CloudDocs/Clipment [--depth
 - MCP 도구 `index_root`(root, depth?) 는 같은 일을 하고 인덱스 JSON 을 반환합니다(`--fix` 없음).
 - 폰에서 "루트 정리" 프롬프트가 뜨거나 AI 에게 "워크스페이스 정리해줘"라고 하면 이 명령을 씁니다.
 
+플러그인에는 `/clipment:organize [루트]` 슬래시 명령과 `organize-root` 스킬이 있어, 루트 경로 확인 → `clipment index` → 결과 보고까지 안내합니다(`--fix`·폴더 이동은 확인 후에만, 삭제 없음).
+
 ## CLI
 `clipment <명령>` (= `cliprev`, 설치 후) 또는 `bun src/cli.ts <명령>`. 읽기 명령은 `--json` 지원.
 
