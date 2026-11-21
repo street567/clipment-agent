@@ -2,6 +2,7 @@
   "name": "clipment-agent",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "Clipment mac side: clipment (alias cliprev) CLI + MCP server (Claude Code plugin / Codex)",
   "bin": { "clipment": "./src/cli.ts", "cliprev": "./src/cli.ts" },

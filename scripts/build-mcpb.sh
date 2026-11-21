@@ -11,6 +11,7 @@ trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/server" "$OUT"
 (cd "$HERE" && bun build src/mcp.ts --target=node --outfile="$STAGE/server/index.mjs" >/dev/null)
 sed "s/__VERSION__/$VER/" "$HERE/mcpb/manifest.json" > "$STAGE/manifest.json"
+cp "$HERE/LICENSE" "$STAGE/LICENSE"
 # NODE_OPTIONS 에 남은 preload 때문에 npx 가 실패하는 환경 방지
 env -u NODE_OPTIONS npx -y @anthropic-ai/mcpb validate "$STAGE/manifest.json"
 env -u NODE_OPTIONS npx -y @anthropic-ai/mcpb pack "$STAGE" "$OUT/clipment.mcpb"
