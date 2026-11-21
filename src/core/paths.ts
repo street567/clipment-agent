@@ -13,7 +13,7 @@ export function configPath(): string {
   return resolve(env && env.trim() ? env : join(homedir(), '.config/cliprev/workspaces.json'))
 }
 
-const expandHome = (p: string) => (p === '~' ? homedir() : p.startsWith('~/') ? join(homedir(), p.slice(2)) : p)
+export const expandHome = (p: string) => (p === '~' ? homedir() : p.startsWith('~/') ? join(homedir(), p.slice(2)) : p)
 
 export function validWorkspaceName(n: unknown): n is string {
   return typeof n === 'string' && n.trim() === n && n.length >= 1 && n.length <= 64 && !/[\/\\\0]/.test(n) && !n.startsWith('.')
@@ -40,10 +40,42 @@ export function readConfigWorkspaces(): Workspace[] {
   return out
 }
 
-export function writeConfigWorkspaces(list: Workspace[]): void {
+function writeConfig(workspaces: Workspace[], roots: ConfigRoot[]): void {
   const file = configPath()
   mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, JSON.stringify({ workspaces: list }, null, 2) + '\n')
+  writeFileSync(file, JSON.stringify(roots.length ? { workspaces, roots } : { workspaces }, null, 2) + '\n')
+}
+
+export function writeConfigWorkspaces(list: Workspace[]): void {
+  writeConfig(list, readConfigRoots()) // roots 는 보존
+}
+
+// ---------- 루트 레지스트리 (SPEC §9) ----------
+
+export interface ConfigRoot { path: string }
+
+/** 설정의 roots (없으면 빈 목록). 잘못된 항목은 무시. */
+export function readConfigRoots(): ConfigRoot[] {
+  const file = configPath()
+  if (!existsSync(file)) return []
+  let j: any
+  try { j = JSON.parse(readFileSync(file, 'utf8')) } catch { return [] }
+  const out: ConfigRoot[] = []
+  for (const r of Array.isArray(j?.roots) ? j.roots : []) {
+    if (!r || typeof r.path !== 'string' || !r.path.trim()) continue
+    const path = resolve(expandHome(r.path.trim()))
+    if (!out.some(x => x.path === path)) out.push({ path })
+  }
+  return out
+}
+
+/** 루트 등록 (idempotent). 새로 등록했으면 true. 기존 workspaces 는 그대로 보존(설정 파일 없으면 workspaces 는 빈 채로 둠). */
+export function addConfigRoot(path: string): boolean {
+  const abs = resolve(expandHome(path))
+  const roots = readConfigRoots()
+  if (roots.some(r => r.path === abs)) return false
+  writeConfig(readConfigWorkspaces(), [...roots, { path: abs }])
+  return true
 }
 
 /** 우선순위: CLIPREV_ROOT(단일, 기존 호환) > 설정 파일 > 기본 iCloud 경로 */

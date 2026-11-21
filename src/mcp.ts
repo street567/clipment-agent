@@ -5,7 +5,7 @@ import { z } from 'zod'
 import {
   addProgress, addReply, agentName, COMMENT_STATUSES, extractFrame, getThread, listReplies, currentRegionViews, regionLegend, listComments, listProjects,
   listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getComment, sleep, waitForRequests,
-  type PendingRequest,
+  indexRoot, DEFAULT_INDEX_DEPTH, type PendingRequest,
 } from './core/index.ts'
 
 const channelMode = process.env.CLIPREV_CHANNEL === '1'
@@ -42,6 +42,11 @@ const status = z.enum(COMMENT_STATUSES)
 
 mcp.registerTool('list_workspaces', { description: '등록된 워크스페이스(이름·경로·접근 가능 여부·프로젝트 수·허용 작성자)' },
   safe(async () => ok(await workspaceStatuses())))
+
+mcp.registerTool('index_root', {
+  description: '루트 폴더 아래 워크스페이스(workspace.json 이 있거나 프로젝트를 담은 폴더)를 찾아 <root>/.clipment/index.json 을 갱신하고 그 JSON 을 반환. 루트를 설정에 등록한다. 폴더를 옮기거나 지우지 않으며 workspace.json 도 만들지 않는다.',
+  inputSchema: { root: z.string(), depth: z.number().int().min(0).max(20).optional().describe(`탐색 깊이 (기본 ${DEFAULT_INDEX_DEPTH})`) },
+}, safe(async ({ root, depth }) => ok((await indexRoot(root, { depth })).index)))
 
 mcp.registerTool('list_projects', { description: '모든 워크스페이스의 리뷰 프로젝트 목록 (workspace, ref=워크스페이스/프로젝트, locked=완료 잠금). 잠긴 프로젝트는 손대지 않는다.' },
   safe(async () => ok(await listProjects())))

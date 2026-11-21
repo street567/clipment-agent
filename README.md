@@ -46,6 +46,18 @@ clipment workspaces remove gdrive                     # 설정에서만 제거, 
 설정 파일: `{ "workspaces": [ { "name": "icloud", "path": "...", "allowAuthors": ["개미"] } ] }`.
 프로젝트 지정은 `<워크스페이스>/<프로젝트>` 이고, 이름이 모든 워크스페이스에서 유일하면 `<프로젝트>` 만 써도 됩니다(모호하면 후보를 알려 주고 오류). 대기·채널·`watch` 는 모든 워크스페이스를 함께 봅니다. 허용 작성자는 워크스페이스의 `allowAuthors` 가 있으면 그것을, 없으면 `CLIPREV_ALLOW_AUTHORS` 를 씁니다.
 
+## 루트 정리(인덱스)
+루트 = 워크스페이스들이 흩어져 있는 상위 클라우드 폴더(SPEC §9). 맥이 그 아래를 훑어 `<루트>/.clipment/index.json` 을 쓰고, 폰은 읽기만 합니다.
+
+```
+clipment index ~/Library/Mobile\ Documents/com~apple~CloudDocs/Clipment [--depth 4] [--fix] [--json]
+```
+- `workspace.json` 이 있거나 프로젝트(`project.json` 폴더)를 담은 폴더를 워크스페이스로 봅니다. 숨김 폴더·`node_modules`·프로젝트 폴더 안은 건너뜁니다. 루트 자체가 워크스페이스면 path 는 `"."` 입니다.
+- 기본은 인덱스 파일만 씁니다(tmp+rename 원자적). `--fix` 를 주면 `workspace.json` 없는 워크스페이스에 만듭니다. 폴더를 옮기거나 지우지 않습니다.
+- 실행하면 루트가 설정 파일 `roots: [{ "path": "..." }]` 에 등록됩니다(중복 없음). `clipment workspaces add <경로>` 가 등록된 루트 아래면 인덱스도 조용히 갱신하고, `clipment workspaces` 는 루트 목록과 인덱스 갱신 시각도 보여 줍니다.
+- MCP 도구 `index_root`(root, depth?) 는 같은 일을 하고 인덱스 JSON 을 반환합니다(`--fix` 없음).
+- 폰에서 "루트 정리" 프롬프트가 뜨거나 AI 에게 "워크스페이스 정리해줘"라고 하면 이 명령을 씁니다.
+
 ## CLI
 `clipment <명령>` (= `cliprev`, 설치 후) 또는 `bun src/cli.ts <명령>`. 읽기 명령은 `--json` 지원.
 

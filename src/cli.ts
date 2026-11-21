@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util'
 import { writeFile } from 'node:fs/promises'
 import {
-  addWorkspace, removeWorkspace, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
+  addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, sleep, ValidationError,
@@ -17,6 +17,8 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   workspaces add --google|--dropbox|--onedrive [--account 이메일일부] [--sub ClipReview] [--create] [--name X]
                                               (~/Library/CloudStorage 자동 감지; 폴더가 없으면 --create 로 생성)
   workspaces remove <name>                    설정에서만 제거 (파일은 지우지 않음)
+  index <root> [--depth N] [--fix] [--json]   루트 아래 워크스페이스를 찾아 <root>/.clipment/index.json 갱신 (기본 깊이 4).
+                                              --fix: workspace.json 없는 워크스페이스에 생성. 폴더를 옮기거나 지우지 않음
   init <project> [--title T]
   projects [--json]
   lock <project> [--note N]                   완료 잠금 (요청 제외, publish/reply 거부)
@@ -61,7 +63,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' },  'no-regions': { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -86,7 +88,18 @@ async function main() {
       if (sub !== undefined) throw new ValidationError(`알 수 없는 하위 명령: workspaces ${sub}\n\n${HELP}`)
       const ws = await workspaceStatuses()
       if (o.json) return json(ws)
+      for (const r of await rootStatuses())
+        console.log(`[루트] ${r.path}\t${r.reachable ? '접근 가능' : '접근 불가'}\t${r.indexUpdated ? `인덱스 ${r.indexUpdated}, 워크스페이스 ${r.workspaces}개` : '인덱스 없음'}`)
       for (const w of ws) console.log(`${w.name}\t${w.path}\t${w.reachable ? '접근 가능' : '접근 불가'}\t프로젝트 ${w.projects}개${w.allowAuthors ? `\t허용: ${w.allowAuthors.join(',')}` : ''}`)
+      return
+    }
+    case 'index': {
+      const depth = intOpt(o.depth, 'depth') ?? DEFAULT_INDEX_DEPTH
+      if (depth < 0 || depth > 20) throw new ValidationError(`--depth 는 0~20: ${depth}`)
+      const r = await indexRoot(need(p[0], 'root'), { depth, fix: o.fix })
+      if (o.json) return json(r.index)
+      console.log(`루트: ${r.root}${r.registered ? ' (설정에 등록됨)' : ''}\n인덱스: ${r.file}\n워크스페이스 ${r.index.workspaces.length}개`)
+      for (const w of r.index.workspaces) console.log(`  ${w.path}\t${w.name}\t프로젝트 ${w.projects}개${r.created.includes(w.path) ? '\t(workspace.json 생성)' : ''}`)
       return
     }
     case 'init': {
