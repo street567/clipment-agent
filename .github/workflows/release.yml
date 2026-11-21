@@ -1,0 +1,31 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: 태그와 package.json 버전 일치 확인
+        run: |
+          VER="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)"
+          [ "v$VER" = "$GITHUB_REF_NAME" ] || { echo "태그 $GITHUB_REF_NAME 와 package.json 버전 v$VER 가 다릅니다"; exit 1; }
+      - run: bun install
+      - run: bun run typecheck
+      # ffmpeg 가 필요한 테스트가 있어 설치
+      - run: brew install ffmpeg
+      - run: bun test
+      - name: 번들 빌드
+        run: |
+          scripts/build-mcpb.sh dist
+          scripts/make-bundle.sh dist
+      - name: GitHub Release 생성
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes \
+            dist/clipment.mcpb dist/clipment-agent-*.tar.gz install.sh

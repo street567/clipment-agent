@@ -29,7 +29,7 @@ export function isAuthorAllowed(r: { authorName?: string }, allow: string[] | nu
  * 잠긴 프로젝트는 제외. (type 화이트리스트는 listRequests 에서 이미 적용됨)
  * `project` = 유일하면 slug, 모호하면 "워크스페이스/slug" (그대로 다른 도구에 넘겨도 되는 값), `ref` 는 항상 한정 이름.
  */
-export async function pendingRequests(project?: string, agent: string = agentName()): Promise<PendingRequest[]> {
+export async function pendingRequests(project?: string, agent: string | null = agentName()): Promise<PendingRequest[]> {
   const targets: { ws: Workspace; slug: string }[] = []
   if (project) {
     const r = resolveProject(project)
@@ -46,7 +46,7 @@ export async function pendingRequests(project?: string, agent: string = agentNam
     if (await currentLock(ref)) continue
     const allow = allowedAuthors(ws)
     for (const r of await listRequests(ref, { pendingOnly: true })) {
-      if (r.agent && r.agent !== agent) continue
+      if (agent && r.agent && r.agent !== agent) continue
       if (!isAuthorAllowed(r, allow)) continue
       out.push({ ...r, workspace: ws.name, ref, project: multi && (counts.get(slug) ?? 0) > 1 ? ref : slug })
     }
@@ -57,7 +57,7 @@ export async function pendingRequests(project?: string, agent: string = agentNam
 export const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 export async function waitForRequests(opts: {
-  project?: string; timeoutSec?: number; agent?: string; pollMs?: number; signal?: AbortSignal
+  project?: string; timeoutSec?: number; agent?: string | null; pollMs?: number; signal?: AbortSignal
 }): Promise<PendingRequest[]> {
   const deadline = Date.now() + Math.max(0, opts.timeoutSec ?? 600) * 1000
   const poll = opts.pollMs ?? 1500

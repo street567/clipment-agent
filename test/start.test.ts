@@ -14,7 +14,7 @@ test('plugin start script speaks clean MCP over stdout', async () => {
     env: { ...(process.env as Record<string, string>), CLIPREV_ROOT: root },
   }))
   try {
-    expect((await client.listTools()).tools.length).toBe(11)
+    expect((await client.listTools()).tools.length).toBe(12)
   } finally {
     await client.close()
   }

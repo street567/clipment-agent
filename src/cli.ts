@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 import { parseArgs } from 'node:util'
 import { writeFile } from 'node:fs/promises'
+import { createInterface } from 'node:readline/promises'
+import { spawn, spawnSync } from 'node:child_process'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join, resolve } from 'node:path'
 import {
   addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
@@ -32,6 +37,12 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   progress <project> <requestId> <state> [message] [--agent A]
   frame <project> <commentId> [--out file.jpg] [--no-regions]   기본: 현재 영역을 사각형으로 그려 저장
   watch [project] [--all]      2초 폴링, 새 코멘트/사용자 답글/요청을 JSON 한 줄씩 출력
+  daemon run                   백그라운드 감시 데몬 (알림·인덱스 갱신·선택적 자동 처리). 중복 실행은 즉시 종료
+  daemon install|uninstall|stop|restart|status [--json] [--kill-orphans]   launchd LaunchAgent 관리 (sudo 불필요)
+  daemon logs [--lines N] [--follow]
+  daemon config [--auto-run off|claude|codex] [--job-timeout 분]   ~/.config/clipment/daemon.json
+  update                       최신 릴리스로 업데이트하고 데몬을 재시작
+  --version                    버전
 `
 
 const fmt = (t: number) => {
@@ -54,6 +65,7 @@ const intOpt = (v: string | undefined, name: string): number | undefined => {
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2)
+  if (cmd === '--version' || cmd === '-V' || cmd === 'version') return void console.log(appVersion())
   if (!cmd || cmd === '-h' || cmd === '--help' || cmd === 'help') return void console.log(HELP)
 
   const { values: o, positionals: p } = parseArgs({
@@ -63,7 +75,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -197,9 +209,106 @@ async function main() {
     }
     case 'watch':
       return watch(p[0], !!o.all)
+    case 'daemon':
+      return daemonCmd(p[0], o)
+    case 'update':
+      return update()
     default:
       throw new ValidationError(`알 수 없는 명령: ${cmd}\n\n${HELP}`)
   }
+}
+
+const APP_DIR = resolve(import.meta.dir, '..')
+function appVersion(): string {
+  try { return JSON.parse(readFileSync(join(APP_DIR, 'package.json'), 'utf8')).version } catch { return 'unknown' }
+}
+
+async function confirm(q: string): Promise<boolean> {
+  if (!process.stdin.isTTY) return false
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  try { return /^y(es)?$/i.test((await rl.question(`${q} [y/N] `)).trim()) } finally { rl.close() }
+}
+
+async function daemonCmd(sub: string | undefined, o: Record<string, any>) {
+  const { runDaemon } = await import('./daemon/daemon.ts')
+  const L = await import('./daemon/launchd.ts')
+  const { loadDaemonConfig, saveDaemonConfig } = await import('./daemon/config.ts')
+  const { AUTO_RUNS } = await import('./daemon/autorun.ts')
+  const { logPath } = await import('./daemon/util.ts')
+  const cli = join(APP_DIR, 'src/cli.ts')
+  const reportOrphans = async (orphans: number[]) => {
+    if (!orphans.length) return
+    console.log(`고아 daemon 프로세스: ${orphans.join(', ')}`)
+    if (o.yes || await confirm('종료할까요?')) for (const pid of orphans) console.log(`  ${pid}: ${L.killPid(pid) ? '종료함' : '종료 실패'}`)
+    else console.log('  종료하려면: clipment daemon stop --kill-orphans')
+  }
+  switch (sub) {
+    case 'run': process.exitCode = await runDaemon(); return
+    case 'install': {
+      const r = L.installDaemon({ bun: process.execPath, cli, killOrphans: !!o['kill-orphans'] })
+      console.log(`plist: ${r.plist}\n${r.loaded ? 'LaunchAgent 로드됨' : `로드 실패: ${r.error}`}`)
+      if (r.report.killed.length) console.log(`이전 인스턴스 종료: ${r.report.killed.join(', ')}`)
+      await reportOrphans(r.report.orphans)
+      if (!r.loaded) process.exitCode = 1
+      return
+    }
+    case 'uninstall': {
+      const r = L.uninstallDaemon({ killOrphans: !!o['kill-orphans'] })
+      console.log(r.removed ? `제거됨: ${L.plistPath()}` : 'LaunchAgent 가 설치돼 있지 않았습니다')
+      await reportOrphans(r.report.orphans)
+      return
+    }
+    case 'stop': {
+      const r = L.stopDaemon({ killOrphans: !!o['kill-orphans'] })
+      console.log(`${r.booted ? 'launchd 에서 내림. ' : ''}종료한 pid: ${r.killed.join(', ') || '없음'}`)
+      await reportOrphans(r.orphans)
+      return
+    }
+    case 'restart': { const r = L.restartDaemon(); console.log(r.message); if (!r.ok) process.exitCode = 1; return }
+    case 'status': {
+      const s = L.daemonStatus()
+      if (o.json) return json(s)
+      console.log(`설치됨: ${s.installed ? '예' : '아니오'}  launchd 로드: ${s.loaded ? '예' : '아니오'}  실행 pid: ${s.lockAlive ? s.lockPid : '없음'}`)
+      if (s.duplicates.length) console.log(`경고: 중복/고아 프로세스 ${s.duplicates.join(', ')} — clipment daemon stop --kill-orphans`)
+      const st: any = s.state
+      if (st) console.log(`대기 요청 ${st.pendingTotal}개, 폴링 ${st.pollMs}ms, RSS ${st.rssMB}MB, 자동 처리 ${st.autoRun}, 갱신 ${st.updated}`)
+      return
+    }
+    case 'logs': {
+      const f = logPath()
+      if (!existsSync(f)) return void console.log(`로그 없음: ${f}`)
+      const n = intOpt(o.lines, 'lines') ?? 50
+      spawnSync('tail', ['-n', String(n), f], { stdio: 'inherit' })
+      if (o.follow) spawnSync('tail', ['-f', f], { stdio: 'inherit' })
+      return
+    }
+    case 'config': {
+      if (o['auto-run'] !== undefined) {
+        if (!(AUTO_RUNS as readonly string[]).includes(o['auto-run'])) throw new ValidationError(`--auto-run 은 ${AUTO_RUNS.join('|')}`)
+        saveDaemonConfig({ autoRun: o['auto-run'] })
+      }
+      const t = intOpt(o['job-timeout'], 'job-timeout')
+      if (t !== undefined) saveDaemonConfig({ jobTimeoutMin: t })
+      return json(loadDaemonConfig())
+    }
+    default: throw new ValidationError(`daemon 하위 명령: run|install|uninstall|stop|restart|status|logs|config\n\n${HELP}`)
+  }
+}
+
+/** 설치 스크립트를 임시 복사본으로 실행(자기 자신이 교체되는 것 방지) → 데몬 재시작. 실행 중인 세션은 그대로. */
+async function update() {
+  const src = join(APP_DIR, 'install.sh')
+  if (!existsSync(src)) throw new ValidationError(`install.sh 를 찾지 못했습니다: ${src}`)
+  const tmp = join(process.env.TMPDIR ?? '/tmp', `clipment-install-${process.pid}.sh`)
+  writeFileSync(tmp, readFileSync(src))
+  const before = appVersion()
+  const r = spawnSync('bash', [tmp, '--update'], { stdio: 'inherit', env: { ...process.env, CLIPMENT_DIR: process.env.CLIPMENT_DIR ?? APP_DIR } })
+  try { unlinkSync(tmp) } catch {}
+  if (r.status !== 0) { process.exitCode = r.status ?? 1; return }
+  const L = await import('./daemon/launchd.ts')
+  const after = spawnSync(process.execPath, [join(APP_DIR, 'src/cli.ts'), '--version'], { encoding: 'utf8' }).stdout.trim()
+  console.log(`버전: ${before} -> ${after || '?'}`)
+  if (existsSync(L.plistPath())) { const d = L.restartDaemon(); console.log(`데몬: ${d.message}`) }
 }
 
 async function watch(project: string | undefined, includeExisting: boolean) {

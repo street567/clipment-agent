@@ -2,6 +2,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import { readFileSync } from 'node:fs'
+import { statePath } from './daemon/util.ts'
+import { pidAlive } from './daemon/lock.ts'
 import {
   addProgress, addReply, agentName, COMMENT_STATUSES, extractFrame, getThread, listReplies, currentRegionViews, regionLegend, listComments, listProjects,
   listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getComment, sleep, waitForRequests,
@@ -108,6 +111,15 @@ mcp.registerTool('publish_version', {
   const warning = force ? await forceWarning(project) : null
   const m = await publishVersion(project, video_path, { note, lite, force })
   return ok(warning ? { ...m, warning } : m)
+}))
+
+mcp.registerTool('daemon_status', {
+  description: '백그라운드 데몬(clipment daemon)의 상태: ~/.clipment/state.json (대기 요청 요약, 워크스페이스 상태, 자동 처리 설정). 데몬이 없어도 wait_for_requests 는 폴더를 직접 읽어 동작한다.',
+}, safe(async () => {
+  let st: any
+  try { st = JSON.parse(readFileSync(statePath(), 'utf8')) } catch { return ok({ running: false, message: '데몬 상태 파일이 없습니다 (clipment daemon install / run)' }) }
+  const running = Number.isInteger(st?.pid) && pidAlive(st.pid)
+  return ok({ running, ...st })
 }))
 
 mcp.registerTool('wait_for_requests', {

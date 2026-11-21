@@ -5,6 +5,8 @@ Clipment(iOS 앱 `com.street567.clipment`)의 맥 쪽: `clipment`(=`cliprev`) CL
 ## 구조
 - `src/cli.ts` CLI, `src/mcp.ts` MCP 서버(채널 푸시), `src/core/` 공용 로직(워크스페이스·게시·프레임 등)
 - `.claude-plugin/plugin.json` 플러그인, `.claude-plugin/marketplace.json` 마켓플레이스(소스 `./`), `.mcp.json`, `skills/apply-feedback`
+- `src/daemon/` 백그라운드 데몬(락·감시·알림·자동 실행·launchd), `mcpb/manifest.json` + `scripts/build-mcpb.sh` Claude 데스크톱 확장, `scripts/desktop-config.ts` 데스크톱 설정 병합
+- `.github/workflows/release.yml` 태그 `v*` 푸시 → 릴리스(mcpb + 소스 tar.gz + install.sh)
 - `install.sh` 설치/제거 스크립트(macOS), `scripts/make-bundle.sh` tar 번들
 - `docs/SPEC.md` 폰↔맥 폴더 계약 (원본은 clip-review 레포 `docs/SPEC-mvp.md`)
 - 환경변수는 호환을 위해 `CLIPREV_*` 유지
