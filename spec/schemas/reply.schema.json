@@ -1,0 +1,5 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "replies/<commentId>/<id>.json", "type": "object", "required": ["id","commentId","text"],
+  "properties": { "schema": {"type":"integer"}, "id": {"type":"string"}, "commentId": {"type":"string"}, "author": {"type":"string"}, "authorName": {"type":"string"},
+    "text": {"type":"string"}, "status": {"type":"string","enum":["open","doing","done","question","wontfix"]},
+    "fixedIn": {"type":"integer"}, "kind": {"type":"string"}, "regions": {"type":"array","maxItems":8,"items":{"type":"object","required":["x","y","w","h"],"properties":{"x":{"type":"number","minimum":0,"maximum":1},"y":{"type":"number","minimum":0,"maximum":1},"w":{"type":"number","minimum":0,"maximum":1},"h":{"type":"number","minimum":0,"maximum":1},"label":{"type":"string"}},"additionalProperties":true}}, "created": {"type":"string"} },
+  "additionalProperties": true }

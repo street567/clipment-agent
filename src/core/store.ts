@@ -6,6 +6,7 @@ import {
   assertId, assertSlug, assertVersionNum, commentsDir, isId, isSlug, isVersionNum, locksDir, progressDir,
   projectDir, repliesDir, requestsDir, resolveProject, safeJoin, workspaces, type Workspace, ValidationError, versionDir, versionLabel,
 } from './paths.ts'
+import { assertWorkspaceWritable } from './contract.ts'
 import { currentRegionViews, normalizeRegions } from './regions.ts'
 import { listJsonStems, listSubdirs, readJson, writeJsonNew } from './fsutil.ts'
 import {
@@ -34,6 +35,7 @@ const inList = <T extends string>(list: readonly T[], v: unknown): v is T => typ
 
 export async function initProject(ref: string, title?: string): Promise<Project> {
   const { slug, dir, workspace } = resolveProject(ref, { allowMissing: true })
+  await assertWorkspaceWritable(workspace.path)
   const file = join(dir, 'project.json')
   const existing = await readJson(file)
   if (existing) return normalizeProject(slug, existing)
@@ -225,7 +227,7 @@ export async function getThread(slug: string, commentId: string) {
 export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number; force?: boolean }
 
 export async function addReply(slug: string, commentId: string, input: ReplyInput): Promise<Reply> {
-  resolveProject(slug)
+  await assertWorkspaceWritable(resolveProject(slug).workspace.path)
   assertId(commentId, 'commentId')
   if (!input.force) await assertUnlocked(slug)
   if (!(await getComment(slug, commentId))) throw new ValidationError(`코멘트 없음: ${commentId}`)
@@ -301,7 +303,7 @@ export async function listRequests(slug: string, opts: { pendingOnly?: boolean }
 export async function addProgress(
   slug: string, requestId: string, state: ProgressState, message: string, agent: string,
 ): Promise<ProgressEvent> {
-  resolveProject(slug)
+  await assertWorkspaceWritable(resolveProject(slug).workspace.path)
   assertId(requestId, 'requestId')
   if (!inList(PROGRESS_STATES, state)) throw new ValidationError(`잘못된 state: ${state} (${PROGRESS_STATES.join('|')})`)
   assertAuthor(agent)
@@ -342,7 +344,7 @@ export async function assertUnlocked(ref: string): Promise<void> {
 }
 
 export async function setLock(ref: string, state: 'locked' | 'unlocked', o: { author: string; authorName?: string; note?: string }): Promise<LockEvent> {
-  resolveProject(ref)
+  await assertWorkspaceWritable(resolveProject(ref).workspace.path)
   assertAuthor(o.author)
   const id = randomUUID()
   const created = nextIso(await listLocks(ref))

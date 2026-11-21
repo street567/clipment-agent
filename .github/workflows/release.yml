@@ -19,6 +19,8 @@ jobs:
       # ffmpeg 가 필요한 테스트가 있어 설치
       - run: brew install ffmpeg
       - run: bun test
+      - name: 계약 fixtures 검증 (ajv-cli)
+        run: spec/validate.sh
       - name: 번들 빌드
         run: |
           scripts/build-mcpb.sh dist

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, truncateSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import {
-  listComments, listWorkspaceProjects, pendingRequests, readConfigRoots, reindexRootsFor, scanRoot, indexPath, readJson, indexRoot,
+  listComments, listWorkspaceProjects, readWorkspaceContract, formatContract, CONTRACT_STAMP, type Compat, type WorkspaceContract, pendingRequests, readConfigRoots, reindexRootsFor, scanRoot, indexPath, readJson, indexRoot,
   workspaces, type PendingRequest, type Workspace,
 } from '../core/index.ts'
 import { AUTO_TYPES, runJob, type AutoRun } from './autorun.ts'
@@ -41,7 +41,7 @@ export interface DaemonState {
   pending: { id: string; ref: string; type: string; version: number; agent: string; created: string; state: string }[]
   pendingTotal: number; lastSeen: string | null
   currentJob: { id: string; ref: string; since: string } | null
-  workspaces: { name: string; path: string; reachable: boolean; projects: number; watching: boolean; error?: string }[]
+  workspaces: { name: string; path: string; reachable: boolean; projects: number; watching: boolean; contract: string; compat: Compat; readOnly: boolean; error?: string }[]
 }
 
 export class Daemon {
@@ -57,6 +57,7 @@ export class Daemon {
   private watchers = new Map<string, FSWatcher>()
   private wakeFn: (() => void) | null = null
   private stopping = false
+  private skippedNewer = new Set<string>()
   private interval: number
   private firstTick = true
   private sig = ''
@@ -115,7 +116,13 @@ export class Daemon {
       const reachable = existsSync(w.path)
       let projects = 0, error: string | undefined
       if (reachable) { try { projects = (await listWorkspaceProjects(w)).length } catch (e) { error = String(e) } }
-      wsState.push({ name: w.name, path: w.path, reachable, projects, watching: this.watchers.has(w.path), ...(error ? { error } : {}) })
+      let wc: WorkspaceContract = { version: { major: 1, minor: 0 }, compat: 'ok', readOnly: false }
+      if (reachable) { try { wc = await readWorkspaceContract(w.path) } catch {} }
+      if (wc.readOnly && !this.skippedNewer.has(w.path)) {
+        this.skippedNewer.add(w.path)
+        this.log.log('warn', '더 새 계약 워크스페이스 — 건너뜀(읽기 전용)', { workspace: w.name, contract: formatContract(wc.version), supported: CONTRACT_STAMP })
+      } else if (!wc.readOnly) this.skippedNewer.delete(w.path)
+      wsState.push({ name: w.name, path: w.path, reachable, projects, watching: this.watchers.has(w.path), contract: formatContract(wc.version), compat: wc.compat, readOnly: wc.readOnly, ...(error ? { error } : {}) })
       sigParts.push(`${w.name}|${w.path}|${reachable}|${projects}`)
     }
     const sig = sigParts.join('\n')
@@ -132,7 +139,7 @@ export class Daemon {
     // 요청 감지 (모든 agent 대상 알림)
     let pending: PendingRequest[] = []
     let ok = true
-    try { pending = await pendingRequests(undefined, null) } catch (e) { ok = false; this.log.log('warn', '요청 스캔 실패', { err: String(e) }) }
+    try { pending = await pendingRequests(undefined, null, () => {}) } catch (e) { ok = false; this.log.log('warn', '요청 스캔 실패', { err: String(e) }) }
     const fresh: { req: PendingRequest; comments: number }[] = []
     for (const r of pending) {
       const key = r.ref + ':' + r.id

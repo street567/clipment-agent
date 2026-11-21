@@ -1,0 +1,3 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "progress/<requestId>/<id>.json", "type": "object", "required": ["id","requestId","state"],
+  "properties": { "schema": {"type":"integer"}, "id": {"type":"string"}, "requestId": {"type":"string"}, "state": {"type":"string","enum":["received","working","done","failed"]},
+    "message": {"type":"string"}, "agent": {"type":"string"}, "created": {"type":"string"} }, "additionalProperties": true }

@@ -1,0 +1,2 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "workspace.json", "type": "object", "required": ["name"],
+  "properties": { "schema": {"type":"integer"}, "contract": {"type":"string","pattern":"^[0-9]+(\\.[0-9]+){1,2}$","description":"major.minor of writer; missing = 1.0"}, "name": {"type":"string"}, "color": {"type":"string"}, "created": {"type":"string"} }, "additionalProperties": true }

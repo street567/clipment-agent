@@ -1,0 +1,6 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "comments/<id>.json", "type": "object", "required": ["id","version","t","text"],
+  "properties": { "schema": {"type":"integer"}, "id": {"type":"string"}, "version": {"type":"integer","minimum":0}, "t": {"type":"number","minimum":0},
+    "end": {"type":["number","null"]},
+    "tag": {"type":"string","description":"cut|subtitle|broll_swap|broll_remove|layout|audio|other (unknown -> other)"},
+    "text": {"type":"string"}, "author": {"type":"string"}, "authorName": {"type":"string"}, "regions": {"type":"array","maxItems":8,"items":{"type":"object","required":["x","y","w","h"],"properties":{"x":{"type":"number","minimum":0,"maximum":1},"y":{"type":"number","minimum":0,"maximum":1},"w":{"type":"number","minimum":0,"maximum":1},"h":{"type":"number","minimum":0,"maximum":1},"label":{"type":"string"}},"additionalProperties":true}}, "created": {"type":"string"} },
+  "additionalProperties": true }

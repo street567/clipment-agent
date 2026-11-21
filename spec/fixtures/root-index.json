@@ -1,0 +1,1 @@
+{ "schema": 1, "contract": "1.6", "updated": "2026-11-19T04:00:00.000Z", "workspaces": [ { "path": "영상/ClipReview", "name": "내 작업", "projects": 3 }, { "path": ".", "name": "루트 자체", "projects": 1 } ] }

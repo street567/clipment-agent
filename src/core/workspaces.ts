@@ -7,6 +7,7 @@ import {
 } from './paths.ts'
 import { readJson, writeJsonNew } from './fsutil.ts'
 import { listWorkspaceProjects } from './store.ts'
+import { CONTRACT_STAMP } from './contract.ts'
 
 export interface WorkspaceStatus extends Workspace { reachable: boolean; projects: number }
 
@@ -15,7 +16,7 @@ export async function ensureWorkspaceJson(path: string, name?: string): Promise<
   const file = join(path, 'workspace.json')
   if (await readJson(file)) return false
   await mkdir(path, { recursive: true })
-  await writeJsonNew(file, { schema: 1, name: name ?? (basename(path) || 'workspace'), created: new Date().toISOString() })
+  await writeJsonNew(file, { schema: 1, contract: CONTRACT_STAMP, name: name ?? (basename(path) || 'workspace'), created: new Date().toISOString() })
   return true
 }
 
@@ -109,7 +110,7 @@ export function resolveCloudWorkspace(provider: CloudProvider, o: { account?: st
 // ---------- 루트 인덱스 (SPEC §9) ----------
 
 export interface IndexWorkspace { path: string; name: string; projects: number }
-export interface RootIndex { schema: 1; updated: string; workspaces: IndexWorkspace[] }
+export interface RootIndex { schema: 1; contract?: string; updated: string; workspaces: IndexWorkspace[] }
 
 export const DEFAULT_INDEX_DEPTH = 4
 const SKIP_DIRS = new Set(['node_modules'])
@@ -179,7 +180,7 @@ export async function indexRoot(root: string, opts: ScanOptions & { register?: b
   const abs = resolve(expandHome(root))
   if (!existsSync(abs)) throw new ValidationError(`루트 폴더가 없습니다: ${abs}`)
   const { workspaces: ws, created } = await scanRoot(abs, opts)
-  const index: RootIndex = { schema: 1, updated: new Date().toISOString(), workspaces: ws }
+  const index: RootIndex = { schema: 1, contract: CONTRACT_STAMP, updated: new Date().toISOString(), workspaces: ws }
   const file = await writeRootIndex(abs, index)
   const registered = opts.register === false ? false : addConfigRoot(abs)
   return { root: abs, file, index, created, registered }

@@ -1,0 +1,15 @@
+{
+  "version": "1.6.0",
+  "minReaderMajor": 1,
+  "files": {
+    "project": "schemas/project.schema.json",
+    "meta": "schemas/meta.schema.json",
+    "comment": "schemas/comment.schema.json",
+    "reply": "schemas/reply.schema.json",
+    "request": "schemas/request.schema.json",
+    "progress": "schemas/progress.schema.json",
+    "lock": "schemas/lock.schema.json",
+    "workspace": "schemas/workspace.schema.json",
+    "rootIndex": "schemas/root-index.schema.json"
+  }
+}

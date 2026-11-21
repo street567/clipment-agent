@@ -1,6 +1,6 @@
 # Clipment agent — 맥 쪽 (clipment CLI + MCP 서버 + Claude Code 플러그인)
 
-아이폰 앱 Clipment(`com.street567.clipment`)와는 클라우드 폴더(iCloud/Google Drive 등)의 파일로만 대화합니다. 계약: [docs/SPEC.md](docs/SPEC.md).
+아이폰 앱 Clipment(`com.street567.clipment`)와는 클라우드 폴더(iCloud/Google Drive 등)의 파일로만 대화합니다. 계약: [spec/SPEC.md](spec/SPEC.md) (앱 레포 `spec/` 사본).
 맥에서 켜 둔 Claude Code / Codex 세션이 폰에서 남긴 시점 코멘트를 받아 반영하고, 답글·진행·새 버전을 남깁니다.
 
 ## 설치
@@ -149,3 +149,12 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
 - 완료 잠금(SPEC §8): 잠긴 프로젝트의 요청은 `wait_for_requests`·채널·`requests`·`watch` 에서 제외되고, `publish`·`reply` 는 거부됩니다(`--force` / MCP `force: true` 로만 허용, 경고 출력). 사람이 명시적으로 요청한 경우가 아니면 force 를 쓰지 마세요. `cliprev lock|unlock <project> [--note N]` 은 `locks/<id>.json` 이벤트를 씁니다(author = `--author` 또는 `CLIPREV_AGENT`).
 - 환경변수: `CLIPREV_ALLOW_AUTHORS="개미,사용자"` (선택, 기본 꺼짐) — 설정하면 `authorName` 이 목록에 없는 요청은 무시. `CLIPREV_AGENT_NAME` (선택) — 맥이 쓰는 답글의 `authorName`.
 - 코멘트/답글/요청의 `authorName`, 구간 코멘트의 `end` 는 CLI·MCP 출력에 그대로 담기고, CLI 텍스트 출력은 `12.5–15.0s` 와 표시 이름을 보여 줍니다.
+
+## 계약 버전
+
+- 폰↔맥 폴더 계약은 앱 레포 `spec/` 가 원본이고 이 레포 `spec/` 는 사본입니다 (출처 커밋: `spec/SYNCED_FROM.txt`). 갱신: `scripts/sync-spec.sh [<앱 레포 경로>|--github]` (기본: `CLIPMENT_APP_REPO` 또는 `../clip-review`; `--github` 는 `street567/clipment` 레포가 생기면 동작).
+- 이 CLI 가 지원하는 계약은 `src/core/contract.ts` 의 `SUPPORTED` (현재 1.6). `spec/contract.json` 과 다르면 테스트가 실패합니다.
+- 새로 만드는 `workspace.json` 과 `.clipment/index.json` 에 `"contract":"1.6"` 을 찍습니다 (기존 `workspace.json` 은 고치지 않음). `contract` 가 없거나 해석 못 하면 1.0 으로 봅니다.
+- 워크스페이스 계약 MAJOR 가 더 크면 읽기 전용: `wait_for_requests`/`requests`/`watch`/데몬은 건너뛰고 경고하며, `init`·`lock`·`reply`·`progress`·`publish` 는 거부합니다 (`--force` 로도 불가). "이 워크스페이스는 더 새 계약(x.y)이에요 · clipment update 필요". MAJOR 가 같고 MINOR 만 높으면 모르는 필드를 무시하고 정상 동작합니다.
+- `daemon_status` 는 워크스페이스별 `contract`/`compat`/`readOnly` 를 보여 줍니다.
+- TODO: 앱 레포가 GitHub 에 올라가면 CI 에서 `spec/` 가 앱 레포 `spec/` 와 동일한지 교차 검증 (지금은 앱 레포가 GitHub 에 없어 불가).

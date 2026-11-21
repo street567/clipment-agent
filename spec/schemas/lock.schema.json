@@ -1,0 +1,3 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "locks/<id>.json", "type": "object", "required": ["id","state"],
+  "properties": { "schema": {"type":"integer"}, "id": {"type":"string"}, "state": {"type":"string","enum":["locked","unlocked"]}, "author": {"type":"string"},
+    "authorName": {"type":"string"}, "note": {"type":"string"}, "created": {"type":"string"} }, "additionalProperties": true }

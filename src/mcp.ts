@@ -7,7 +7,7 @@ import { statePath } from './daemon/util.ts'
 import { pidAlive } from './daemon/lock.ts'
 import {
   addProgress, addReply, agentName, COMMENT_STATUSES, extractFrame, getThread, listReplies, currentRegionViews, regionLegend, listComments, listProjects,
-  listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getComment, sleep, waitForRequests,
+  CONTRACT_STAMP, listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getComment, sleep, waitForRequests,
   indexRoot, DEFAULT_INDEX_DEPTH, type PendingRequest,
 } from './core/index.ts'
 
@@ -119,7 +119,7 @@ mcp.registerTool('daemon_status', {
   let st: any
   try { st = JSON.parse(readFileSync(statePath(), 'utf8')) } catch { return ok({ running: false, message: '데몬 상태 파일이 없습니다 (clipment daemon install / run)' }) }
   const running = Number.isInteger(st?.pid) && pidAlive(st.pid)
-  return ok({ running, ...st })
+  return ok({ running, supportedContract: CONTRACT_STAMP, ...st })
 }))
 
 mcp.registerTool('wait_for_requests', {

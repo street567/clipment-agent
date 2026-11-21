@@ -7,7 +7,7 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import {
-  addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
+  readWorkspaceContract, newerContractMessage, addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, sleep, ValidationError,
@@ -180,7 +180,13 @@ async function main() {
     }
     case 'requests': {
       const project = need(p[0], 'project')
-      const allow = allowedAuthors(resolveProject(project).workspace)
+      const rw = resolveProject(project).workspace
+      const wc = await readWorkspaceContract(rw.path)
+      if (wc.readOnly) {
+        console.error(newerContractMessage(wc.version))
+        return o.json ? json([]) : undefined
+      }
+      const allow = allowedAuthors(rw)
       const locked = !!(await currentLock(project))
       const rs = locked ? [] : (await listRequests(project, { pendingOnly: o.pending })).filter(r => isAuthorAllowed(r, allow))
       if (locked && !o.json) console.error(`잠긴(완료) 프로젝트라 요청을 가져오지 않습니다: ${project}`)
@@ -313,6 +319,7 @@ async function update() {
 
 async function watch(project: string | undefined, includeExisting: boolean) {
   const seen = new Set<string>()
+  const warnedWs = new Set<string>()
   let first = true
   const emit = (o: unknown, key: string) => {
     if (seen.has(key)) return
@@ -330,7 +337,13 @@ async function watch(project: string | undefined, includeExisting: boolean) {
           if (r.author === 'user') emit({ kind: 'user_reply', workspace, project: ref, ...r }, 'r:' + ref + r.id)
       }
       if (await currentLock(ref)) continue
-      const allow = allowedAuthors(workspaces().find(w => w.name === workspace))
+      const wsObj = workspaces().find(w => w.name === workspace)
+      const wc = wsObj ? await readWorkspaceContract(wsObj.path) : null
+      if (wc?.readOnly) {
+        if (!warnedWs.has(workspace)) { warnedWs.add(workspace); console.error(`[${workspace}] ${newerContractMessage(wc.version)}`) }
+        continue
+      }
+      const allow = allowedAuthors(wsObj)
       for (const r of await listRequests(ref)) if (isAuthorAllowed(r, allow)) emit({ kind: 'request', workspace, project: ref, ...r }, 'q:' + ref + r.id)
     }
     first = false

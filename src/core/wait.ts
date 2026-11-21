@@ -1,5 +1,6 @@
 import { currentLock, listRequests, listWorkspaceProjects } from './store.ts'
 import { resolveProject, workspaces, type Workspace } from './paths.ts'
+import { newerContractMessage, readWorkspaceContract } from './contract.ts'
 import type { RequestWithState } from './types.ts'
 
 export type PendingRequest = RequestWithState & { project: string; workspace: string; ref: string }
@@ -29,7 +30,18 @@ export function isAuthorAllowed(r: { authorName?: string }, allow: string[] | nu
  * 잠긴 프로젝트는 제외. (type 화이트리스트는 listRequests 에서 이미 적용됨)
  * `project` = 유일하면 slug, 모호하면 "워크스페이스/slug" (그대로 다른 도구에 넘겨도 되는 값), `ref` 는 항상 한정 이름.
  */
-export async function pendingRequests(project?: string, agent: string | null = agentName()): Promise<PendingRequest[]> {
+const warned = new Set<string>()
+/** 더 새 계약 워크스페이스 경고: 프로세스당 워크스페이스별 한 번만 stderr 로 */
+function defaultSkipWarn(ws: Workspace, msg: string) {
+  if (warned.has(ws.path)) return
+  warned.add(ws.path)
+  process.stderr.write(`clipment: [${ws.name}] ${msg}\n`)
+}
+
+export async function pendingRequests(
+  project?: string, agent: string | null = agentName(),
+  onSkip: (ws: Workspace, msg: string) => void = defaultSkipWarn,
+): Promise<PendingRequest[]> {
   const targets: { ws: Workspace; slug: string }[] = []
   if (project) {
     const r = resolveProject(project)
@@ -43,6 +55,8 @@ export async function pendingRequests(project?: string, agent: string | null = a
   const out: PendingRequest[] = []
   for (const { ws, slug } of targets) {
     const ref = `${ws.name}/${slug}`
+    const wc = await readWorkspaceContract(ws.path)
+    if (wc.readOnly) { onSkip(ws, newerContractMessage(wc.version)); continue }
     if (await currentLock(ref)) continue
     const allow = allowedAuthors(ws)
     for (const r of await listRequests(ref, { pendingOnly: true })) {

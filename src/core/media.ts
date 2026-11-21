@@ -3,9 +3,10 @@ import { copyFile, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promise
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { versionDir, versionLabel, projectDir, safeJoin, ValidationError } from './paths.ts'
+import { versionDir, versionLabel, projectDir, safeJoin, resolveProject, ValidationError } from './paths.ts'
 import { isPlaceholder, materialize } from './fsutil.ts'
 import { assertUnlocked, getVersion, nextVersionNumber, previewPath, requireProject } from './store.ts'
+import { assertWorkspaceWritable } from './contract.ts'
 import { buildDrawboxFilter } from './regions.ts'
 import type { Region, VersionMeta } from './types.ts'
 
@@ -93,6 +94,7 @@ export interface PublishOptions { note?: string; lite?: boolean; force?: boolean
 
 export async function publishVersion(slug: string, video: string, opts: PublishOptions = {}): Promise<VersionMeta> {
   await requireProject(slug)
+  await assertWorkspaceWritable(resolveProject(slug).workspace.path)
   if (!opts.force) await assertUnlocked(slug)
   if (!existsSync(video)) throw new ValidationError(`영상 파일 없음: ${video}`)
   if (isPlaceholder(video)) throw new ValidationError(`영상이 아직 iCloud에서 내려받아지지 않았습니다: ${video}`)
