@@ -1,1 +1,1 @@
-{ "schema": 1, "version": 1, "label": "v001", "file": "preview.mp4", "duration": 801.34, "fps": 30, "width": 720, "height": 1280, "note": "첫 컷", "source": "DJI_0006_D.MP4", "created": "2026-11-19T01:00:00.000Z" }
+{ "schema": 1, "version": 1, "label": "v001", "file": "preview.mp4", "duration": 801.34, "fps": 30, "width": 720, "height": 1280, "note": "첫 컷", "source": "DJI_0006_D.MP4", "created": "2026-11-19T01:00:00.000Z", "original": { "file": "original.mov", "bytes": 1234567890, "width": 3840, "height": 2160, "fps": 59.94, "duration": 801.34 } }

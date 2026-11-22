@@ -1,4 +1,6 @@
 { "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "versions/vNNN/meta.json", "type": "object", "required": ["version"],
   "properties": { "schema": {"type":"integer"}, "version": {"type":"integer","minimum":1}, "label": {"type":"string"}, "file": {"type":"string"},
     "duration": {"type":"number"}, "fps": {"type":"number"}, "width": {"type":"integer"}, "height": {"type":"integer"},
-    "note": {"type":"string"}, "source": {"type":"string"}, "created": {"type":"string"} }, "additionalProperties": true }
+    "note": {"type":"string"}, "source": {"type":"string"}, "created": {"type":"string"},
+    "original": { "type": "object", "required": ["file", "bytes"],
+      "properties": { "file": {"type":"string"}, "bytes": {"type":"integer","minimum":0}, "width": {"type":"integer"}, "height": {"type":"integer"}, "fps": {"type":"number"}, "duration": {"type":"number"} }, "additionalProperties": true } }, "additionalProperties": true }

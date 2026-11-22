@@ -10,7 +10,7 @@ import {
   readWorkspaceContract, newerContractMessage, addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
-  publishVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
+  publishVersion, getUploadInfo, setUploadVersion, clearUploadVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
 
@@ -31,7 +31,10 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   prefs set <project|워크스페이스> --file F [--force]   지침 전체 교체 (F 가 - 면 표준 입력)
   lock <project> [--note N]                   완료 잠금 (요청 제외, publish/reply 거부)
   unlock <project>
-  publish <project> <video> [--note N] [--lite] [--force]
+  publish <project> <video> [--note N] [--lite] [--no-original] [--upload] [--force]
+                                              기본: 소스 원본(original.<ext>)을 미리보기 옆에 복사 (--no-original 로 생략),
+                                              --upload: 이 새 버전을 업로드용으로 지정
+  upload-version <project> [N|--clear] [--json]   업로드용 버전 보기·지정·해제 (SPEC §12; 지정이 없으면 원본 있는 최신 → 최신)
   versions <project> [--json]
   comments <project> [--version N] [--status open|doing|done|question|wontfix] [--json]
   thread <project> <commentId> [--json]
@@ -78,7 +81,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -158,14 +161,38 @@ async function main() {
     case 'publish': {
       const project = need(p[0], 'project')
       const warn = o.force ? await forceWarning(project) : null
-      const meta = await publishVersion(project, need(p[1], 'video'), { note: o.note, lite: o.lite, force: o.force })
+      const meta = await publishVersion(project, need(p[1], 'video'), { note: o.note, lite: o.lite, force: o.force, noOriginal: o['no-original'], upload: o.upload })
       if (warn) console.error(warn)
       return json(meta)
+    }
+    case 'upload-version': {
+      const project = need(p[0], 'project')
+      if (o.clear && p[1] !== undefined) throw new ValidationError('N 과 --clear 는 함께 쓸 수 없습니다')
+      const warn = o.force ? await forceWarning(project) : null
+      if (o.clear) {
+        const had = await clearUploadVersion(project, { force: o.force })
+        if (warn) console.error(warn)
+        console.log(had ? '업로드용 지정을 해제했습니다 (기본 규칙: 원본 있는 최신 → 최신)' : '지정이 없습니다')
+      } else if (p[1] !== undefined) {
+        const n = intOpt(p[1], 'N')!
+        const d = await setUploadVersion(project, n, { author: o.author ?? agentName(), authorName: o['author-name'] ?? process.env.CLIPREV_AGENT_NAME, force: o.force })
+        if (warn) console.error(warn)
+        if (o.json) return json(d)
+        console.log(`업로드용 = v${String(n).padStart(3, '0')}`)
+      }
+      const info = await getUploadInfo(project)
+      if (o.json) return json(info)
+      if (!info) return void console.log('버전이 없습니다')
+      const m = info.meta
+      const spec = info.hasOriginal ? `원본 ${m.original!.width ?? '?'}x${m.original!.height ?? '?'} ${(m.original!.bytes / 1e6).toFixed(1)}MB` : '미리보기 화질 (원본 없음)'
+      console.log(`업로드용: ${m.label}  ${spec}  [${info.designated ? `지정: ${info.designation!.authorName ?? info.designation!.author}/${info.designation!.via}` : '기본 규칙'}]`)
+      if (info.newer) console.log(`  ※ v${String(info.newer).padStart(3, '0')} 이(가) 더 최신입니다. 최종본이면: clipment upload-version ${project} ${info.newer}`)
+      return
     }
     case 'versions': {
       const vs = await listVersions(need(p[0], 'project'))
       if (o.json) return json(vs)
-      for (const v of vs) console.log(`${v.label}  ${v.width}x${v.height} ${v.fps}fps ${v.duration}s  ${v.note}`)
+      for (const v of vs) console.log(`${v.label}  ${v.width}x${v.height} ${v.fps}fps ${v.duration}s  ${v.original ? `[원본 ${(v.original.bytes / 1e6).toFixed(1)}MB] ` : ''}${v.note}`)
       return
     }
     case 'comments': {

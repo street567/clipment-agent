@@ -21,6 +21,15 @@ export interface VersionMeta {
   schema: number; version: number; label: string; file: string
   duration: number; fps: number; width: number; height: number
   note: string; source: string; created: string
+  /** 업로드용 원본 (SPEC §12). 없으면 미리보기만 있는 버전 */
+  original?: VersionOriginal
+}
+
+export interface VersionOriginal { file: string; bytes: number; width?: number; height?: number; fps?: number; duration?: number }
+
+/** `<프로젝트>/.clipment/upload.json` 업로드용 버전 지정 (SPEC §12, 고쳐 쓰는 파일) */
+export interface UploadDesignation {
+  schema: number; version: number; author: string; authorName?: string; via: 'app' | 'mac'; updated: string
 }
 
 /** 화면 영역: 영상 프레임 기준 0~1 정규화 사각형 (SPEC §6) */

@@ -7,7 +7,7 @@ import { statePath } from './daemon/util.ts'
 import { pidAlive } from './daemon/lock.ts'
 import {
   addProgress, addReply, agentName, COMMENT_STATUSES, extractFrame, getThread, listReplies, currentRegionViews, regionLegend, listComments, listProjects,
-  CONTRACT_STAMP, listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getComment, sleep, waitForRequests,
+  CONTRACT_STAMP, listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getUploadInfo, setUploadVersion, clearUploadVersion, getComment, sleep, waitForRequests,
   indexRoot, DEFAULT_INDEX_DEPTH, readPreferences, setPreferences, type PendingRequest,
 } from './core/index.ts'
 
@@ -106,12 +106,30 @@ mcp.registerTool('report_progress', {
   ok(await addProgress(project, requestId, state, message ?? '', agentName()))))
 
 mcp.registerTool('publish_version', {
-  description: '렌더된 영상을 미리보기본으로 인코딩해 새 버전(vNNN)으로 게시. video_path 는 맥의 로컬 파일 경로.',
-  inputSchema: { project, video_path: z.string(), note: z.string().optional(), lite: z.boolean().optional().describe('true 면 가벼운 미리보기(긴 변 960, CRF 30, 30fps 상한, AAC 96k) — 모바일 데이터 절약'), force },
-}, safe(async ({ project, video_path, note, lite, force }) => {
+  description: '렌더된 영상을 미리보기본으로 인코딩해 새 버전(vNNN)으로 게시. video_path 는 맥의 로컬 파일 경로. 기본으로 소스 원본(original.<ext>)도 함께 복사해 폰에서 고화질로 저장할 수 있게 한다.',
+  inputSchema: {
+    project, video_path: z.string(), note: z.string().optional(),
+    lite: z.boolean().optional().describe('true 면 가벼운 미리보기(긴 변 960, CRF 30, 30fps 상한, AAC 96k) — 모바일 데이터 절약'),
+    no_original: z.boolean().optional().describe('true 면 원본을 복사하지 않는다 (아주 큰 파일용). 기본 false'),
+    upload: z.boolean().optional().describe('true 면 이 새 버전을 업로드용으로 지정. 사용자가 이 영상이 최종/업로드용이라고 했을 때만'),
+    force,
+  },
+}, safe(async ({ project, video_path, note, lite, no_original, upload, force }) => {
   const warning = force ? await forceWarning(project) : null
-  const m = await publishVersion(project, video_path, { note, lite, force })
+  const m = await publishVersion(project, video_path, { note, lite, force, noOriginal: no_original, upload })
   return ok(warning ? { ...m, warning } : m)
+}))
+
+mcp.registerTool('upload_version', {
+  description: '업로드용 버전(SPEC §12) 조회·지정·해제. version 을 주면 그 버전을 업로드용으로 지정, clear=true 면 지정 해제(기본 규칙: 원본 있는 최신 → 최신), 둘 다 없으면 현재 상태(newer = 더 최신 버전 번호)만 반환. 사용자가 "이 버전이 최종/업로드용"이라고 말했을 때만 지정한다. 잠긴 프로젝트는 force 없이 거부.',
+  inputSchema: { project, version: z.number().int().min(1).optional(), clear: z.boolean().optional(), force },
+}, safe(async ({ project, version, clear, force }) => {
+  if (clear && version !== undefined) throw new Error('version 과 clear 는 함께 쓸 수 없습니다')
+  const warning = force && (clear || version !== undefined) ? await forceWarning(project) : null
+  if (clear) await clearUploadVersion(project, { force })
+  else if (version !== undefined) await setUploadVersion(project, version, { author: agentName(), authorName: process.env.CLIPREV_AGENT_NAME, force })
+  const info = await getUploadInfo(project)
+  return ok(warning ? { ...info, warning } : info)
 }))
 
 mcp.registerTool('daemon_status', {

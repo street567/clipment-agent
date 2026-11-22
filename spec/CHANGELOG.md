@@ -3,6 +3,10 @@
 버전 규칙 (SPEC §10): **MAJOR** 깨지는 변경(옛 리더가 안전하게 읽거나 쓸 수 없음) · **MINOR** 추가만(모르는 필드는 무시) · **PATCH** 문구·예시 정리.
 1.0.0~1.5.0 은 git 이력(`docs/SPEC-mvp.md`)에서 복원했다.
 
+## 1.8.0 — 업로드용 영상
+- §12 `versions/vNNN/original.<ext>` (선택 원본) + `meta.json` `original{file,bytes,width,height,fps?,duration?}`. 클라이언트는 원본을 자동으로 내려받지 않는다.
+- §12 `<프로젝트>/.clipment/upload.json` (선택, 고쳐 쓰는 파일) 업로드용 버전 지정 + 기본 규칙(원본 있는 최신 → 최신). 스키마 `upload.schema.json`.
+
 ## 1.7.0 — 작업 지침 · 요청 agent 비움
 - §11 `.clipment/preferences.md` (워크스페이스·프로젝트, 선택, 고쳐 쓰는 Markdown). 우선순위: 요청 message > 프로젝트 > 워크스페이스.
 - 요청 `agent`: 앱은 빈 값을 쓴다(연결된 어떤 AI든 처리). 실제 처리 AI는 progress `agent`.

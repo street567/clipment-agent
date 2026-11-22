@@ -12,7 +12,7 @@ import { listJsonStems, listSubdirs, readJson, writeJsonNew } from './fsutil.ts'
 import {
   COMMENT_STATUSES, PROGRESS_STATES, REQUEST_TYPES, TAGS,
   type Comment, type CommentStatus, type CommentWithStatus, type ProgressEvent, type ProgressState,
-  type LockEvent, type Project, type ProjectListing, type Reply, type Request, type RequestType, type RequestWithState, type VersionMeta,
+  type LockEvent, type Project, type ProjectListing, type Reply, type Request, type RequestType, type RequestWithState, type VersionMeta, type VersionOriginal,
 } from './types.ts'
 
 const nowIso = () => new Date().toISOString()
@@ -94,7 +94,18 @@ export function normalizeMeta(version: number, j: any): VersionMeta {
     schema: num(j.schema, 1), version, label: versionLabel(version), file: 'preview.mp4',
     duration: num(j.duration), fps: num(j.fps), width: num(j.width), height: num(j.height),
     note: str(j.note), source: str(j.source), created: str(j.created),
+    ...(normalizeOriginal(j.original) ? { original: normalizeOriginal(j.original)! } : {}),
   }
+}
+
+/** meta.original: file·bytes 가 올바르지 않거나 버전 폴더 밖을 가리키면 원본 없음으로 본다 (SPEC §12) */
+function normalizeOriginal(o: any): VersionOriginal | undefined {
+  if (!o || typeof o !== 'object') return undefined
+  const file = str(o.file)
+  if (!file || file.includes('/') || file === '..' || file === '.' || typeof o.bytes !== 'number' || !Number.isFinite(o.bytes)) return undefined
+  const r: VersionOriginal = { file, bytes: o.bytes }
+  for (const k of ['width', 'height', 'fps', 'duration'] as const) if (typeof o[k] === 'number' && Number.isFinite(o[k])) r[k] = o[k]
+  return r
 }
 
 export async function listVersions(slug: string): Promise<VersionMeta[]> {

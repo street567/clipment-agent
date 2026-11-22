@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   addReply, extractFrame, getVersion, initProject, listVersions, previewPath, probe, publishVersion, buildEncodeArgs, PRESETS, setDownloader, targetSize,
+  originalFileName, getUploadInfo, setUploadVersion, clearUploadVersion, resolveUploadVersion, setLock,
 } from '../src/core/index.ts'
 import { appWrite, iso, tempRoot, uid } from './helpers.ts'
 
@@ -72,7 +73,7 @@ describe('publish', () => {
     expect(m2.version).toBe(2)
     const vdir = join(process.env.CLIPREV_ROOT!, 'demo', 'versions')
     expect(readdirSync(vdir).sort()).toEqual(['v001', 'v002'])
-    expect(readdirSync(join(vdir, 'v001')).sort()).toEqual(['meta.json', 'preview.mp4'])
+    expect(readdirSync(join(vdir, 'v001')).sort()).toEqual(['meta.json', 'original.mp4', 'preview.mp4'])
     expect((await listVersions('demo')).map(v => v.version)).toEqual([1, 2])
     const p = await probe(previewPath('demo', 1))
     expect(p.fps).toBeCloseTo(30, 0)
@@ -98,5 +99,83 @@ describe('publish', () => {
     await initProject('demo')
     await expect(publishVersion('demo', join(dir, 'none.mp4'))).rejects.toThrow()
     expect(existsSync(join(process.env.CLIPREV_ROOT!, 'demo', 'versions', 'v001'))).toBe(false)
+  })
+})
+
+describe('업로드용 영상 (SPEC §12)', () => {
+  test('publish 기본: original 복사 + meta.original, --no-original 은 생략', async () => {
+    const root = tempRoot(); setDownloader(null)
+    await initProject('up')
+    const a = await publishVersion('up', rotated)
+    expect(a.original).toMatchObject({ file: 'original.mp4', width: 1080, height: 1920 })
+    expect(a.original!.bytes).toBe(statSync(rotated).size)
+    expect(a.original!.duration).toBeGreaterThan(1.5)
+    const vdir = join(root, 'up', 'versions', 'v001')
+    expect(readdirSync(vdir).sort()).toEqual(['meta.json', 'original.mp4', 'preview.mp4'])
+    expect(readFileSync(join(vdir, 'original.mp4')).equals(readFileSync(rotated))).toBe(true)   // 변환 없는 복사
+    expect(JSON.parse(readFileSync(join(vdir, 'meta.json'), 'utf8')).original.file).toBe('original.mp4')
+    expect((await getVersion('up', 1))!.original!.bytes).toBe(a.original!.bytes)
+
+    const b = await publishVersion('up', landscape, { noOriginal: true })
+    expect(b.original).toBeUndefined()
+    expect(readdirSync(join(root, 'up', 'versions', 'v002')).sort()).toEqual(['meta.json', 'preview.mp4'])
+    expect(readdirSync(join(root, 'up', 'versions')).every(n => !n.startsWith('.'))).toBe(true)   // staging 정리
+  })
+
+  test('확장자는 소문자 유지(.mov), 이상하면 mp4', () => {
+    expect(originalFileName('/x/CLIP.MOV')).toBe('original.mov')
+    expect(originalFileName('/x/clip')).toBe('original.mp4')
+    expect(originalFileName('/x/a.weird-ext!')).toBe('original.mp4')
+  })
+
+  test('업로드용 지정: 기본 규칙 → 지정 → 해제, publish --upload, 잠금 거부', async () => {
+    const root = tempRoot(); setDownloader(null)
+    await initProject('uv')
+    expect(await getUploadInfo('uv')).toBeNull()
+    await publishVersion('uv', landscape)                       // v1 원본
+    await publishVersion('uv', landscape, { noOriginal: true }) // v2 원본 없음
+    let i = (await getUploadInfo('uv'))!
+    expect([i.version, i.designated, i.hasOriginal, i.newer]).toEqual([1, false, true, 2])   // 원본 있는 최신, v2 가 더 최신
+    await setUploadVersion('uv', 2, { author: 'claude', authorName: '클로드' })
+    i = (await getUploadInfo('uv'))!
+    expect([i.version, i.designated, i.hasOriginal, i.newer]).toEqual([2, true, false, null])
+    const file = join(root, 'uv', '.clipment', 'upload.json')
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toMatchObject({ schema: 1, version: 2, author: 'claude', authorName: '클로드', via: 'mac' })
+    await expect(setUploadVersion('uv', 9, { author: 'claude' })).rejects.toThrow('찾을 수 없')
+    await publishVersion('uv', landscape, { upload: true })     // v3 게시와 함께 지정
+    expect((await getUploadInfo('uv'))!.version).toBe(3)
+    expect(readdirSync(join(root, 'uv', '.clipment')).filter(n => n.endsWith('.tmp'))).toEqual([])
+    // 앱이 고쳐 써도(via app) 읽힌다
+    writeFileSync(file, JSON.stringify({ schema: 1, version: 1, author: 'user', authorName: '개미', via: 'app', updated: iso() }))
+    const j = (await getUploadInfo('uv'))!
+    expect([j.version, j.designated, j.designation!.via]).toEqual([1, true, 'app'])
+    // 깨진 파일 → 기본 규칙
+    writeFileSync(file, 'nope')
+    expect((await getUploadInfo('uv'))!.designated).toBe(false)
+    expect(await clearUploadVersion('uv')).toBe(true)
+    expect(await clearUploadVersion('uv')).toBe(false)
+    // 잠금
+    await setLock('uv', 'locked', { author: 'user' })
+    await expect(setUploadVersion('uv', 1, { author: 'claude' })).rejects.toThrow('잠긴')
+    await expect(clearUploadVersion('uv')).rejects.toThrow('잠긴')
+    await setUploadVersion('uv', 1, { author: 'claude', force: true })
+  })
+
+  test('resolveUploadVersion 순수 규칙', () => {
+    const m = (version: number, original = false) => ({ version, original: original ? { file: 'original.mp4', bytes: 1 } : undefined }) as any
+    expect(resolveUploadVersion([], null)).toBeNull()
+    expect(resolveUploadVersion([m(1), m(2)], null)!.version).toBe(2)                 // 원본 없으면 최신
+    expect(resolveUploadVersion([m(1, true), m(2), m(3, true)], null)!.version).toBe(3)
+    expect(resolveUploadVersion([m(1, true), m(2)], { version: 2 } as any)!.designated).toBe(true)
+    expect(resolveUploadVersion([m(1, true), m(2)], { version: 7 } as any)!.version).toBe(1)   // 없는 버전 지정 무시
+  })
+
+  test('옛/잘못된 meta.original 은 원본 없음', async () => {
+    const root = tempRoot()
+    await initProject('old')
+    for (const [n, o] of [[1, undefined], [2, { file: '../x.mp4', bytes: 3 }], [3, { file: 'original.mp4' }], [4, { file: 'original.mov', bytes: 5, width: 3840 }]] as const)
+      appWrite(root, 'old', `versions/v00${n}/meta.json`, { schema: 1, version: n, file: 'preview.mp4', created: iso(), ...(o ? { original: o } : {}) })
+    const vs = await listVersions('old')
+    expect(vs.map(v => v.original)).toEqual([undefined, undefined, undefined, { file: 'original.mov', bytes: 5, width: 3840 }])
   })
 })

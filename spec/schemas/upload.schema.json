@@ -1,0 +1,2 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": ".clipment/upload.json", "type": "object", "required": ["version"],
+  "properties": { "schema": {"type":"integer"}, "version": {"type":"integer","minimum":1}, "author": {"type":"string"}, "authorName": {"type":"string"}, "via": {"type":"string","enum":["app","mac"]}, "updated": {"type":"string"} }, "additionalProperties": true }

@@ -1,12 +1,14 @@
 import { spawn } from 'node:child_process'
 import { copyFile, mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import { versionDir, versionLabel, projectDir, safeJoin, resolveProject, ValidationError } from './paths.ts'
 import { isPlaceholder, materialize } from './fsutil.ts'
 import { assertUnlocked, getVersion, nextVersionNumber, previewPath, requireProject } from './store.ts'
 import { assertWorkspaceWritable } from './contract.ts'
+import { writeUploadDesignation } from './upload.ts'
+import { agentName } from './wait.ts'
 import { buildDrawboxFilter } from './regions.ts'
 import type { Region, VersionMeta } from './types.ts'
 
@@ -90,7 +92,19 @@ async function encodePreview(src: string, out: string, p: ProbeResult, preset: P
   if (r.code !== 0) throw new Error(`ffmpeg 인코딩 실패: ${r.err}`)
 }
 
-export interface PublishOptions { note?: string; lite?: boolean; force?: boolean }
+export interface PublishOptions {
+  note?: string; lite?: boolean; force?: boolean
+  /** true 면 원본을 복사하지 않는다 (용량이 큰 소스용). 기본: 원본 포함 (SPEC §12) */
+  noOriginal?: boolean
+  /** true 면 이 새 버전을 업로드용으로 지정한다 */
+  upload?: boolean
+}
+
+/** 원본 파일 이름: original.<소스 확장자(소문자)>, 확장자가 없거나 이상하면 mp4 */
+export function originalFileName(video: string): string {
+  const ext = extname(video).slice(1).toLowerCase()
+  return `original.${/^[a-z0-9]{1,8}$/.test(ext) ? ext : 'mp4'}`
+}
 
 export async function publishVersion(slug: string, video: string, opts: PublishOptions = {}): Promise<VersionMeta> {
   await requireProject(slug)
@@ -112,15 +126,33 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
     await rm(stage, { recursive: true, force: true })
     await mkdir(stage, { recursive: true })
     await copyFile(tmpOut, join(stage, 'preview.mp4'))
+    let original: VersionMeta['original']
+    if (!opts.noOriginal) {
+      // 소스를 변환 없이 그대로 복사 (staging 안이라 폴더 rename 때 함께 나타난다)
+      const file = originalFileName(video)
+      await copyFile(video, join(stage, file))
+      const d = targetSize(src, Number.MAX_SAFE_INTEGER)   // 회전 적용 후 표시 크기
+      original = {
+        file, bytes: statSync(join(stage, file)).size, width: d.displayW, height: d.displayH,
+        fps: Math.round(src.fps * 100) / 100, duration: Math.round(src.duration * 100) / 100,
+      }
+    }
     const meta: VersionMeta = {
       schema: 1, version: n, label: versionLabel(n), file: 'preview.mp4',
       duration: Math.round(outProbe.duration * 100) / 100,
       fps: Math.round(Math.min(src.fps, PRESETS[opts.lite ? 'lite' : 'default'].maxFps) * 100) / 100,
       width: outProbe.width, height: outProbe.height,
       note: opts.note ?? '', source: basename(video), created: new Date().toISOString(),
+      ...(original ? { original } : {}),
     }
     await writeFile(join(stage, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
     await rename(stage, finalDir) // 폴더째 원자적 공개: 앱은 meta.json 이 있는 완성 폴더만 본다
+    if (opts.upload) {
+      await writeUploadDesignation(projectDir(slug), {
+        schema: 1, version: n, author: agentName(), via: 'mac', updated: new Date().toISOString(),
+        ...(process.env.CLIPREV_AGENT_NAME?.trim() ? { authorName: process.env.CLIPREV_AGENT_NAME.trim().slice(0, 64) } : {}),
+      })
+    }
     return meta
   } finally {
     await rm(work, { recursive: true, force: true })
