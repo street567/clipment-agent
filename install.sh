@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Clipment agent 설치 스크립트 (macOS). 여러 번 실행해도 안전합니다.
 #   ./install.sh [--yes] [--update] [--uninstall] [--help]
-#   기본은 GitHub 최신 릴리스 tarball(gh 로그인 필요, private 레포)을 설치하고, gh 가 없으면 git clone 으로 대체합니다.
+#   기본은 GitHub 최신 릴리스 tarball(gh 로그인 시)을 설치하고, gh 가 없으면 git clone 으로 대체합니다.
 #   --update: 질문 없이 코어(소스·의존성·링크)만 최신으로 갱신 (clipment update 가 사용)
 # 환경변수:
 #   CLIPMENT_REPO         저장소 (기본 street567/clipment-agent, URL/경로도 가능)
