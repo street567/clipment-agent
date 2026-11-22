@@ -84,7 +84,7 @@ claude plugin install clipment@clipment-agent
 
 화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
-MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `wait_for_requests`. 스킬: `apply-feedback`.
+MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
 
 ### 채널(폰 요청이 세션으로 푸시됨)
 `.mcp.json` 이 `CLIPREV_CHANNEL=1` 로 서버를 띄우면 `claude/channel` 기능을 선언하고, 새 요청(화이트리스트 type 만)이 생기면 `notifications/claude/channel` 로 알립니다.
@@ -146,6 +146,7 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
 - `agent` 가 비어 있지 않은 요청은 `CLIPREV_AGENT`(기본 claude)와 같을 때만 그 에이전트에게 전달됩니다.
 - 모든 파일은 불변 + 임시파일(`.name.tmp`) 후 rename. publish 는 `versions/.vNNN.tmp/` 에 만든 뒤 폴더째 rename 하므로 앱은 완성된 `vNNN/` 만 봅니다.
 - iCloud 자리표시자(`.name.icloud`)는 `brctl download` 요청 후 이번 회차에서 건너뜁니다.
+- 작업 지침(SPEC §11): 워크스페이스·프로젝트의 `.clipment/preferences.md`(사람이 쓰는 Markdown, 폰 앱에서도 편집). AI는 요청 처리 전에 읽고 따른다 — 우선순위 요청 message > 프로젝트 > 워크스페이스. `wait_for_requests` 결과에 `preferences` 로 포함, MCP `get_preferences`/`set_preferences`, CLI `clipment prefs <ref>` · `prefs init <워크스페이스>|--all`(초안: 작업 방식은 "정해지지 않음", 찾은 도구는 "사용 가능"으로만) · `prefs set <ref> --file F`.
 - 완료 잠금(SPEC §8): 잠긴 프로젝트의 요청은 `wait_for_requests`·채널·`requests`·`watch` 에서 제외되고, `publish`·`reply` 는 거부됩니다(`--force` / MCP `force: true` 로만 허용, 경고 출력). 사람이 명시적으로 요청한 경우가 아니면 force 를 쓰지 마세요. `cliprev lock|unlock <project> [--note N]` 은 `locks/<id>.json` 이벤트를 씁니다(author = `--author` 또는 `CLIPREV_AGENT`).
 - 환경변수: `CLIPREV_ALLOW_AUTHORS="개미,사용자"` (선택, 기본 꺼짐) — 설정하면 `authorName` 이 목록에 없는 요청은 무시. `CLIPREV_AGENT_NAME` (선택) — 맥이 쓰는 답글의 `authorName`.
 - 코멘트/답글/요청의 `authorName`, 구간 코멘트의 `end` 는 CLI·MCP 출력에 그대로 담기고, CLI 텍스트 출력은 `12.5–15.0s` 와 표시 이름을 보여 줍니다.

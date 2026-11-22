@@ -10,7 +10,7 @@ import {
   readWorkspaceContract, newerContractMessage, addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
-  publishVersion, sleep, ValidationError,
+  publishVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
 
@@ -26,6 +26,9 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
                                               --fix: workspace.json 없는 워크스페이스에 생성. 폴더를 옮기거나 지우지 않음
   init <project> [--title T]
   projects [--json]
+  prefs <project|워크스페이스> [--json]        작업 지침 보기 (프로젝트면 프로젝트+워크스페이스, SPEC §11)
+  prefs init <워크스페이스>|--all              워크스페이스 지침 초안 생성 (이미 있으면 그대로 둠)
+  prefs set <project|워크스페이스> --file F [--force]   지침 전체 교체 (F 가 - 면 표준 입력)
   lock <project> [--note N]                   완료 잠금 (요청 제외, publish/reply 거부)
   unlock <project>
   publish <project> <video> [--note N] [--lite] [--force]
@@ -75,7 +78,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -119,6 +122,25 @@ async function main() {
       const r = resolveProject(p[0]!)
       return o.json ? json({ ...proj, workspace: r.workspace.name, ref: `${r.workspace.name}/${proj.id}` })
         : console.log(`프로젝트 준비됨: ${r.workspace.name}/${proj.id} (${proj.title}) — ${r.workspace.path}`)
+    }
+    case 'prefs': {
+      if (p[0] === 'init') {
+        const names = o.all ? workspaces().map(w => w.name) : [need(p[1], '워크스페이스')]
+        for (const n of names) {
+          const r = await initWorkspacePrefs(n)
+          console.log(`${n}\t${r.created ? '초안 생성' : '이미 있음(그대로 둠)'}\t${r.file}`)
+        }
+        return
+      }
+      if (p[0] === 'set') {
+        const ref = need(p[1], 'project|워크스페이스')
+        const src = need(o.file, 'file')
+        const text = src === '-' ? await new Response(Bun.stdin.stream()).text() : readFileSync(src, 'utf8')
+        return void console.log(`저장: ${await setPreferences(ref, text, { force: o.force })}`)
+      }
+      const r = await readPreferences(need(p[0], 'project|워크스페이스'))
+      if (o.json) return json(r)
+      return void console.log(r.combined ?? `작업 지침 없음 (${r.projectFile ?? r.workspaceFile})`)
     }
     case 'projects': {
       const ps = await listProjects()

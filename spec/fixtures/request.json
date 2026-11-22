@@ -1,1 +1,1 @@
-{ "schema": 1, "id": "9b8a7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d", "type": "apply_feedback", "version": 1, "commentIds": null, "agent": "claude", "authorName": "개미", "message": "", "created": "2026-11-19T01:30:00.000Z" }
+{ "schema": 1, "id": "9b8a7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d", "type": "apply_feedback", "version": 1, "commentIds": null, "agent": "", "authorName": "개미", "message": "", "created": "2026-11-19T01:30:00.000Z" }

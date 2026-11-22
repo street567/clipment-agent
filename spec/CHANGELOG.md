@@ -3,6 +3,10 @@
 버전 규칙 (SPEC §10): **MAJOR** 깨지는 변경(옛 리더가 안전하게 읽거나 쓸 수 없음) · **MINOR** 추가만(모르는 필드는 무시) · **PATCH** 문구·예시 정리.
 1.0.0~1.5.0 은 git 이력(`docs/SPEC-mvp.md`)에서 복원했다.
 
+## 1.7.0 — 작업 지침 · 요청 agent 비움
+- §11 `.clipment/preferences.md` (워크스페이스·프로젝트, 선택, 고쳐 쓰는 Markdown). 우선순위: 요청 message > 프로젝트 > 워크스페이스.
+- 요청 `agent`: 앱은 빈 값을 쓴다(연결된 어떤 AI든 처리). 실제 처리 AI는 progress `agent`.
+
 ## 1.6.0 — 계약 버전 필드
 - `workspace.json`·`.clipment/index.json` 에 `contract: "<major>.<minor>"` 추가(선택, 없으면 "1.0").
 - SPEC §10 호환 규칙: 폴더 MAJOR 가 리더보다 크면 읽기 전용 + 업데이트 안내, 같은 MAJOR 의 높은 MINOR 는 정상 읽기.

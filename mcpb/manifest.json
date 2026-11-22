@@ -27,6 +27,8 @@
     { "name": "report_progress", "description": "진행 상황 보고" },
     { "name": "publish_version", "description": "새 버전 게시 (ffmpeg 필요)" },
     { "name": "wait_for_requests", "description": "대기 요청 조회" },
+    { "name": "get_preferences", "description": "작업 지침 읽기" },
+    { "name": "set_preferences", "description": "작업 지침 고치기" },
     { "name": "daemon_status", "description": "백그라운드 데몬 상태" }
   ],
   "compatibility": { "platforms": ["darwin"] }

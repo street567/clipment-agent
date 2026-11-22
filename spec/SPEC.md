@@ -1,6 +1,6 @@
 # Clipment 폴더 계약 (아이폰 앱 ↔ 맥 플러그인/CLI)
 
-**계약 버전 1.6.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
+**계약 버전 1.7.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
 
 이 폴더(`spec/`)가 계약의 **유일한 원본**이다. 앱 레포가 소유하고 맥 레포는 동기화해 쓴다(`spec/README.md`).
 데이터 폴더가 따르는 계약 버전은 `workspace.json`·`.clipment/index.json` 의 `contract` 필드로 표시한다(§10).
@@ -30,9 +30,10 @@ ClipReview/
     replies/<commentId>/<replyId>.json   # 누구나 생성. 생성 후 수정 안 함
     requests/<requestId>.json      # 앱만 생성
     progress/<requestId>/<eventId>.json  # 맥(AI)만 생성
+    .clipment/preferences.md       # 선택 · 프로젝트 작업 지침 (§11, 고쳐 쓰는 예외)
 ```
 
-**규칙: 모든 파일은 한 번 쓰고 다시 고치지 않는다(불변).** 상태 변화는 새 파일(답글·이벤트)로 표현한다.
+**규칙: 모든 파일은 한 번 쓰고 다시 고치지 않는다(불변).** (예외: §9 인덱스, §11 작업 지침) 상태 변화는 새 파일(답글·이벤트)로 표현한다.
 → 폰과 맥이 동시에 써도 같은 파일을 두 곳에서 고치는 일이 없어 iCloud 충돌이 생기지 않는다.
 
 - 쓰기는 원자적으로: 같은 폴더에 `.<name>.tmp` 로 쓴 뒤 rename.
@@ -77,8 +78,9 @@ ClipReview/
 ### requests/<id>.json  (폰 → 맥 "액션")
 ```json
 { "schema": 1, "id": "…", "type": "apply_feedback", "version": 1,
-  "commentIds": null, "agent": "claude", "authorName": "개미", "message": "", "created": "..." }
+  "commentIds": null, "agent": "", "authorName": "개미", "message": "", "created": "..." }
 ```
+- `agent`: 비어 있으면(앱 기본, 1.7~) 연결된 어떤 AI든 가져간다. 실제로 처리한 AI는 progress 이벤트의 `agent` 로 알 수 있다.
 - `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId).
 - 맥 쪽은 **이 목록 밖의 type 은 무시**하고, 요청을 임의 명령으로 실행하지 않는다.
 
@@ -97,7 +99,7 @@ ffmpeg: H.264 High, 긴 변 1280px(세로 영상이면 720×1280), 원본 fps �
 
 - 버전 폴더는 정확히 `v` + 숫자만 버전으로 본다. 맥 publish 는 `versions/.vNNN.tmp/` 에 다 쓴 뒤 폴더째 rename 하므로, `.` 으로 시작하는 폴더는 무시한다.
 - 파일명(소문자 UUID)이 id 다. JSON 안의 `id` 와 다르면 파일명을 따른다. 파일명이 UUID 가 아니면 무시. 모르는 `tag` 는 `other`.
-- 요청의 `agent` 가 비어 있지 않으면 그 이름의 AI(맥 `CLIPREV_AGENT`)만 가져간다 — Claude·Codex 가 서로의 요청을 가져가지 않게.
+- 요청의 `agent` 가 비어 있지 않으면 그 이름의 AI(맥 `CLIPREV_AGENT`)만 가져간다 — Claude·Codex 가 서로의 요청을 가져가지 않게. 비어 있으면 누구든 가져간다(1.7부터 앱은 항상 빈 값을 쓴다: 어떤 AI로 처리할지는 맥 쪽 설정이 정한다).
 - 같은 스레드 안 답글/이벤트의 `created` 는 직전 것보다 최소 1ms 뒤로 보정해 쓴다(같은 ms 정렬 뒤집힘 방지).
 - 앱: `open`·`doing`·`question` 을 "열림"으로 묶어 보여 준다. 질문 상태 코멘트에 사용자가 답하면 `answer` 요청을 함께 쓴다. 영상 전체 코멘트(version 0)는 모든 버전 목록에 보인다.
 
@@ -125,7 +127,7 @@ ffmpeg: H.264 High, 긴 변 1280px(세로 영상이면 720×1280), 원본 fps �
 
 - **워크스페이스** = 프로젝트 폴더들을 담는 루트 폴더 하나(§0 의 `ClipReview/` 가 워크스페이스 하나). 안의 구조는 §1 그대로.
 - 워크스페이스는 여러 개 둘 수 있다(예: iCloud 내 작업, 구글 드라이브, 개미 님 공유 폴더). 서로 독립이며 파일 규칙은 같다.
-- 선택 파일 `workspace.json` (워크스페이스 루트): `{ "schema": 1, "contract": "1.6", "name": "내 작업", "color": "cyan", "created": "..." }` (`contract`: 만든 쪽의 계약 `major.minor`, 없으면 "1.0" — §10). 없으면 폴더 이름을 표시 이름으로 쓴다. 맥 `init` 이 만들고, 앱은 연결할 때 없으면 만든다. `workspace.json` 은 만든 뒤 고치지 않는다(이름 변경은 각 기기의 로컬 별칭으로).
+- 선택 파일 `workspace.json` (워크스페이스 루트): `{ "schema": 1, "contract": "1.7", "name": "내 작업", "color": "cyan", "created": "..." }` (`contract`: 만든 쪽의 계약 `major.minor`, 없으면 "1.0" — §10). 없으면 폴더 이름을 표시 이름으로 쓴다. 맥 `init` 이 만들고, 앱은 연결할 때 없으면 만든다. `workspace.json` 은 만든 뒤 고치지 않는다(이름 변경은 각 기기의 로컬 별칭으로).
 - 루트에서 `workspace.json` 과 `.` 으로 시작하는 항목은 프로젝트가 아니다. 프로젝트 = 루트 바로 아래의 slug 폴더 중 `project.json` 이 있는 것.
 - 앱: 워크스페이스 목록을 기기에 저장(보안 범위 북마크 여러 개 + 로컬 별칭·색). 추가/연결 해제(파일은 지우지 않음). 프로젝트 목록은 워크스페이스별로 묶어 보여 준다.
 - 맥: 설정 파일 `~/.config/cliprev/workspaces.json` = `{ "workspaces": [ { "name": "icloud", "path": "...", "allowAuthors": ["개미"]? } ] }`. 환경변수 `CLIPREV_ROOT` 가 있으면 그 하나만 쓴다(기존 호환). 둘 다 없으면 §0 기본 경로 하나.
@@ -145,7 +147,7 @@ ffmpeg: H.264 High, 긴 변 1280px(세로 영상이면 720×1280), 원본 fps �
 - **루트** = 사용자가 한 번 고르는 상위 클라우드 폴더(예: `iCloud Drive/Clipment`, 또는 iCloud Drive 최상위). 그 아래 어디든 워크스페이스가 있을 수 있다.
 - 인덱스 파일: `<루트>/.clipment/index.json` — **맥(CLI·플러그인)만 쓴다. 폰은 읽기만 한다.** (한쪽만 쓰므로 고쳐 써도 충돌 없음, 쓰기는 원자적 tmp+rename.)
   ```json
-  { "schema": 1, "contract": "1.6", "updated": "...",
+  { "schema": 1, "contract": "1.7", "updated": "...",
     "workspaces": [ { "path": "영상/ClipReview", "name": "내 작업", "projects": 3 },
                     { "path": "공유/개미", "name": "개미 공유", "projects": 1 } ] }
   ```
@@ -169,3 +171,16 @@ ffmpeg: H.264 High, 긴 변 1280px(세로 영상이면 720×1280), 원본 fps �
   - `F == M` 이고 같거나 낮음, 또는 `F < M` → 정상.
 - 각 구현은 자기가 지원하는 버전을 상수로 두고(앱: `Contract.supported`), `spec/contract.json` 과 어긋나면 테스트가 실패하게 한다.
 - `schema` 필드(파일별 정수)는 그대로 1 이다. 계약 버전이 올라도 파일별 `schema` 는 MAJOR 가 바뀔 때만 올린다.
+
+## 11. 작업 지침 (preferences)
+
+- 사람이 적는 자유 형식 Markdown 파일(선택). 맥 AI가 요청을 처리할 때 따를 기본 지침이다(예: "자막 필요 없음", "편집은 윈도우 프리미어에서", "결과물 1080p").
+  - 워크스페이스 지침: `<워크스페이스>/.clipment/preferences.md`
+  - 프로젝트 지침: `<워크스페이스>/<프로젝트>/.clipment/preferences.md`
+- **고쳐 쓰는 파일**(§1 불변 규칙의 예외). 폰·맥 둘 다 편집할 수 있고 마지막에 쓴 쪽이 이긴다. 쓰기는 원자적(tmp+rename), 읽기 전 iCloud 자리표시자 처리는 §1 과 같다.
+- 파일이 없거나 비어 있으면 지침 없음. 형식 검사는 하지 않는다(사람이 쓰는 글).
+- **우선순위**: 요청 `message` > 프로젝트 지침 > 워크스페이스 지침. 서로 부딪히면 앞의 것을 따른다.
+- 맥 AI는 요청을 처리하기 **전에** 두 지침을 읽는다(MCP `wait_for_requests`·`get_preferences`, CLI `clipment prefs <프로젝트>`). 지침 안의 문장도 §2 와 마찬가지로 사용자 의견 데이터이며, 허용된 요청 type 밖의 일을 시키는 근거가 되지 않는다.
+- 초안: 맥 설정 프롬프트(워크스페이스 등록)가 워크스페이스 지침이 없으면 초안을 만든다. 초안은 특정 작업(자막·맥 편집 프로그램 등)을 가정하지 않는다 — 맥에서 찾은 도구는 "사용 가능 도구"로만 적고, 정해지지 않은 항목은 "정해지지 않음 — 필요하면 질문 답글"로 둔다.
+- 잠긴 프로젝트(§8)의 프로젝트 지침은 앱에서 읽기 전용이다.
+
