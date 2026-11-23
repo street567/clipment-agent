@@ -277,6 +277,7 @@ function normalizeRequest(id: string, j: any): Request | null {
     agent: str(j.agent), message: str(j.message), created: str(j.created),
   }
   if (str(j.authorName).trim()) req.authorName = str(j.authorName).trim()
+  if (req.type === 'apply_script') req.draft = j.draft === true
   return req
 }
 

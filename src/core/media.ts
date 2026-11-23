@@ -14,12 +14,12 @@ import { getEffectiveQuality } from './quality.ts'
 import { parseQuality, type Quality, type Region, type VersionMeta } from './types.ts'
 
 const BIN_DIRS = ['/opt/homebrew/bin', '/usr/local/bin']
-function bin(name: string): string {
+export function bin(name: string): string {
   for (const d of BIN_DIRS) if (existsSync(join(d, name))) return join(d, name)
   return name
 }
 
-function run(cmd: string, args: string[]): Promise<{ code: number; out: Buffer; err: string }> {
+export function run(cmd: string, args: string[]): Promise<{ code: number; out: Buffer; err: string }> {
   return new Promise((resolve, reject) => {
     const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] })
     const out: Buffer[] = []
@@ -166,6 +166,9 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
       note: opts.note ?? '', source: basename(video), created: new Date().toISOString(), quality,
       ...(original ? { original } : {}),
     }
+    // 대본 스냅샷 (SPEC §14): script/script.json 이 있으면 변환 없이 복사. 없으면 만들지 않는다
+    const scriptFile = join(projectDir(slug), 'script', 'script.json')
+    if (existsSync(scriptFile) && !isPlaceholder(scriptFile)) await copyFile(scriptFile, join(stage, 'script.json'))
     await writeFile(join(stage, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
     await rename(stage, finalDir) // 폴더째 원자적 공개: 앱은 meta.json 이 있는 완성 폴더만 본다
     if (opts.upload) {

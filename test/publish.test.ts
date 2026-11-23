@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -179,3 +179,28 @@ describe('업로드용 영상 (SPEC §12)', () => {
     expect(vs.map(v => v.original)).toEqual([undefined, undefined, undefined, { file: 'original.mov', bytes: 5, width: 3840 }])
   })
 })
+
+describe('대본 스냅샷 (SPEC §14)', () => {
+  test('script/script.json 이 있으면 versions/vNNN/script.json 으로 그대로 복사, 없으면 만들지 않음', async () => {
+    const root = tempRoot(); setDownloader(null)
+    await initProject('sc')
+    await publishVersion('sc', landscape, { noOriginal: true })
+    expect(readdirSync(join(root, 'sc', 'versions', 'v001')).sort()).toEqual(['meta.json', 'preview.mp4'])
+    const raw = JSON.stringify({ schema: 1, language: 'ko', future: { a: 1 }, lines: [{ id: uid(), start: 0, text: '안녕', x: 1 }] }, null, 1)
+    appWriteRaw(root, 'sc', 'script/script.json', raw)
+    await publishVersion('sc', landscape, { noOriginal: true })
+    const v2 = join(root, 'sc', 'versions', 'v002')
+    expect(readdirSync(v2).sort()).toEqual(['meta.json', 'preview.mp4', 'script.json'])
+    expect(readFileSync(join(v2, 'script.json'), 'utf8')).toBe(raw)   // 변환 없음
+    // 이후 대본이 바뀌어도 옛 스냅샷은 그대로
+    appWriteRaw(root, 'sc', 'script/script.json', '{"lines":[]}')
+    expect(readFileSync(join(v2, 'script.json'), 'utf8')).toBe(raw)
+    expect(readdirSync(join(root, 'sc', 'versions')).every(n => !n.startsWith('.'))).toBe(true)
+  })
+})
+
+function appWriteRaw(root: string, slug: string, rel: string, text: string) {
+  const p = join(root, slug, rel)
+  mkdirSync(join(p, '..'), { recursive: true })
+  writeFileSync(p, text)
+}

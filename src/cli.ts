@@ -11,6 +11,7 @@ import {
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, getEffectiveQuality, setProjectQuality, clearProjectQuality, getWorkspaceQualityInfo, setWorkspaceQuality, assertQuality, QUALITY_SOURCE_LABEL, QUALITIES, getUploadInfo, setUploadVersion, clearUploadVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
+  describeScript, generateVoices, buildNarration, createTtsEngine,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
 
@@ -38,6 +39,12 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   quality <project> [360p|540p|720p|1080p|--clear] [--json]   프로젝트 작업용 화질 보기·지정·해제 (SPEC §13; 값 없이 쓰면 적용 화질과 출처)
   quality --workspace <ws> [값|--clear] [--json]               워크스페이스 기본 작업용 화질 (workspace.json previewQuality)
   upload-version <project> [N|--clear] [--json]   업로드용 버전 보기·지정·해제 (SPEC §12; 지정이 없으면 원본 있는 최신 → 최신)
+  script <project> [--json]                   대본 보기 (SPEC §14: 줄·시각·음성 종류·AI 음성 상태 fresh/stale/missing)
+  voice <project> [--all] [--force] [--json]  AI 음성 만들기: 없거나 오래된 줄만(--all 은 전부), script.json 에 aiTextHash 기록.
+                                              엔진: CLIPMENT_TTS_ENGINE > daemon.json ttsEngine > say (en Samantha, ko Yuna). 잠긴 프로젝트는 --force 없이 거부
+  narration <project> --out <file.m4a> [--duration 초] [--json]
+                                              줄마다 선택한 음성(내 녹음 또는 최신 AI 음성)을 start 에 놓은 나레이션 트랙 m4a (읽기 전용·결정적).
+                                              --duration 생략 시 마지막 음성 끝 + 0.5초
   versions <project> [--json]
   comments <project> [--version N] [--status open|doing|done|question|wontfix] [--json]
   thread <project> <commentId> [--json]
@@ -49,7 +56,7 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   daemon run                   백그라운드 감시 데몬 (알림·인덱스 갱신·선택적 자동 처리). 중복 실행은 즉시 종료
   daemon install|uninstall|stop|restart|status [--json] [--kill-orphans]   launchd LaunchAgent 관리 (sudo 불필요)
   daemon logs [--lines N] [--follow]
-  daemon config [--auto-run off|claude|codex] [--job-timeout 분]   ~/.config/clipment/daemon.json
+  daemon config [--auto-run off|claude|codex] [--job-timeout 분] [--tts-engine say|openai|elevenlabs]   ~/.config/clipment/daemon.json
   health [--json]              데몬/채널 세션/미처리 요청/요청 없는 코멘트 점검 (확인 필요하면 종료 코드 1)
   update                       최신 릴리스로 업데이트하고 데몬을 재시작
   --version                    버전
@@ -85,7 +92,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, 'tts-engine': { type: 'string' }, duration: { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -220,6 +227,40 @@ async function main() {
       if (info.newer) console.log(`  ※ v${String(info.newer).padStart(3, '0')} 이(가) 더 최신입니다. 최종본이면: clipment upload-version ${project} ${info.newer}`)
       return
     }
+    case 'script': {
+      const v = await describeScript(need(p[0], 'project'))
+      if (o.json) return json(v)
+      if (!v.exists) return void console.log(`대본 없음: ${v.file}`)
+      console.log(`${v.project}  language=${v.language}  줄 ${v.lines.length}개${v.updated ? `  (${v.updated})` : ''}`)
+      for (const l of v.lines)
+        console.log(`${String(l.order).padStart(2)}. ${l.start.toFixed(1)}–${l.captionEnd.toFixed(1)}s [${l.voice}${l.voice === 'mine' && !l.mine ? '(녹음 없음)' : ''}] AI음성:${l.ai}${l.author ? ` ${l.author}` : ''}  ${l.text}  — ${l.id}`)
+      return
+    }
+    case 'voice': {
+      const project = need(p[0], 'project')
+      const { configuredTtsEngine } = await import('./daemon/config.ts')
+      const warn = o.force ? await forceWarning(project) : null
+      const r = await generateVoices(project, {
+        engine: createTtsEngine(configuredTtsEngine()), all: o.all, force: o.force,
+        onLine: o.json ? undefined : (l, i, n) => console.error(`[${i + 1}/${n}] ${l.text.slice(0, 40)}`),
+      })
+      if (warn) console.error(warn)
+      if (r.failed.length) process.exitCode = 1
+      if (o.json) return json(r)
+      console.log(`AI 음성 (${r.engine}, ${r.language}): 만듦 ${r.generated.length}, 실패 ${r.failed.length}, 건너뜀 ${r.skipped.length}${r.removed.length ? `, 정리 ${r.removed.length}` : ''}`)
+      for (const f of r.failed) console.log(`  실패 ${f.id}: ${f.error}`)
+      return
+    }
+    case 'narration': {
+      const project = need(p[0], 'project')
+      const dur = o.duration === undefined ? undefined : Number(o.duration)
+      if (dur !== undefined && !(Number.isFinite(dur) && dur > 0)) throw new ValidationError(`--duration 은 0 보다 큰 초: ${o.duration}`)
+      const r = await buildNarration(project, { out: need(o.out, 'out (--out file.m4a)'), duration: dur })
+      for (const w of r.warnings) console.error(`경고: ${w}`)
+      if (o.json) return json(r)
+      console.log(`${r.out}\n길이 ${r.duration.toFixed(2)}s, 배치 ${r.placed.length}줄 (내 녹음 ${r.placed.filter(x => x.source === 'mine').length}, AI ${r.placed.filter(x => x.source === 'ai').length}), 건너뜀 ${r.skipped.length}`)
+      return
+    }
     case 'versions': {
       const vs = await listVersions(need(p[0], 'project'))
       if (o.json) return json(vs)
@@ -271,7 +312,7 @@ async function main() {
       const rs = locked ? [] : (await listRequests(project, { pendingOnly: o.pending })).filter(r => isAuthorAllowed(r, allow))
       if (locked && !o.json) console.error(`잠긴(완료) 프로젝트라 요청을 가져오지 않습니다: ${project}`)
       if (o.json) return json(rs)
-      for (const r of rs) console.log(`[${r.state}] ${r.type} v${r.version} agent=${r.agent || '-'}${r.authorName ? ` from=${r.authorName}` : ''} ${r.message}  — ${r.id}`)
+      for (const r of rs) console.log(`[${r.state}] ${r.type}${r.type === 'apply_script' ? (r.draft ? '(draft)' : '') : ''} v${r.version} agent=${r.agent || '-'}${r.authorName ? ` from=${r.authorName}` : ''} ${r.message}  — ${r.id}`)
       return
     }
     case 'progress': {
@@ -380,6 +421,11 @@ async function daemonCmd(sub: string | undefined, o: Record<string, any>) {
       if (o['auto-run'] !== undefined) {
         if (!(AUTO_RUNS as readonly string[]).includes(o['auto-run'])) throw new ValidationError(`--auto-run 은 ${AUTO_RUNS.join('|')}`)
         saveDaemonConfig({ autoRun: o['auto-run'] })
+      }
+      if (o['tts-engine'] !== undefined) {
+        const { TTS_ENGINES } = await import('./core/index.ts')
+        if (!(TTS_ENGINES as readonly string[]).includes(o['tts-engine'])) throw new ValidationError(`--tts-engine 은 ${TTS_ENGINES.join('|')}`)
+        saveDaemonConfig({ ttsEngine: o['tts-engine'] })
       }
       const t = intOpt(o['job-timeout'], 'job-timeout')
       if (t !== undefined) saveDaemonConfig({ jobTimeoutMin: t })

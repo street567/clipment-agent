@@ -16,6 +16,7 @@ export function osascriptNotifier(run: Runner): Notifier {
 }
 
 export function notificationBody(r: PendingRequest, comments: number): string {
+  if (r.type === 'apply_script') return `새 요청 · ${r.project} v${r.version} · 대본 ${r.draft ? '초안' : '영상 반영'}`
   return `새 요청 · ${r.project} v${r.version} · ${comments}개 코멘트`
 }
 

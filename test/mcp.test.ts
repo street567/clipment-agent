@@ -31,7 +31,7 @@ describe('mcp server', () => {
     const c = await connect({ CLIPREV_ROOT: root, CLIPREV_AGENT: 'codex' })
     try {
       const tools = (await c.listTools()).tools.map(t => t.name).sort()
-      expect(tools).toEqual(['daemon_status', 'get_frame', 'get_preferences', 'get_thread', 'health', 'index_root', 'list_comments', 'list_projects', 'list_versions', 'list_workspaces', 'preview_quality', 'publish_version', 'reply', 'report_progress', 'set_preferences', 'upload_version', 'wait_for_requests'])
+      expect(tools).toEqual(['daemon_status', 'get_frame', 'get_preferences', 'get_thread', 'health', 'index_root', 'list_comments', 'list_projects', 'list_versions', 'list_workspaces', 'preview_quality', 'publish_version', 'reply', 'report_progress', 'script_get', 'script_set', 'set_preferences', 'upload_version', 'voice_generate', 'wait_for_requests'])
       expect(text(await c.callTool({ name: 'list_projects', arguments: {} }))[0].id).toBe('demo')
       const meta = text(await c.callTool({ name: 'publish_version', arguments: { project: 'demo', video_path: clip, note: 'n' } }))
       expect(meta.version).toBe(1)
@@ -62,6 +62,32 @@ describe('mcp server', () => {
       expect(open).toEqual([])
       const bad: any = await c.callTool({ name: 'get_thread', arguments: { project: 'demo', commentId: '../../x' } })
       expect(bad.isError).toBe(true)
+    } finally {
+      await c.close()
+    }
+  }, 30000)
+
+  test('대본 도구: script_get/script_set/voice_generate + apply_script 요청', async () => {
+    const root = tempRoot()
+    await initProject('demo')
+    const home = join(root, '..', `mcp-home-${uid()}`)
+    const c = await connect({ CLIPREV_ROOT: root, CLIPREV_AGENT: 'codex', CLIPMENT_TTS_ENGINE: 'openai', CLIPMENT_HOME: home, CLIPMENT_DAEMON_CONFIG: join(home, 'd.json') })
+    try {
+      expect(text(await c.callTool({ name: 'script_get', arguments: { project: 'demo' } })).exists).toBe(false)
+      const set = text(await c.callTool({ name: 'script_set', arguments: { project: 'demo', language: 'ko', lines: [{ text: '둘째', start: 3 }, { text: '첫째', start: 0, end: 2.5 }] } }))
+      expect(set.language).toBe('ko')
+      expect(set.lines.map((l: any) => [l.text, l.author, l.voice, l.ai])).toEqual([['첫째', 'codex', 'ai', 'missing'], ['둘째', 'codex', 'ai', 'missing']])
+      // 에이전트가 쓴 줄은 replace 로 교체 가능 (사용자 줄만 보호)
+      await c.callTool({ name: 'script_set', arguments: { project: 'demo', lines: [{ text: 'x', start: 0 }] } })
+      const gotAfter = text(await c.callTool({ name: 'script_get', arguments: { project: 'demo' } }))
+      expect(gotAfter.lines.length).toBe(1)
+      const v: any = await c.callTool({ name: 'voice_generate', arguments: { project: 'demo' } })
+      expect(v.isError).toBe(true)
+      expect(v.content[0].text).toContain('API 키 설정 필요')
+      const rid = uid()
+      appWrite(root, 'demo', `requests/${rid}.json`, { schema: 1, type: 'apply_script', version: 1, draft: true, commentIds: null, agent: 'codex', message: '초안', created: iso() })
+      const w = text(await c.callTool({ name: 'wait_for_requests', arguments: { timeout_sec: 2 } }))
+      expect(w.requests.map((r: any) => [r.id, r.type, r.draft])).toEqual([[rid, 'apply_script', true]])
     } finally {
       await c.close()
     }

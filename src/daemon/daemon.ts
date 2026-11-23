@@ -2,10 +2,10 @@ import { existsSync, mkdirSync, readFileSync, renameSync, statSync, truncateSync
 import { dirname, join, resolve } from 'node:path'
 import {
   listComments, listWorkspaceProjects, readWorkspaceContract, formatContract, CONTRACT_STAMP, type Compat, type WorkspaceContract, pendingRequests, readConfigRoots, reindexRootsFor, scanRoot, indexPath, readJson, indexRoot,
-  workspaces, type PendingRequest, type Workspace,
+  workspaces, type PendingRequest, type Workspace, currentLock, scriptFileOf, generateVoices, createTtsEngine, type TtsEngine, type VoiceResult,
 } from '../core/index.ts'
 import { AUTO_TYPES, runJob, type AutoRun } from './autorun.ts'
-import { loadDaemonConfig, type DaemonConfig } from './config.ts'
+import { configuredTtsEngine, loadDaemonConfig, type DaemonConfig } from './config.ts'
 import { acquireLock } from './lock.ts'
 import { osascriptNotifier, planNotifications, type Notifier } from './notify.ts'
 import { ChildTracker, makeRunner, type Runner } from './runner.ts'
@@ -34,6 +34,8 @@ export interface DaemonDeps {
   /** 테스트용: fs.watch 끄기 */
   noWatch?: boolean
   rootCheckMs?: number
+  /** 테스트용: AI 음성 엔진 주입 (기본: 설정된 엔진) */
+  tts?: TtsEngine
 }
 
 export interface DaemonState {
@@ -70,6 +72,8 @@ export class Daemon {
   private lastRootCheck = 0
   private lastStateJson = ''
   private lastStateWrite = 0
+  private scriptSigs = new Map<string, string>()
+  private scriptBusy: Promise<unknown> | null = null
   private startedAt = Date.now()
   private lastSeen: string | null = null
   private currentJob: DaemonState['currentJob'] = null
@@ -155,7 +159,7 @@ export class Daemon {
       if (r.state !== 'pending') continue
       if (this.firstTick && now - Date.parse(r.created) > 10 * 60_000) continue
       let n = r.commentIds?.length ?? 0
-      if (!r.commentIds) { try { n = (await listComments(r.ref, { version: r.version, status: 'open' })).length } catch {} }
+      if (!r.commentIds && r.type !== 'apply_script') { try { n = (await listComments(r.ref, { version: r.version, status: 'open' })).length } catch {} }
       fresh.push({ req: r, comments: n })
     }
     if (cfg.notify) {
@@ -168,6 +172,9 @@ export class Daemon {
 
     // 자동 처리 큐
     if (cfg.autoRun !== 'off') this.enqueue(pending, cfg, now)
+
+    // 대본 AI 음성 (SPEC §14): script.json 이 바뀐 프로젝트만. 합성은 느리므로 백그라운드로 돌리고 tick 은 막지 않는다
+    if (!this.scriptBusy) this.scriptBusy = this.scriptPass(now).catch(e => this.log.log('warn', '대본 음성 점검 실패', { err: String(e) })).finally(() => { this.scriptBusy = null })
 
     this.firstTick = false
     this.interval = nextInterval(this.interval, changed, cfg.pollMs, cfg.maxPollMs)
@@ -212,6 +219,41 @@ export class Daemon {
       this.currentJob = null
       this.wake()
     }
+  }
+
+  /**
+   * 대본 한 번 점검 (SPEC §14): script/script.json 이 마지막 점검 이후 바뀐 프로젝트에서 없는·오래된 AI 음성을 만들고 aiTextHash 를 써 넣는다.
+   * 잠긴 프로젝트·더 새 계약(읽기 전용) 워크스페이스는 건너뛴다. 자기 write-back 은 파일 시그니처(mtime+size)가 바뀌어 한 번 더 읽히지만
+   * 그때는 오래된 줄이 없어 아무 것도 하지 않으므로 루프가 생기지 않는다. 실패해도 파일이 바뀌기 전까지 재시도하지 않는다.
+   */
+  async scriptPass(_now = Date.now()): Promise<{ ref: string; result?: VoiceResult; error?: string }[]> {
+    const out: { ref: string; result?: VoiceResult; error?: string }[] = []
+    for (const w of workspaces()) {
+      if (!existsSync(w.path)) continue
+      let wc: WorkspaceContract
+      try { wc = await readWorkspaceContract(w.path) } catch { continue }
+      if (wc.readOnly) continue
+      for (const p of await listWorkspaceProjects(w)) {
+        const ref = `${w.name}/${p.id}`
+        const file = scriptFileOf(join(w.path, p.id))
+        let sig: string
+        try { const st = statSync(file); sig = `${st.mtimeMs}:${st.size}` } catch { this.scriptSigs.delete(ref); continue }
+        if (this.scriptSigs.get(ref) === sig) continue
+        if (await currentLock(ref)) continue // 잠긴 프로젝트는 음성을 만들지 않는다 (서명은 기억하지 않아 잠금 해제 후 다시 본다)
+        this.scriptSigs.set(ref, sig)
+        try {
+          const engine = this.deps.tts ?? createTtsEngine(configuredTtsEngine(this.cfg()))
+          const result = await generateVoices(ref, { engine })
+          if (result.generated.length || result.failed.length || result.removed.length)
+            this.log.log(result.failed.length ? 'warn' : 'info', 'AI 음성 생성', { ref, engine: result.engine, generated: result.generated.length, failed: result.failed, removed: result.removed.length })
+          out.push({ ref, result })
+        } catch (e) {
+          this.log.log('warn', 'AI 음성 생성 실패 (대본이 바뀌면 다시 시도)', { ref, err: String(e) })
+          out.push({ ref, error: String(e instanceof Error ? e.message : e) })
+        }
+      }
+    }
+    return out
   }
 
   /** 헬스 체크 (autoRun 과 무관, 1분마다). 오래 미처리 요청 / 세션 없음 / 요청 없는 코멘트를 macOS 알림으로. */
@@ -328,6 +370,7 @@ export class Daemon {
       this.wakeFn = null
     }
     if (this.jobWorker) await this.jobWorker.catch(() => {})
+    if (this.scriptBusy) await this.scriptBusy.catch(() => {})
     this.tracker.killAll('SIGKILL')
   }
 }

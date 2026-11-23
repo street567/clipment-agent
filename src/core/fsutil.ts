@@ -38,6 +38,19 @@ export async function atomicWriteNew(path: string, data: string | Uint8Array): P
   }
 }
 
+/** 고쳐 쓰는 파일용: 같은 폴더에 .name.tmp 로 쓰고 rename 으로 덮어쓴다 (읽는 쪽은 옛 것 또는 새 것만 본다). */
+export async function atomicWriteReplace(path: string, data: string | Uint8Array): Promise<void> {
+  await mkdir(dirname(path), { recursive: true })
+  const tmp = join(dirname(path), `.${basename(path)}.tmp`)
+  await writeFile(tmp, data, { flag: 'w' })
+  try {
+    await rename(tmp, path)
+  } catch (e) {
+    await rm(tmp, { force: true })
+    throw e
+  }
+}
+
 export async function writeJsonNew(path: string, obj: unknown): Promise<void> {
   await atomicWriteNew(path, JSON.stringify(obj, null, 2) + '\n')
 }
