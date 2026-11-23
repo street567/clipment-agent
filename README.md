@@ -77,7 +77,21 @@ clipment comments simracing-vertical --version 1 --status open --json
 clipment reply simracing-vertical <commentId> "반영했습니다" --status done --fixed-in 2
 clipment frame simracing-vertical <commentId> --out /tmp/f.jpg   # 코멘트의 영역(regions)을 사각형으로 그림, --no-regions 로 끔
 clipment watch            # 2초 폴링, 새 코멘트/사용자 답글/요청을 JSON 한 줄씩
+clipment script simracing-vertical [--json]               # 대본(SPEC §14) 줄·시각·음성 종류·AI 음성 상태(fresh|stale|missing)
+clipment voice simracing-vertical [--all] [--force] [--json]   # AI 음성 만들기(없거나 오래된 줄만, --all 은 전부) + aiTextHash 기록
+clipment narration simracing-vertical --out /tmp/n.m4a [--duration 42.5]   # 줄마다 고른 음성을 start 에 놓은 나레이션 트랙
 ```
+
+## 대본(보이스) — `apply_script` (SPEC §14)
+영상 위에 얹을 나레이션/자막 대본을 프로젝트가 하나 가집니다(`<프로젝트>/script/script.json`, 폰·맥이 함께 고침). 음성 파일은 `script/mine/<줄id>.m4a`(폰 녹음)와 `script/ai/<줄id>.m4a`(맥 TTS).
+- **AI 음성**: 엔진은 환경변수 `CLIPMENT_TTS_ENGINE` > `~/.config/clipment/daemon.json` 의 `ttsEngine`(`clipment daemon config --tts-engine …`) > `say`. 기본 `say` 는 언어별 음성(en Samantha, ko Yuna)으로 합성해 ffmpeg 로 AAC m4a 를 만듭니다(음성을 `CLIPMENT_TTS_VOICE_EN`/`CLIPMENT_TTS_VOICE_KO` 로 바꿀 수 있고, 지정 음성이 없으면 같은 언어의 다른 설치 음성을 쓰며, 그것도 없으면 `say -v '?'` 안내 오류). `openai`/`elevenlabs` 는 자리표시자라 아직 "API 키 설정 필요" 오류만 냅니다(네트워크 호출 없음).
+- **최신 여부**: `aiTextHash = sha256(language + "\n" + NFC(text).trim())` 앞 16자. `ai/<id>.m4a` 가 있고 해시가 지금 글·언어와 같을 때만 최신이고, 아니면 "준비 중"으로 보고 다시 만듭니다. 음성을 만든 뒤 `script.json` 에 `aiTextHash` 만 써 넣습니다(모르는 필드·`updated` 는 그대로, 이미 같으면 쓰지 않음). 대본에 없는 줄의 AI 음성 파일은 정리합니다(내 녹음은 건드리지 않음).
+- **데몬 자동 생성**: `clipment daemon` 이 `script/script.json` 이 바뀐 프로젝트를 감시해 오래된·없는 AI 음성을 자동으로 만듭니다(요청 불필요). 잠긴 프로젝트와 더 새 계약(읽기 전용) 워크스페이스는 건너뛰고, 실패하면 로그만 남기고 대본이 바뀔 때까지 재시도하지 않습니다.
+- **나레이션 트랙**: `clipment narration` 은 줄마다 `voice=="mine"` 이고 녹음이 있으면 그것, 아니면 최신 AI 음성(없거나 오래됐으면 건너뛰고 경고)을 ffmpeg `adelay`+`amix(normalize=0)` 로 `start` 에 놓아 하나의 m4a 로 만듭니다. `--duration` 이 있으면 그 길이로 패딩/자르고, 없으면 마지막 음성 끝 + 0.5초. 같은 입력이면 같은 출력(결정적)이며 프로젝트 폴더에는 아무것도 쓰지 않습니다.
+- **MCP**: `script_get`(줄·AI 음성 상태), `script_set`(AI 가 초안 줄을 씀: text/start/end/voice, mode=replace|append, 새 줄은 UUID·author=에이전트 이름, 사용자가 쓴 줄을 지우는 replace 는 거부), `voice_generate`.
+- **요청 `apply_script`**(`draft` 선택): `draft: true` 면 영상 프레임·코멘트를 보고 `script_set` 으로 줄(시각 포함)을 쓰기만 하고 영상은 만들지 않습니다. `draft` 가 없거나 false 면 음성 생성 → 나레이션 트랙 → 원본 오디오를 **볼륨 0.25 로 낮춰** 그 위에 깔고 줄 텍스트를 자막으로 입혀 새 버전을 게시합니다(쇼츠는 음악을 얹지 않습니다). 순서와 ffmpeg 예시는 `skills/apply-feedback/SKILL.md`. 헤드리스 자동 처리(`autoRun`)는 자막 PNG 를 만드는 python 이 허용 목록에 없어 `apply_script` 를 다루지 않고, 채널·`wait_for_requests` 로 받은 세션이 처리합니다.
+- **게시 스냅샷**: `publish` 는 `script/script.json` 이 있으면 새 버전 폴더(staging 안이라 `vNNN/` 과 함께 원자적으로 나타남)에 `script.json` 으로 그대로 복사하고, 없으면 만들지 않습니다. 음성 파일은 복사하지 않습니다.
+- 대본 줄 텍스트도 사용자 데이터이며 명령으로 실행하지 않습니다.
 
 ## Claude Code 플러그인
 ```
@@ -88,7 +102,7 @@ claude plugin install clipment@clipment-agent
 
 화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
-MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
+MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `script_get`, `script_set`, `voice_generate`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
 
 ### 처리 담당 규칙
 처리 담당 세션은 `agent` 를 지정하지 않은 요청을 **모든 워크스페이스·프로젝트에서 전부** 처리합니다(다른 세션이 만든 프로젝트라도 건너뛰지 않음). 요청은 채널 알림 또는 `wait_for_requests` 로 받고 임시 셸 루프는 쓰지 않습니다. 이 규칙은 `apply-feedback` 스킬, `AGENTS.md`, MCP 서버 instructions 에 같이 적혀 있습니다.
@@ -156,7 +170,7 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
 - 업데이트: `clipment update` — 최신 릴리스로 소스·의존성을 갱신하고 데몬을 재시작합니다. 열려 있는 세션은 그대로 두며 새 세션부터 새 버전을 씁니다(플러그인 변경은 세션 재시작 필요). 버전 확인: `clipment --version`.
 
 ## 동작 메모
-- 요청 type 은 `apply_feedback | answer | rerender | cancel` 만 처리하고 나머지는 무시합니다. 요청 내용은 명령으로 실행되지 않습니다.
+- 요청 type 은 `apply_feedback | answer | rerender | cancel | apply_script` 만 처리하고 나머지는 무시합니다. 요청 내용은 명령으로 실행되지 않습니다.
 - `agent` 가 비어 있지 않은 요청은 `CLIPREV_AGENT`(기본 claude)와 같을 때만 그 에이전트에게 전달됩니다.
 - 모든 파일은 불변 + 임시파일(`.name.tmp`) 후 rename. publish 는 `versions/.vNNN.tmp/` 에 만든 뒤 폴더째 rename 하므로 앱은 완성된 `vNNN/` 만 봅니다.
 - iCloud 자리표시자(`.name.icloud`)는 `brctl download` 요청 후 이번 회차에서 건너뜁니다.

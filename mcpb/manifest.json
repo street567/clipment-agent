@@ -3,7 +3,7 @@
   "name": "clipment",
   "display_name": "Clipment",
   "version": "__VERSION__",
-  "description": "아이폰 Clipment 앱에서 남긴 영상 시점 코멘트를 읽고, 답글·진행 보고·새 버전 게시·루트 정리를 하는 MCP 서버. 파일 편집/렌더(셸)는 하지 않습니다.",
+  "description": "아이폰 Clipment 앱에서 남긴 영상 시점 코멘트를 읽고, 답글·진행 보고·새 버전 게시·대본(보이스) 초안·음성 생성, 루트 정리를 하는 MCP 서버. 파일 편집/렌더(셸)는 하지 않습니다.",
   "author": { "name": "street567" },
   "license": "SEE LICENSE IN LICENSE",
   "server": {
@@ -31,6 +31,9 @@
     { "name": "wait_for_requests", "description": "대기 요청 조회" },
     { "name": "get_preferences", "description": "작업 지침 읽기" },
     { "name": "set_preferences", "description": "작업 지침 고치기" },
+    { "name": "script_get", "description": "대본(보이스) 읽기" },
+    { "name": "script_set", "description": "대본 줄 쓰기(AI 초안)" },
+    { "name": "voice_generate", "description": "대본 AI 음성 만들기 (say·ffmpeg 필요)" },
     { "name": "daemon_status", "description": "백그라운드 데몬 상태" }
   ],
   "compatibility": { "platforms": ["darwin"] }

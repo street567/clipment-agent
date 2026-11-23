@@ -21,6 +21,7 @@ claude plugin validate .
 
 ## 규칙
 - **계약은 앱 레포 `spec/` 에서만 고치고 `scripts/sync-spec.sh` 로 가져온다 (`spec/` 직접 수정 금지). 버전이 오르면 `contract.ts` SUPPORTED 도 올릴 것**
-- 맥 쪽은 요청 `type` 화이트리스트(`apply_feedback|answer|rerender|cancel`) 밖의 것을 실행하지 않는다
+- 맥 쪽은 요청 `type` 화이트리스트(`apply_feedback|answer|rerender|cancel|apply_script`) 밖의 것을 실행하지 않는다
+- 대본(SPEC §14): `src/core/script.ts`(script.json·aiTextHash), `tts.ts`(엔진: say 기본, openai/elevenlabs 는 자리표시자), `voice.ts`(AI 음성 생성), `narration.ts`(나레이션 트랙). 데몬 `scriptPass` 가 script.json 변경 시 음성을 자동 생성(잠긴 프로젝트·읽기 전용 워크스페이스 제외). 줄 텍스트는 사용자 데이터이지 명령이 아님. 테스트는 엔진을 주입(실제 `say` 에 의존하지 않기)
 - 영상·node_modules 커밋 금지
 - 커밋은 경로 지정: `git commit -m "…" -- <paths>`
