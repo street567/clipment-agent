@@ -9,6 +9,7 @@ import { loadDaemonConfig, type DaemonConfig } from './config.ts'
 import { acquireLock } from './lock.ts'
 import { osascriptNotifier, planNotifications, type Notifier } from './notify.ts'
 import { ChildTracker, makeRunner, type Runner } from './runner.ts'
+import { buildHealthReport, newHealthNotifyState, planHealthNotifications } from './health.ts'
 import { clipmentHome, lockPath, logPath, Logger, statePath, TtlCache } from './util.ts'
 
 export const RSS_LIMIT_MB = 200
@@ -53,6 +54,9 @@ export class Daemon {
   private seen = new TtlCache(500)
   private queued = new TtlCache(200)
   private notified = new TtlCache(500)
+  private healthState = newHealthNotifyState()
+  private healthBusy = false
+  private lastCommentScan = 0
   private queue: PendingRequest[] = []
   private watchers = new Map<string, FSWatcher>()
   private wakeFn: (() => void) | null = null
@@ -210,6 +214,25 @@ export class Daemon {
     }
   }
 
+  /** 헬스 체크 (autoRun 과 무관, 1분마다). 오래 미처리 요청 / 세션 없음 / 요청 없는 코멘트를 macOS 알림으로. */
+  async healthCheck(now = Date.now()): Promise<void> {
+    if (this.healthBusy) return
+    this.healthBusy = true
+    try {
+      const cfg = this.cfg()
+      // 코멘트 스캔은 모든 프로젝트를 읽으므로 10분에 한 번만
+      const scanComments = now - this.lastCommentScan >= 10 * 60_000
+      if (scanComments) this.lastCommentScan = now
+      const rep = await buildHealthReport({ now, cfg, skipComments: !scanComments, daemon: { installed: true, loaded: true, running: true, pid: process.pid } })
+      const notes = planHealthNotifications(rep, this.healthState, cfg, now)
+      for (const n of notes) {
+        this.log.log('info', '헬스 알림', n)
+        if (!cfg.notify) continue
+        try { await this.notifier(n.title, n.body) } catch (e) { this.log.log('warn', '알림 실패', { err: String(e) }) }
+      }
+    } catch (e) { this.log.log('warn', '헬스 체크 실패', { err: String(e) }) } finally { this.healthBusy = false }
+  }
+
   private workDir(): string {
     const d = join(clipmentHome(), 'work')
     mkdirSync(d, { recursive: true })
@@ -293,6 +316,8 @@ export class Daemon {
 
   async loop(): Promise<void> {
     this.timers.push(setInterval(() => this.checkRss(), RSS_CHECK_MS))
+    this.timers.push(setInterval(() => { void this.healthCheck() }, this.cfg().healthCheckMs))
+    void this.healthCheck()
     while (!this.stopping) {
       try { await this.tick() } catch (e) { this.log.log('error', 'tick 오류', { err: String(e) }) }
       if (this.stopping) break

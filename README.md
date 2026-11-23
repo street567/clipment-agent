@@ -88,7 +88,17 @@ claude plugin install clipment@clipment-agent
 
 화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
-MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
+MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
+
+### 처리 담당 규칙
+처리 담당 세션은 `agent` 를 지정하지 않은 요청을 **모든 워크스페이스·프로젝트에서 전부** 처리합니다(다른 세션이 만든 프로젝트라도 건너뛰지 않음). 요청은 채널 알림 또는 `wait_for_requests` 로 받고 임시 셸 루프는 쓰지 않습니다. 이 규칙은 `apply-feedback` 스킬, `AGENTS.md`, MCP 서버 instructions 에 같이 적혀 있습니다.
+
+### 헬스 체크 (`clipment health [--json]`)
+데몬 설치/로드/실행, 살아 있는 채널 세션(pid/cwd/lastBeat), 아무도 안 잡은 요청과 경과 시간, 요청 없이 오래 열린 코멘트를 보여 주고, 확인할 게 있으면 종료 코드 1. MCP `health` 도구도 같은 JSON 을 줍니다.
+- **세션 하트비트**: 채널 모드 MCP 서버가 `~/.clipment/sessions/<pid>.json`(pid·cwd·startedAt·lastBeat)을 30초마다 갱신하고 종료 시 지웁니다. lastBeat 가 2분 넘었거나 pid 가 죽었으면 stale.
+- **채널 재푸시**: 채널 모드 서버가 1분마다 3분 넘게 미처리(진행 이벤트 없음)인 요청을 모든 워크스페이스/프로젝트에서 찾아 "미처리 요청 N건, 확인 필요" 알림(`meta.kind="unclaimed"`)을 푸시. 같은 요청은 3→6→12분 간격(이후 12분)으로 백오프.
+- **데몬 헬스 체크**(autoRun 과 무관, 1분마다): 10분 넘게 미처리 요청 → macOS 알림(요청당 1회) / 대기 요청이 있는데 살아 있는 채널 세션이 없으면 "Clipment 처리 세션이 꺼져 있어요"(최대 30분마다) / 열린 코멘트가 있는데 그걸 덮는 요청(같은 버전·코멘트 이후 생성된 `apply_feedback`, commentIds 가 null 이거나 포함)이 30분 넘게 없으면 프로젝트당 하루 1회 낮은 우선순위 알림(코멘트 스캔은 10분마다). 알림 dedupe 는 데몬 메모리라 재시작하면 한 번 더 올 수 있습니다.
+- 임계값(`~/.config/clipment/daemon.json`, 분 단위): `healthCheckMs`(60000), `unclaimedRepushMin`(3), `unclaimedNotifyMin`(10), `sessionStaleMin`(2), `sessionAlertRepeatMin`(30), `orphanCommentMin`(30).
 
 ### 채널(폰 요청이 세션으로 푸시됨)
 `.mcp.json` 이 `CLIPREV_CHANNEL=1` 로 서버를 띄우면 `claude/channel` 기능을 선언하고, 새 요청(화이트리스트 type 만)이 생기면 `notifications/claude/channel` 로 알립니다.

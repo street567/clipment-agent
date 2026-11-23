@@ -50,6 +50,7 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   daemon install|uninstall|stop|restart|status [--json] [--kill-orphans]   launchd LaunchAgent 관리 (sudo 불필요)
   daemon logs [--lines N] [--follow]
   daemon config [--auto-run off|claude|codex] [--job-timeout 분]   ~/.config/clipment/daemon.json
+  health [--json]              데몬/채널 세션/미처리 요청/요청 없는 코멘트 점검 (확인 필요하면 종료 코드 1)
   update                       최신 릴리스로 업데이트하고 데몬을 재시작
   --version                    버전
 `
@@ -296,6 +297,14 @@ async function main() {
       return watch(p[0], !!o.all)
     case 'daemon':
       return daemonCmd(p[0], o)
+    case 'health': {
+      const H = await import('./daemon/health.ts')
+      const { loadDaemonConfig } = await import('./daemon/config.ts')
+      const r = await H.buildHealthReport({ cfg: loadDaemonConfig() })
+      if (o.json) json(r); else console.log(H.formatHealth(r))
+      if (!r.ok) process.exitCode = 1
+      return
+    }
     case 'update':
       return update()
     default:

@@ -5,8 +5,12 @@ import { daemonConfigPath } from './util.ts'
 
 export interface DaemonConfig {
   autoRun: AutoRun; jobTimeoutMin: number; notify: boolean; pollMs: number; maxPollMs: number; maxAgeMin: number
+  /** 헬스 체크 */
+  healthCheckMs: number; unclaimedRepushMin: number; unclaimedNotifyMin: number; sessionStaleMin: number; sessionAlertRepeatMin: number; orphanCommentMin: number
 }
-export const DEFAULT_CONFIG: DaemonConfig = { autoRun: 'off', jobTimeoutMin: 30, notify: true, pollMs: 5000, maxPollMs: 30000, maxAgeMin: 1440 }
+export const DEFAULT_CONFIG: DaemonConfig = { autoRun: 'off', jobTimeoutMin: 30, notify: true, pollMs: 5000, maxPollMs: 30000, maxAgeMin: 1440,
+  healthCheckMs: 60_000, unclaimedRepushMin: 3, unclaimedNotifyMin: 10, sessionStaleMin: 2, sessionAlertRepeatMin: 30, orphanCommentMin: 30,
+}
 
 export function loadDaemonConfig(file = daemonConfigPath()): DaemonConfig {
   let j: any = {}
@@ -20,6 +24,12 @@ export function loadDaemonConfig(file = daemonConfigPath()): DaemonConfig {
     pollMs: num(j.pollMs, c.pollMs, 1000, 600_000),
     maxPollMs: num(j.maxPollMs, c.maxPollMs, 1000, 600_000),
     maxAgeMin: num(j.maxAgeMin, c.maxAgeMin, 1, 100_000),
+    healthCheckMs: num(j.healthCheckMs, c.healthCheckMs, 1000, 3_600_000),
+    unclaimedRepushMin: num(j.unclaimedRepushMin, c.unclaimedRepushMin, 0.1, 10_000),
+    unclaimedNotifyMin: num(j.unclaimedNotifyMin, c.unclaimedNotifyMin, 0.1, 10_000),
+    sessionStaleMin: num(j.sessionStaleMin, c.sessionStaleMin, 0.1, 10_000),
+    sessionAlertRepeatMin: num(j.sessionAlertRepeatMin, c.sessionAlertRepeatMin, 0.1, 10_000),
+    orphanCommentMin: num(j.orphanCommentMin, c.orphanCommentMin, 0.1, 100_000),
   }
 }
 

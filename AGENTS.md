@@ -12,6 +12,9 @@
 ## 루트 정리 (인덱스)
 사용자가 "정리"/"워크스페이스 정리해줘"라고 하거나 아이폰 앱의 "루트 정리" 프롬프트를 붙여 넣으면 `clipment index <루트>` (MCP `index_root`) 를 실행합니다. 인덱스 파일(`<루트>/.clipment/index.json`)만 갱신하며, `--fix` 는 workspace.json 이 없는 폴더에 파일을 추가하므로 사용자가 원할 때만 씁니다. **폴더를 옮기거나 지우거나 이름을 바꾸는 일은 사용자의 명시적 확인 없이 절대 하지 마세요.**
 
+## 처리 담당 규칙
+처리 담당이면 `agent` 를 지정하지 않았거나 자기 이름(`CLIPREV_AGENT`)인 요청은 **모든 워크스페이스·프로젝트의 것을 전부** 처리합니다. 다른 세션이 만든 프로젝트라고 건너뛰지 마세요. 임시 셸 루프 대신 `cliprev watch` / `wait_for_requests` 를 쓰고, 상태 점검은 `clipment health` (MCP `health`) 로 합니다.
+
 ## 프로젝트 지정
 `<워크스페이스>/<프로젝트>` (예: `icloud/simracing`). 이름이 모든 워크스페이스에서 유일하면 `<프로젝트>` 만 써도 됩니다. 목록: `cliprev workspaces` / `cliprev projects` (MCP `list_workspaces`, `list_projects`). 요청 대기는 모든 워크스페이스를 함께 봅니다.
 
