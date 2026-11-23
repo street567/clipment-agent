@@ -1,6 +1,6 @@
 {
   "name": "clipment",
   "description": "Clipment — 아이폰에서 남긴 영상 시점 코멘트를 받아 반영하고 새 버전을 게시하는 채널/MCP 플러그인.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "keywords": ["video", "review", "channel", "mcp"]
 }
