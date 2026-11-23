@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
+  "version": "1.10.0",
   "minReaderMajor": 1,
   "files": {
     "project": "schemas/project.schema.json",
@@ -12,6 +12,7 @@
     "workspace": "schemas/workspace.schema.json",
     "rootIndex": "schemas/root-index.schema.json",
     "upload": "schemas/upload.schema.json",
-    "quality": "schemas/quality.schema.json"
+    "quality": "schemas/quality.schema.json",
+    "script": "schemas/script.schema.json"
   }
 }

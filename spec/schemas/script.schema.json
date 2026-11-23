@@ -1,0 +1,7 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "script/script.json", "type": "object", "required": ["lines"],
+  "properties": { "schema": {"type":"integer"}, "language": {"type":"string","enum":["en","ko"]}, "updated": {"type":"string"},
+    "lines": { "type": "array", "items": { "type": "object", "required": ["id","start","text"],
+      "properties": { "id": {"type":"string"}, "start": {"type":"number","minimum":0}, "end": {"type":["number","null"]}, "text": {"type":"string"},
+        "voice": {"type":"string","enum":["ai","mine"]}, "aiTextHash": {"type":"string","pattern":"^[0-9a-f]{16}$"}, "updated": {"type":"string"}, "author": {"type":"string"} },
+      "additionalProperties": true } } },
+  "additionalProperties": true }

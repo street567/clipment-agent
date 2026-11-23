@@ -3,7 +3,7 @@ import { readJson } from './fsutil.ts'
 import { ValidationError } from './paths.ts'
 
 /** 이 구현이 지원하는 계약 major.minor. spec/contract.json 과 어긋나면 테스트가 실패한다. */
-export const SUPPORTED = { major: 1, minor: 9 } as const
+export const SUPPORTED = { major: 1, minor: 10 } as const
 /** 데이터에 찍는 값 ("1.9") */
 export const CONTRACT_STAMP = `${SUPPORTED.major}.${SUPPORTED.minor}`
 

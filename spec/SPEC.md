@@ -1,6 +1,6 @@
 # Clipment 폴더 계약 (아이폰 앱 ↔ 맥 플러그인/CLI)
 
-**계약 버전 1.9.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
+**계약 버전 1.10.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
 
 이 폴더(`spec/`)가 계약의 **유일한 원본**이다. 앱 레포가 소유하고 맥 레포는 동기화해 쓴다(`spec/README.md`).
 데이터 폴더가 따르는 계약 버전은 `workspace.json`·`.clipment/index.json` 의 `contract` 필드로 표시한다(§10).
@@ -34,9 +34,12 @@ ClipReview/
     .clipment/preferences.md       # 선택 · 프로젝트 작업 지침 (§11, 고쳐 쓰는 예외)
     .clipment/upload.json          # 선택 · 업로드용 버전 지정 (§12, 고쳐 쓰는 예외)
     .clipment/quality.json         # 선택 · 작업용 화질 지정 (§13, 고쳐 쓰는 예외)
+    script/script.json             # 선택 · 작업 대본 (§14, 고쳐 쓰는 예외)
+    script/mine/<lineId>.m4a       # 선택 · 내 녹음 (§14, 앱이 씀)
+    script/ai/<lineId>.m4a         # 선택 · AI 음성 (§14, 맥이 씀)
 ```
 
-**규칙: 모든 파일은 한 번 쓰고 다시 고치지 않는다(불변).** (예외: §9 인덱스, §11 작업 지침, §12 업로드용 버전 지정, §13 작업용 화질 — 프로젝트 `quality.json` 과 `workspace.json` 의 `previewQuality`) 상태 변화는 새 파일(답글·이벤트)로 표현한다.
+**규칙: 모든 파일은 한 번 쓰고 다시 고치지 않는다(불변).** (예외: §9 인덱스, §11 작업 지침, §12 업로드용 버전 지정, §13 작업용 화질 — 프로젝트 `quality.json` 과 `workspace.json` 의 `previewQuality`, §14 대본 `script/script.json` 과 음성 파일) 상태 변화는 새 파일(답글·이벤트)로 표현한다.
 → 폰과 맥이 동시에 써도 같은 파일을 두 곳에서 고치는 일이 없어 iCloud 충돌이 생기지 않는다.
 
 - 쓰기는 원자적으로: 같은 폴더에 `.<name>.tmp` 로 쓴 뒤 rename.
@@ -84,7 +87,7 @@ ClipReview/
   "commentIds": null, "agent": "", "authorName": "개미", "message": "", "created": "..." }
 ```
 - `agent`: 비어 있으면(앱 기본, 1.7~) 연결된 어떤 AI든 가져간다. 실제로 처리한 AI는 progress 이벤트의 `agent` 로 알 수 있다.
-- `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId).
+- `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId) · `apply_script` (1.10~, §14 — `version` + 선택 `draft`).
 - 맥 쪽은 **이 목록 밖의 type 은 무시**하고, 요청을 임의 명령으로 실행하지 않는다.
 
 ### progress/<requestId>/<id>.json  (맥 → 폰 진행)
@@ -231,3 +234,38 @@ ffmpeg: H.264 High, 긴 변 1280px(세로 영상이면 720×1280), 원본 fps �
 - **적용 범위**: 이후 게시되는 버전부터. 이미 있는 버전은 바뀌지 않는다.
 - `meta.json` 의 선택 필드 `quality` 에 그 버전을 만들 때 쓴 화질을 적는다(없으면 알 수 없음 — 1.8 이하 버전 포함).
 - 잠긴 프로젝트(§8): 앱은 프로젝트 지정을 바꾸지 못한다(읽기 전용). 맥 `quality` 의 프로젝트 지정은 `--force` 없이 거부.
+
+
+## 14. 대본 (보이스)
+
+영상 위에 얹을 나레이션/자막 대본을 프로젝트가 하나 가진다. 코멘트와 달리 **프로젝트 단위의 작업 문서**이고, 폰·맥이 함께 고친다.
+
+```
+<프로젝트>/script/script.json          # 대본 (고쳐 쓰는 파일)
+<프로젝트>/script/mine/<lineId>.m4a    # 내 녹음 (앱이 씀, 덮어쓰기 가능)
+<프로젝트>/script/ai/<lineId>.m4a      # AI 음성 (맥이 씀, 덮어쓰기 가능)
+versions/vNNN/script.json              # 게시 시점의 대본 스냅샷 (읽기 전용 기록)
+```
+
+- **script.json** (선택, **고쳐 쓰는 파일** — §1 불변 규칙의 예외, §11~§13 과 같은 방식: 폰·맥 둘 다 쓰고 마지막에 쓴 쪽이 이긴다, 원자적 tmp+rename, 쓰는 쪽은 모르는 필드를 보존):
+  ```json
+  { "schema": 1, "language": "en", "updated": "...",
+    "lines": [ { "id": "…", "start": 0.0, "end": 3.2, "text": "This is how it starts.",
+                 "voice": "ai", "aiTextHash": "9f2c1a7b3d4e5f60", "updated": "...", "author": "user" } ] }
+  ```
+  - `language`: `en` | `ko` (없거나 모르는 값은 `en`). 대본 전체의 언어이며 AI 음성의 언어가 된다.
+  - `lines[]`: `id`(소문자 UUID v4, 음성 파일명), `start`(초, 영상 시각), `end`(선택, 초, `end > start` 일 때만 유효 — 자막 표시 끝. 없으면 다음 줄 시작 또는 start+음성 길이), `text`, `voice`(`ai` | `mine`, 없거나 모르는 값은 `ai`) = 최종 영상에 쓸 음성, `aiTextHash`(선택, 맥이 AI 음성을 만든 뒤 적는다), `updated`, `author`(선택, `user` | AI 이름).
+  - **순서 = `start` 오름차순**(같으면 배열 순서). 파일 배열 순서에 의존하지 않는다.
+  - 버전 `vNNN` 과 무관한 프로젝트 문서다(영상이 새 버전이 되어도 대본은 그대로). 시각은 그 시점 최신 버전 기준이다.
+- **aiTextHash**: AI 음성이 어떤 글로 만들어졌는지를 나타내는 해시. `hex(SHA-256(UTF-8(language + "\n" + normalized)))` 의 앞 16자(소문자), `normalized` = `text` 를 유니코드 NFC 로 바꾸고 앞뒤 공백·줄바꿈을 자른 것. 두 구현이 같은 값을 내야 한다. 시험값: `en` + `This is how it starts.` → `b6aa39f69905a507` (`fixtures/script.json` 의 첫 줄).
+  - 줄의 AI 음성이 **최신** = `script/ai/<id>.m4a` 가 있고 `aiTextHash` 가 지금 `text`·`language` 로 계산한 값과 같다. 아니면 **준비 중**(없음 또는 오래됨): 앱은 "AI 음성 준비 중"으로 표시하고(오래된 파일은 재생하지 않는다), 맥이 자동으로 다시 만든다.
+  - 맥은 음성을 만든 뒤 `script.json` 에 `aiTextHash` 를 써 넣는다(이때 다른 필드는 그대로, `updated` 는 줄·파일 모두 갱신하지 않아도 된다).
+- **내 녹음**: 앱이 `script/mine/<lineId>.m4a` 를 쓰고 `voice: "mine"` 으로 바꾼다. 텍스트를 고쳐도 녹음은 그대로(사람의 목소리이므로 사용자가 다시 녹음할지 판단). 줄을 지우면 앱은 두 음성 파일도 지운다(맥도 대본에 없는 줄의 AI 음성 파일은 정리해도 된다).
+- **요청 `apply_script`** (§2): `{ "type": "apply_script", "version": N, "draft": true|false, "message": "" }`.
+  - `draft: true` — "이 영상에 맞는 대본 초안을 써 줘". AI 는 영상을 보고 `script.json` 에 줄(시각 포함)을 쓴다(영상은 만들지 않는다). 기존 줄은 사용자 것이므로 비어 있을 때만 통째로 채우고, 있으면 덧붙이거나 `message` 의 지시를 따른다.
+  - `draft` 가 없거나 false — "현재 대본 + 고른 음성(`voice`)을 영상에 반영": 나레이션 트랙(줄마다 선택한 음성을 `start` 에 배치)과 자막(줄 `text`)을 입혀 새 버전을 게시한다. 쇼츠는 음악을 얹지 않는다.
+  - 진행 상황은 다른 요청처럼 progress 이벤트로 알린다. 폰은 `draft` 가 true 면 "대본 초안", 아니면 "영상에 반영"으로 표시한다.
+- **게시 스냅샷**: 맥 `publish` 는 `script/script.json` 이 있으면 새 버전 폴더에 `script.json` 으로 복사한다(변환 없음, 불변 기록). 음성 파일은 복사하지 않는다. 없으면 만들지 않는다.
+- 잠긴 프로젝트(§8): 앱은 대본·녹음·요청 모두 읽기 전용(재생·열람만). 맥은 잠긴 프로젝트의 AI 음성을 만들지 않고 `apply_script` 도 가져가지 않는다.
+- 맥 AI 음성 생성은 결정적인 로컬 작업(TTS)이며 요청이 필요 없다: `script.json` 이 바뀌면 오래된·없는 AI 음성을 자동으로 다시 만든다.
+- **호환**: 1.9 이하 리더는 `script/` 와 `apply_script` 를 모르고 무시한다(`apply_script` 요청은 whitelist 밖이므로 무시됨).

@@ -3,6 +3,11 @@
 버전 규칙 (SPEC §10): **MAJOR** 깨지는 변경(옛 리더가 안전하게 읽거나 쓸 수 없음) · **MINOR** 추가만(모르는 필드는 무시) · **PATCH** 문구·예시 정리.
 1.0.0~1.5.0 은 git 이력(`docs/SPEC-mvp.md`)에서 복원했다.
 
+## 1.10.0 — 대본(보이스)
+- §14 프로젝트 대본 `<프로젝트>/script/script.json`(고쳐 쓰는 파일: 폰·맥 모두 쓰고 마지막이 이김) — `language`(en|ko) + `lines[]{id,start,end?,text,voice(ai|mine),aiTextHash?,updated,author?}`. 스키마 `script.schema.json`.
+- 내 녹음 `script/mine/<lineId>.m4a`(앱), AI 음성 `script/ai/<lineId>.m4a`(맥) + `aiTextHash`(= SHA-256(language+"\n"+NFC·trim 텍스트) 앞 16 hex)로 오래됨 판단. 맥은 오래된 AI 음성을 자동 재생성.
+- 요청 type `apply_script`(`version`, 선택 `draft`) 추가 — whitelist 확장. 게시 시 `versions/vNNN/script.json` 스냅샷.
+
 ## 1.9.0 — 작업용 화질
 - §13 미리보기 화질 `360p|540p|720p|1080p`(긴 변 640/960/1280/1920, 기본 720p). 워크스페이스 기본 `workspace.json` `previewQuality`(선택), 프로젝트 지정 `<프로젝트>/.clipment/quality.json`(선택, 고쳐 쓰는 파일, 마지막에 쓴 쪽이 이김). 스키마 `quality.schema.json`.
 - 게시 때 화질 결정 순서: 명시 인자 > 프로젝트 quality.json > 워크스페이스 previewQuality > 720p. 이미 있는 버전은 그대로.
