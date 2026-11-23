@@ -30,7 +30,7 @@ const instructions = [
 ].join('\n')
 
 const mcp = new McpServer(
-  { name: 'clipment', version: '0.2.0' },
+  { name: 'clipment', version: '0.3.0' },
   {
     capabilities: channelMode ? { experimental: { 'claude/channel': {} } } : {},
     instructions,
