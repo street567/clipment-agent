@@ -7,6 +7,7 @@ export function tempRoot(): string {
   const d = mkdtempSync(join(tmpdir(), 'cliprev-test-'))
   process.env.CLIPREV_ROOT = d
   process.env.CLIPREV_CONFIG = join(d, '..', `cliprev-cfg-${basename(d)}.json`) // 실제 ~/.config 보호
+  process.env.CLIPMENT_HOME ??= join(d, '..', `clipment-home-${basename(d)}`) // 실제 ~/.clipment 보호 (채널 하트비트 등)
   return d
 }
 

@@ -179,7 +179,7 @@ export async function buildHealthReport(o: HealthOpts = {}): Promise<HealthRepor
     const s = daemonStatus()
     return { installed: s.installed, loaded: s.loaded, running: s.lockAlive, pid: s.lockAlive ? s.lockPid : null }
   })()
-  const sessions = readSessions(now, cfg.sessionStaleMin * MIN, o.alive)
+  const sessions = readSessions(now, cfg.sessionStaleMin * MIN, o.alive, true)
   const live = liveSessions(sessions).length
   const unclaimed = pickUnclaimed(await allPending(), now)
   const staleComments = o.skipComments ? [] : await findStaleComments(now, cfg.orphanCommentMin * MIN)
