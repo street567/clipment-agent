@@ -1,0 +1,2 @@
+{ "$schema": "https://json-schema.org/draft/2020-12/schema", "title": ".clipment/quality.json", "type": "object", "required": ["quality"],
+  "properties": { "schema": {"type":"integer"}, "quality": {"type":"string","enum":["360p","540p","720p","1080p"]}, "author": {"type":"string"}, "authorName": {"type":"string"}, "via": {"type":"string","enum":["app","mac"]}, "updated": {"type":"string"} }, "additionalProperties": true }

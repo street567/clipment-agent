@@ -10,7 +10,7 @@ import {
   readWorkspaceContract, newerContractMessage, addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
   addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
-  publishVersion, getUploadInfo, setUploadVersion, clearUploadVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
+  publishVersion, getEffectiveQuality, setProjectQuality, clearProjectQuality, getWorkspaceQualityInfo, setWorkspaceQuality, assertQuality, QUALITY_SOURCE_LABEL, QUALITIES, getUploadInfo, setUploadVersion, clearUploadVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
 
@@ -31,9 +31,12 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   prefs set <project|워크스페이스> --file F [--force]   지침 전체 교체 (F 가 - 면 표준 입력)
   lock <project> [--note N]                   완료 잠금 (요청 제외, publish/reply 거부)
   unlock <project>
-  publish <project> <video> [--note N] [--lite] [--no-original] [--upload] [--force]
+  publish <project> <video> [--note N] [--quality 360p|540p|720p|1080p] [--lite] [--no-original] [--upload] [--force]
                                               기본: 소스 원본(original.<ext>)을 미리보기 옆에 복사 (--no-original 로 생략),
                                               --upload: 이 새 버전을 업로드용으로 지정
+                                              화질 순서: --quality > 프로젝트 지정 > 워크스페이스 기본 > 720p  (--lite = 540p)
+  quality <project> [360p|540p|720p|1080p|--clear] [--json]   프로젝트 작업용 화질 보기·지정·해제 (SPEC §13; 값 없이 쓰면 적용 화질과 출처)
+  quality --workspace <ws> [값|--clear] [--json]               워크스페이스 기본 작업용 화질 (workspace.json previewQuality)
   upload-version <project> [N|--clear] [--json]   업로드용 버전 보기·지정·해제 (SPEC §12; 지정이 없으면 원본 있는 최신 → 최신)
   versions <project> [--json]
   comments <project> [--version N] [--status open|doing|done|question|wontfix] [--json]
@@ -81,7 +84,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
     },
   })
 
@@ -161,9 +164,36 @@ async function main() {
     case 'publish': {
       const project = need(p[0], 'project')
       const warn = o.force ? await forceWarning(project) : null
-      const meta = await publishVersion(project, need(p[1], 'video'), { note: o.note, lite: o.lite, force: o.force, noOriginal: o['no-original'], upload: o.upload })
+      const meta = await publishVersion(project, need(p[1], 'video'), { note: o.note, lite: o.lite, quality: o.quality ? assertQuality(o.quality) : undefined, force: o.force, noOriginal: o['no-original'], upload: o.upload })
       if (warn) console.error(warn)
       return json(meta)
+    }
+    case 'quality': {
+      if (o.workspace) {
+        const ws = o.workspace
+        if (o.clear && p[0] !== undefined) throw new ValidationError('값과 --clear 는 함께 쓸 수 없습니다')
+        if (o.clear) await setWorkspaceQuality(ws, null)
+        else if (p[0] !== undefined) await setWorkspaceQuality(ws, assertQuality(p[0]))
+        const wi = await getWorkspaceQualityInfo(ws)
+        if (o.json) return json(wi)
+        return void console.log(`${wi.workspace} 기본 작업용 화질: ${wi.quality}  [${QUALITY_SOURCE_LABEL[wi.source]}]`)
+      }
+      const project = need(p[0], 'project')
+      if (o.clear && p[1] !== undefined) throw new ValidationError('값과 --clear 는 함께 쓸 수 없습니다')
+      const warn = o.force && (o.clear || p[1] !== undefined) ? await forceWarning(project) : null
+      if (o.clear) {
+        const had = await clearProjectQuality(project, { force: o.force })
+        if (warn) console.error(warn)
+        if (!o.json) console.log(had ? '프로젝트 화질 지정을 해제했습니다 (워크스페이스 기본을 따름)' : '프로젝트 지정이 없습니다')
+      } else if (p[1] !== undefined) {
+        await setProjectQuality(project, assertQuality(p[1]), { author: o.author ?? agentName(), authorName: o['author-name'] ?? process.env.CLIPREV_AGENT_NAME, force: o.force })
+        if (warn) console.error(warn)
+      }
+      const e = await getEffectiveQuality(project)
+      if (o.json) return json(e)
+      const d = e.project
+      console.log(`작업용 화질: ${e.quality}  [${QUALITY_SOURCE_LABEL[e.source]}${e.source === 'project' && d ? `: ${d.authorName ?? d.author}/${d.via}` : ''}]  (${QUALITIES.join('|')} · 다음 게시부터 적용)`)
+      return
     }
     case 'upload-version': {
       const project = need(p[0], 'project')

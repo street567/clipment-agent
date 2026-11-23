@@ -27,6 +27,7 @@
     { "name": "report_progress", "description": "진행 상황 보고" },
     { "name": "publish_version", "description": "새 버전 게시 (ffmpeg 필요)" },
     { "name": "upload_version", "description": "업로드용 버전 조회·지정" },
+    { "name": "preview_quality", "description": "작업용 화질 조회·지정" },
     { "name": "wait_for_requests", "description": "대기 요청 조회" },
     { "name": "get_preferences", "description": "작업 지침 읽기" },
     { "name": "set_preferences", "description": "작업 지침 고치기" },

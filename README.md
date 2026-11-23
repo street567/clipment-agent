@@ -67,8 +67,10 @@ clipment index ~/Library/Mobile\ Documents/com~apple~CloudDocs/Clipment [--depth
 clipment init simracing-vertical --title "심레이싱 버티컬"
 clipment projects                                     # 모든 워크스페이스의 프로젝트 (워크스페이스/프로젝트, 잠금 표시)
 clipment lock simracing-vertical --note "최종본 v003"   # 완료 잠금 (SPEC §8). unlock 으로 해제
-clipment publish simracing-vertical ~/Movies/cut.mp4 --note "첫 컷" [--lite] [--no-original] [--upload]
-                                                      # lite: 960px/CRF30/30fps/AAC96k · 기본으로 원본(original.<ext>)도 복사, --no-original 로 생략 · --upload: 이 버전을 업로드용으로 지정
+clipment publish simracing-vertical ~/Movies/cut.mp4 --note "첫 컷" [--quality 540p] [--lite] [--no-original] [--upload]
+                                                      # --quality 360p|540p|720p|1080p (생략: 프로젝트 지정 > 워크스페이스 기본 > 720p), lite = 540p(960px/CRF30/30fps/AAC96k) · 기본으로 원본(original.<ext>)도 복사, --no-original 로 생략 · --upload: 이 버전을 업로드용으로 지정
+clipment quality simracing-vertical [360p|540p|720p|1080p|--clear]   # 프로젝트 작업용 화질 (값 없이: 적용 화질과 출처)
+clipment quality --workspace 내작업 [값|--clear]                       # 워크스페이스 기본 작업용 화질
 clipment upload-version simracing-vertical [N|--clear]  # 업로드용 버전 보기·지정·해제 (지정이 없으면 원본 있는 최신 → 최신)
 clipment versions|comments|thread|requests|progress|reply|frame|watch ...
 clipment comments simracing-vertical --version 1 --status open --json
@@ -86,7 +88,7 @@ claude plugin install clipment@clipment-agent
 
 화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
-MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
+MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
 
 ### 채널(폰 요청이 세션으로 푸시됨)
 `.mcp.json` 이 `CLIPREV_CHANNEL=1` 로 서버를 띄우면 `claude/channel` 기능을 선언하고, 새 요청(화이트리스트 type 만)이 생기면 `notifications/claude/channel` 로 알립니다.
@@ -162,3 +164,4 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
 - 워크스페이스 계약 MAJOR 가 더 크면 읽기 전용: `wait_for_requests`/`requests`/`watch`/데몬은 건너뛰고 경고하며, `init`·`lock`·`reply`·`progress`·`publish` 는 거부합니다 (`--force` 로도 불가). "이 워크스페이스는 더 새 계약(x.y)이에요 · clipment update 필요". MAJOR 가 같고 MINOR 만 높으면 모르는 필드를 무시하고 정상 동작합니다.
 - `daemon_status` 는 워크스페이스별 `contract`/`compat`/`readOnly` 를 보여 줍니다.
 - TODO: 앱 레포가 GitHub 에 올라가면 CI 에서 `spec/` 가 앱 레포 `spec/` 와 동일한지 교차 검증 (지금은 앱 레포가 GitHub 에 없어 불가).
+- 작업용 화질(SPEC §13): 미리보기 인코딩 화질 `360p|540p|720p|1080p`(긴 변 640/960/1280/1920, 기본 720p). 게시 때 순서는 `--quality`(MCP `quality`) > 프로젝트 `.clipment/quality.json` > 워크스페이스 `workspace.json` 의 `previewQuality` > 720p. `clipment quality` / MCP `preview_quality` 로 보고 바꾸며, 다음 게시부터 적용됩니다(기존 버전은 그대로). `meta.json` 의 `quality` 에 쓴 화질이 기록됩니다. `--lite` 는 540p 의 별칭.

@@ -43,7 +43,7 @@ describe('parse / compat', () => {
   test('compat', () => {
     expect(compat({ major: 1, minor: 0 })).toBe('ok')
     expect(compat({ major: 1, minor: 6 })).toBe('ok')
-    expect(compat({ major: 1, minor: 9 })).toBe('newer-minor')
+    expect(compat({ major: 1, minor: 99 })).toBe('newer-minor')
     expect(compat({ major: 2, minor: 0 })).toBe('newer-major')
     expect(compat({ major: 0, minor: 9 })).toBe('ok')
   })

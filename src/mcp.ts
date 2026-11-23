@@ -7,7 +7,7 @@ import { statePath } from './daemon/util.ts'
 import { pidAlive } from './daemon/lock.ts'
 import {
   addProgress, addReply, agentName, COMMENT_STATUSES, extractFrame, getThread, listReplies, currentRegionViews, regionLegend, listComments, listProjects,
-  CONTRACT_STAMP, listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getUploadInfo, setUploadVersion, clearUploadVersion, getComment, sleep, waitForRequests,
+  CONTRACT_STAMP, listVersions, workspaceStatuses, forceWarning, pendingRequests, PROGRESS_STATES, publishVersion, getEffectiveQuality, setProjectQuality, clearProjectQuality, getWorkspaceQualityInfo, setWorkspaceQuality, QUALITIES, getUploadInfo, setUploadVersion, clearUploadVersion, getComment, sleep, waitForRequests,
   indexRoot, DEFAULT_INDEX_DEPTH, readPreferences, setPreferences, type PendingRequest,
 } from './core/index.ts'
 
@@ -109,14 +109,15 @@ mcp.registerTool('publish_version', {
   description: '렌더된 영상을 미리보기본으로 인코딩해 새 버전(vNNN)으로 게시. video_path 는 맥의 로컬 파일 경로. 기본으로 소스 원본(original.<ext>)도 함께 복사해 폰에서 고화질로 저장할 수 있게 한다.',
   inputSchema: {
     project, video_path: z.string(), note: z.string().optional(),
-    lite: z.boolean().optional().describe('true 면 가벼운 미리보기(긴 변 960, CRF 30, 30fps 상한, AAC 96k) — 모바일 데이터 절약'),
+    quality: z.enum(QUALITIES).optional().describe('작업용 화질(미리보기): 360p|540p|720p|1080p (긴 변 640/960/1280/1920). 생략하면 프로젝트 지정 > 워크스페이스 기본 > 720p'),
+    lite: z.boolean().optional().describe('quality="540p" 의 옛 이름 (긴 변 960, CRF 30, 30fps 상한, AAC 96k)'),
     no_original: z.boolean().optional().describe('true 면 원본을 복사하지 않는다 (아주 큰 파일용). 기본 false'),
     upload: z.boolean().optional().describe('true 면 이 새 버전을 업로드용으로 지정. 사용자가 이 영상이 최종/업로드용이라고 했을 때만'),
     force,
   },
-}, safe(async ({ project, video_path, note, lite, no_original, upload, force }) => {
+}, safe(async ({ project, video_path, note, quality, lite, no_original, upload, force }) => {
   const warning = force ? await forceWarning(project) : null
-  const m = await publishVersion(project, video_path, { note, lite, force, noOriginal: no_original, upload })
+  const m = await publishVersion(project, video_path, { note, quality, lite, force, noOriginal: no_original, upload })
   return ok(warning ? { ...m, warning } : m)
 }))
 
@@ -129,6 +130,28 @@ mcp.registerTool('upload_version', {
   if (clear) await clearUploadVersion(project, { force })
   else if (version !== undefined) await setUploadVersion(project, version, { author: agentName(), authorName: process.env.CLIPREV_AGENT_NAME, force })
   const info = await getUploadInfo(project)
+  return ok(warning ? { ...info, warning } : info)
+}))
+
+mcp.registerTool('preview_quality', {
+  description: '작업용 화질(미리보기 인코딩 화질, SPEC §13) 조회·지정. project 를 주면 그 프로젝트의 적용 화질과 출처(project|workspace|default)를 반환하고, quality 를 주면 프로젝트 지정을, clear=true 면 해제(워크스페이스 기본을 따름). workspace 를 주면 워크스페이스 기본(workspace.json previewQuality)을 같은 방식으로 다룬다. 게시 순서: publish_version.quality > 프로젝트 > 워크스페이스 > 720p, 다음 게시부터 적용. 사용자가 화질을 바꿔 달라고 했을 때만 지정한다. 잠긴 프로젝트는 force 없이 거부.',
+  inputSchema: {
+    project: z.string().optional().describe('"<워크스페이스>/<프로젝트>" 또는 유일한 "<프로젝트>"'),
+    workspace: z.string().optional().describe('워크스페이스 이름 (project 와 함께 쓸 수 없음)'),
+    quality: z.enum(QUALITIES).optional(), clear: z.boolean().optional(), force,
+  },
+}, safe(async ({ project, workspace, quality, clear, force }) => {
+  if (!!project === !!workspace) throw new Error('project 와 workspace 중 하나만 지정하세요')
+  if (clear && quality) throw new Error('quality 와 clear 는 함께 쓸 수 없습니다')
+  if (workspace) {
+    if (clear) await setWorkspaceQuality(workspace, null)
+    else if (quality) await setWorkspaceQuality(workspace, quality)
+    return ok(await getWorkspaceQualityInfo(workspace))
+  }
+  const warning = force && (clear || quality) ? await forceWarning(project!) : null
+  if (clear) await clearProjectQuality(project!, { force })
+  else if (quality) await setProjectQuality(project!, quality, { author: agentName(), authorName: process.env.CLIPREV_AGENT_NAME, force })
+  const info = await getEffectiveQuality(project!)
   return ok(warning ? { ...info, warning } : info)
 }))
 

@@ -21,6 +21,8 @@ export interface VersionMeta {
   schema: number; version: number; label: string; file: string
   duration: number; fps: number; width: number; height: number
   note: string; source: string; created: string
+  /** 이 버전을 만들 때 쓴 작업용 화질 (SPEC §13). 없으면 알 수 없음 */
+  quality?: Quality
   /** 업로드용 원본 (SPEC §12). 없으면 미리보기만 있는 버전 */
   original?: VersionOriginal
 }
@@ -70,3 +72,18 @@ export interface ProgressEvent {
 /** 요청의 현재 상태: 가장 최근 이벤트의 state, 없으면 'pending'(대기) */
 export type RequestState = ProgressState | 'pending'
 export interface RequestWithState extends Request { state: RequestState }
+
+/** 작업용 화질 (SPEC §13). 긴 변 640/960/1280/1920 */
+export const QUALITIES = ['360p', '540p', '720p', '1080p'] as const
+export type Quality = (typeof QUALITIES)[number]
+export const DEFAULT_QUALITY: Quality = '720p'
+/** 옛 'lite' 는 540p 의 별칭. 모르는 값은 null */
+export function parseQuality(v: unknown): Quality | null {
+  if (v === 'lite') return '540p'
+  return typeof v === 'string' && (QUALITIES as readonly string[]).includes(v) ? (v as Quality) : null
+}
+
+/** `<프로젝트>/.clipment/quality.json` 프로젝트 화질 지정 (SPEC §13, 고쳐 쓰는 파일) */
+export interface QualityDesignation {
+  schema: number; quality: Quality; author: string; authorName?: string; via: 'app' | 'mac'; updated: string
+}

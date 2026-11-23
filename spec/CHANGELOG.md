@@ -3,6 +3,11 @@
 버전 규칙 (SPEC §10): **MAJOR** 깨지는 변경(옛 리더가 안전하게 읽거나 쓸 수 없음) · **MINOR** 추가만(모르는 필드는 무시) · **PATCH** 문구·예시 정리.
 1.0.0~1.5.0 은 git 이력(`docs/SPEC-mvp.md`)에서 복원했다.
 
+## 1.9.0 — 작업용 화질
+- §13 미리보기 화질 `360p|540p|720p|1080p`(긴 변 640/960/1280/1920, 기본 720p). 워크스페이스 기본 `workspace.json` `previewQuality`(선택), 프로젝트 지정 `<프로젝트>/.clipment/quality.json`(선택, 고쳐 쓰는 파일, 마지막에 쓴 쪽이 이김). 스키마 `quality.schema.json`.
+- 게시 때 화질 결정 순서: 명시 인자 > 프로젝트 quality.json > 워크스페이스 previewQuality > 720p. 이미 있는 버전은 그대로.
+- `meta.json` 선택 필드 `quality`(게시에 쓴 화질).
+
 ## 1.8.0 — 업로드용 영상
 - §12 `versions/vNNN/original.<ext>` (선택 원본) + `meta.json` `original{file,bytes,width,height,fps?,duration?}`. 클라이언트는 원본을 자동으로 내려받지 않는다.
 - §12 `<프로젝트>/.clipment/upload.json` (선택, 고쳐 쓰는 파일) 업로드용 버전 지정 + 기본 규칙(원본 있는 최신 → 최신). 스키마 `upload.schema.json`.

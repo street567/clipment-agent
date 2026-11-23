@@ -10,7 +10,8 @@ import { assertWorkspaceWritable } from './contract.ts'
 import { writeUploadDesignation } from './upload.ts'
 import { agentName } from './wait.ts'
 import { buildDrawboxFilter } from './regions.ts'
-import type { Region, VersionMeta } from './types.ts'
+import { getEffectiveQuality } from './quality.ts'
+import { parseQuality, type Quality, type Region, type VersionMeta } from './types.ts'
 
 const BIN_DIRS = ['/opt/homebrew/bin', '/usr/local/bin']
 function bin(name: string): string {
@@ -55,10 +56,18 @@ export async function probe(file: string): Promise<ProbeResult> {
 
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2)
 
-export type PreviewPreset = 'default' | 'lite'
-export const PRESETS: Record<PreviewPreset, { longEdge: number; crf: number; maxFps: number; audioBitrate: string }> = {
-  default: { longEdge: 1280, crf: 26, maxFps: 60, audioBitrate: '128k' },
-  lite: { longEdge: 960, crf: 30, maxFps: 30, audioBitrate: '96k' },
+export interface PresetConfig { longEdge: number; crf: number; maxFps: number; audioBitrate: string }
+/** 작업용 화질별 인코딩 설정 (SPEC §13) */
+export const QUALITY_PRESETS: Record<Quality, PresetConfig> = {
+  '360p': { longEdge: 640, crf: 32, maxFps: 30, audioBitrate: '64k' },
+  '540p': { longEdge: 960, crf: 30, maxFps: 30, audioBitrate: '96k' },
+  '720p': { longEdge: 1280, crf: 26, maxFps: 60, audioBitrate: '128k' },
+  '1080p': { longEdge: 1920, crf: 24, maxFps: 60, audioBitrate: '160k' },
+}
+/** 'default' = 720p, 'lite' = 540p (옛 이름 별칭) */
+export type PreviewPreset = Quality | 'default' | 'lite'
+export const PRESETS: Record<PreviewPreset, PresetConfig> = {
+  ...QUALITY_PRESETS, default: QUALITY_PRESETS['720p'], lite: QUALITY_PRESETS['540p'],
 }
 
 /** 회전 적용 후 표시 크기와 목표 크기(기본 긴 변 1280, 업스케일 안 함) 계산 */
@@ -93,7 +102,11 @@ async function encodePreview(src: string, out: string, p: ProbeResult, preset: P
 }
 
 export interface PublishOptions {
-  note?: string; lite?: boolean; force?: boolean
+  note?: string; force?: boolean
+  /** 작업용 화질 명시 (SPEC §13). 없으면 프로젝트 > 워크스페이스 > 720p */
+  quality?: Quality
+  /** quality: '540p' 의 옛 이름 */
+  lite?: boolean
   /** true 면 원본을 복사하지 않는다 (용량이 큰 소스용). 기본: 원본 포함 (SPEC §12) */
   noOriginal?: boolean
   /** true 면 이 새 버전을 업로드용으로 지정한다 */
@@ -104,6 +117,12 @@ export interface PublishOptions {
 export function originalFileName(video: string): string {
   const ext = extname(video).slice(1).toLowerCase()
   return `original.${/^[a-z0-9]{1,8}$/.test(ext) ? ext : 'mp4'}`
+}
+
+function assertQ(v: unknown): Quality {
+  const q = parseQuality(v)
+  if (!q) throw new ValidationError(`잘못된 화질: ${JSON.stringify(v)} (360p|540p|720p|1080p)`)
+  return q
 }
 
 export async function publishVersion(slug: string, video: string, opts: PublishOptions = {}): Promise<VersionMeta> {
@@ -117,7 +136,9 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
   const work = await mkdtemp(join(tmpdir(), 'cliprev-'))
   try {
     const tmpOut = join(work, 'preview.mp4')
-    await encodePreview(video, tmpOut, src, opts.lite ? 'lite' : 'default')
+    const explicit = opts.quality ? assertQ(opts.quality) : opts.lite ? '540p' : null
+    const { quality } = await getEffectiveQuality(slug, explicit)
+    await encodePreview(video, tmpOut, src, quality)
     const outProbe = await probe(tmpOut)
 
     const n = await nextVersionNumber(slug)
@@ -140,9 +161,9 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
     const meta: VersionMeta = {
       schema: 1, version: n, label: versionLabel(n), file: 'preview.mp4',
       duration: Math.round(outProbe.duration * 100) / 100,
-      fps: Math.round(Math.min(src.fps, PRESETS[opts.lite ? 'lite' : 'default'].maxFps) * 100) / 100,
+      fps: Math.round(Math.min(src.fps, QUALITY_PRESETS[quality].maxFps) * 100) / 100,
       width: outProbe.width, height: outProbe.height,
-      note: opts.note ?? '', source: basename(video), created: new Date().toISOString(),
+      note: opts.note ?? '', source: basename(video), created: new Date().toISOString(), quality,
       ...(original ? { original } : {}),
     }
     await writeFile(join(stage, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
