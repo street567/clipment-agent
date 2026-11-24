@@ -9,6 +9,7 @@
 #   CLIPMENT_DIR          설치 위치 (기본 ~/.clipment/agent)
 #   CLIPMENT_MARKETPLACE  Claude Code 마켓플레이스 소스 (기본 street567/clipment-agent)
 #   CLIPMENT_ASSUME_NO=1  모든 질문에 n (테스트용)
+#   CLIPMENT_LATEST_TAG   (테스트용) 최신 릴리스 태그를 직접 지정. 없으면 GitHub releases/latest, GitHub 가 아닌 origin 이면 원격 태그 중 최고 버전
 set -euo pipefail
 
 REPO="${CLIPMENT_REPO:-street567/clipment-agent}"
@@ -28,7 +29,7 @@ warn() { printf '경고: %s\n' "$*" >&2; }
 die()  { printf '오류: %s\n' "$*" >&2; exit 1; }
 
 usage() {
-  sed -n '2,14p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'
+  sed -n '2,12p' "${BASH_SOURCE[0]:-$0}" | sed 's/^# \{0,1\}//'
 }
 
 for arg in "$@"; do
@@ -179,6 +180,62 @@ release_install() {
   say "릴리스 설치: $(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$APP/package.json" | head -1) -> $APP"
 }
 
+# ---------------------------------------------------------------- git 업데이트 도우미
+pkg_version() { sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$1/package.json" 2>/dev/null | head -1; }
+# a 가 b 보다 엄격히 크면 0
+ver_gt() { [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)" = "$1" ]; }
+
+# 최신 릴리스 태그 (vX.Y.Z). 없으면 빈 문자열.
+#  1) CLIPMENT_LATEST_TAG  2) origin 이 GitHub 면 releases/latest (비인증 HTTPS)  3) 그 외 origin 은 원격 태그 중 최고 버전
+latest_release_tag() {
+  local app="$1" tag="" url
+  if [ -n "${CLIPMENT_LATEST_TAG:-}" ]; then tag="$CLIPMENT_LATEST_TAG"
+  else
+    url="$(git -C "$app" remote get-url origin 2>/dev/null || true)"
+    case "$url" in
+      *github.com[:/]*)
+        local repo="${url#*github.com[:/]}"; repo="${repo%.git}"
+        tag="$(curl -fsS --max-time 10 -H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
+          | tr ',' '\n' | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1 || true)" ;;
+      *)
+        tag="$(git -C "$app" ls-remote --tags --refs origin 'v*' 2>/dev/null | sed 's#.*refs/tags/##' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+          | sort -t. -k1.2,1n -k2,2n -k3,3n | tail -1 || true)" ;;
+    esac
+  fi
+  printf '%s' "$tag" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true
+}
+
+# 릴리스 태그가 있으면 그 태그로(다운그레이드 금지), 없으면 main 을 ff-only 로. detached HEAD 에서도 동작.
+git_update() {
+  local cur tag tv branch
+  cur="$(pkg_version "$APP")"
+  if [ "$VERSION" != latest ]; then
+    git -C "$APP" fetch --tags origin && git -C "$APP" checkout "$VERSION"
+    return
+  fi
+  tag="$(latest_release_tag "$APP")"
+  if [ -n "$tag" ]; then
+    tv="${tag#v}"
+    if ver_gt "$tv" "${cur:-0.0.0}"; then
+      git -C "$APP" fetch --no-tags origin "+refs/tags/$tag:refs/tags/$tag"
+      git -C "$APP" checkout --detach "refs/tags/$tag"
+      say "릴리스 $tag 로 이동 (v${cur:-?} -> v$tv)"
+    elif [ "$tv" = "${cur:-}" ]; then
+      say "이미 최신 릴리스입니다 ($tag)."
+    else
+      say "현재 버전(v${cur:-?})이 최신 릴리스($tag)보다 높아 그대로 둡니다 (다운그레이드 안 함)."
+    fi
+    return
+  fi
+  say "릴리스가 없어 main 을 갱신합니다 (git pull --ff-only)."
+  branch="$(git -C "$APP" symbolic-ref -q --short HEAD || true)"
+  if [ -z "$branch" ]; then
+    git -C "$APP" fetch origin main
+    if git -C "$APP" show-ref --verify --quiet refs/heads/main; then git -C "$APP" checkout main; else git -C "$APP" checkout -b main --track origin/main; fi
+  fi
+  git -C "$APP" pull --ff-only
+}
+
 if [ -n "$LOCAL_DIR" ]; then
   APP="$LOCAL_DIR"
   say "로컬 체크아웃 사용: $APP"
@@ -186,8 +243,7 @@ else
   APP="$DIR"
   if [ -d "$APP/.git" ]; then
     say "업데이트(git): $APP"
-    if [ "$VERSION" = latest ]; then git -C "$APP" pull --ff-only
-    else git -C "$APP" fetch --tags && git -C "$APP" checkout "$VERSION"; fi
+    git_update
   elif release_install; then
     :
   else
@@ -214,7 +270,7 @@ say "의존성 설치: bun install --production"
 (cd "$APP" && bun install --production --no-summary)
 
 # ---------------------------------------------------------------- 링크
-chmod +x "$APP/src/cli.ts" "$APP/src/mcp.ts" 2>/dev/null || true
+chmod +x "$APP/src/cli.ts" "$APP/src/mcp.ts" "$APP/src/server.ts" 2>/dev/null || true
 mkdir -p "$BIN_DIR"
 for n in clipment cliprev; do
   target="$BIN_DIR/$n"
@@ -291,6 +347,16 @@ if ask "백그라운드 데몬(새 요청 알림·인덱스 자동 갱신)을 La
     fi
   fi
   say "상태: clipment daemon status / 로그: clipment daemon logs"
+fi
+
+# ---------------------------------------------------------------- 자동 업데이트 (기본 끔)
+# --yes / CLIPMENT_ASSUME_NO / 비대화형이면 묻지 않고 끈 채로 둔다.
+if [ "$ASSUME_YES" = 1 ] || [ "${CLIPMENT_ASSUME_NO:-}" = 1 ]; then
+  say "자동 업데이트는 꺼 둡니다(off). 켜려면: clipment autoupdate on"
+elif ask "자동 업데이트를 켤까요? 켜면 새 릴리스 코드가 확인 없이 자동으로 내려받아져 이 맥에서 실행됩니다. (기본 N)"; then
+  "$BUN_BIN" "$APP/src/cli.ts" autoupdate on || warn "자동 업데이트 설정 실패"
+else
+  say "자동 업데이트는 끈 상태입니다. 켜려면: clipment autoupdate on"
 fi
 
 say ""

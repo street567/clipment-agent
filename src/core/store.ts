@@ -265,6 +265,15 @@ export function assertAuthor(a: string): string {
 
 // ---------- 요청 / 진행 ----------
 
+/** 화이트리스트 밖 type 의 요청을 본 적이 있는지 (폰 앱이 맥 에이전트보다 새롭다는 신호 → 데몬이 업데이트 확인). 읽고 비운다. */
+const unknownTypes = new Map<string, string>()
+export function drainUnknownRequestTypes(): { id: string; type: string }[] {
+  const out = [...unknownTypes].map(([id, type]) => ({ id, type }))
+  unknownTypes.clear()
+  return out
+}
+const seenUnknown = new Set<string>()
+
 function normalizeRequest(id: string, j: any): Request | null {
   if (!j || typeof j !== 'object') return null
   if (!inList(REQUEST_TYPES, j.type)) return null // 화이트리스트 밖 type 은 무시
@@ -302,8 +311,15 @@ export async function listRequests(slug: string, opts: { pendingOnly?: boolean }
   const out: RequestWithState[] = []
   for (const stem of await listJsonStems(dir)) {
     if (!isId(stem)) continue
-    const r = normalizeRequest(stem, await readJson(join(dir, stem + '.json')))
-    if (!r) continue
+    const raw = await readJson(join(dir, stem + '.json'))
+    const r = normalizeRequest(stem, raw)
+    if (!r) {
+      // 새 type(예: 더 새 앱이 보낸 것)은 실행하지 않고 흔적만 남긴다 (같은 id 는 한 번만)
+      if (typeof raw?.type === 'string' && !inList(REQUEST_TYPES, raw.type) && !seenUnknown.has(stem) && seenUnknown.size < 5000) {
+        seenUnknown.add(stem); unknownTypes.set(stem, raw.type.slice(0, 64))
+      }
+      continue
+    }
     const events = await listProgress(slug, r.id)
     const state = events.length ? events[events.length - 1]!.state : 'pending'
     if (opts.pendingOnly && !(state === 'pending' || state === 'received')) continue

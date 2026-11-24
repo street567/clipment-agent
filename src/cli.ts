@@ -14,6 +14,7 @@ import {
   describeScript, generateVoices, buildNarration, createTtsEngine,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
+import { localTime, updateClaudePlugin } from './cliutil.ts'
 
 const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLIPREV_ROOT > ~/.config/cliprev/workspaces.json > iCloud ClipReview)
   <project> = <워크스페이스>/<프로젝트> 또는 (유일할 때) <프로젝트>
@@ -58,7 +59,10 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   daemon logs [--lines N] [--follow]
   daemon config [--auto-run off|claude|codex] [--job-timeout 분] [--tts-engine say|openai|elevenlabs]   ~/.config/clipment/daemon.json
   health [--json]              데몬/채널 세션/미처리 요청/요청 없는 코멘트 점검 (확인 필요하면 종료 코드 1)
-  update                       최신 릴리스로 업데이트하고 데몬을 재시작
+  update                       최신 릴리스로 업데이트하고 데몬을 재시작 (+ claude 플러그인 갱신, CLIPMENT_SKIP_PLUGIN_UPDATE=1 이면 생략)
+  update --check               새 릴리스가 있는지만 확인 (아무것도 바꾸지 않음)
+  update --rollback            마지막 자동 적용 전 버전으로 되돌리고 그 버전을 나쁜 버전으로 기록
+  autoupdate on|off|status     자동 업데이트(daemon.json autoUpdate, 기본 꺼짐). 켜면 릴리스 코드가 자동으로 실행·적용됨
   --version                    버전
 `
 
@@ -92,7 +96,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, 'tts-engine': { type: 'string' }, duration: { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, 'tts-engine': { type: 'string' }, duration: { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' }, check: { type: 'boolean' }, rollback: { type: 'boolean' },
     },
   })
 
@@ -347,7 +351,9 @@ async function main() {
       return
     }
     case 'update':
-      return update()
+      return o.check ? updateCheck() : o.rollback ? updateRollback() : update()
+    case 'autoupdate':
+      return autoUpdateCmd(p[0])
     default:
       throw new ValidationError(`알 수 없는 명령: ${cmd}\n\n${HELP}`)
   }
@@ -406,7 +412,7 @@ async function daemonCmd(sub: string | undefined, o: Record<string, any>) {
       console.log(`설치됨: ${s.installed ? '예' : '아니오'}  launchd 로드: ${s.loaded ? '예' : '아니오'}  실행 pid: ${s.lockAlive ? s.lockPid : '없음'}`)
       if (s.duplicates.length) console.log(`경고: 중복/고아 프로세스 ${s.duplicates.join(', ')} — clipment daemon stop --kill-orphans`)
       const st: any = s.state
-      if (st) console.log(`대기 요청 ${st.pendingTotal}개, 폴링 ${st.pollMs}ms, RSS ${st.rssMB}MB, 자동 처리 ${st.autoRun}, 갱신 ${st.updated}`)
+      if (st) console.log(`대기 요청 ${st.pendingTotal}개, 폴링 ${Number.isFinite(st.pollMs) ? `${st.pollMs}ms` : '?'}, RSS ${st.rssMB ?? '?'}MB, 자동 처리 ${st.autoRun}, 버전 ${st.version ?? '?'}, 갱신 ${localTime(st.updated)}`)
       return
     }
     case 'logs': {
@@ -435,20 +441,68 @@ async function daemonCmd(sub: string | undefined, o: Record<string, any>) {
   }
 }
 
-/** 설치 스크립트를 임시 복사본으로 실행(자기 자신이 교체되는 것 방지) → 데몬 재시작. 실행 중인 세션은 그대로. */
+/** 설치 스크립트를 임시 복사본으로 실행(자기 자신이 교체되는 것 방지) → 데몬 재시작 → claude 플러그인 갱신. 실행 중인 세션은 그대로. */
 async function update() {
   const src = join(APP_DIR, 'install.sh')
   if (!existsSync(src)) throw new ValidationError(`install.sh 를 찾지 못했습니다: ${src}`)
-  const tmp = join(process.env.TMPDIR ?? '/tmp', `clipment-install-${process.pid}.sh`)
-  writeFileSync(tmp, readFileSync(src))
-  const before = appVersion()
-  const r = spawnSync('bash', [tmp, '--update'], { stdio: 'inherit', env: { ...process.env, CLIPMENT_DIR: process.env.CLIPMENT_DIR ?? APP_DIR } })
-  try { unlinkSync(tmp) } catch {}
-  if (r.status !== 0) { process.exitCode = r.status ?? 1; return }
+  const { acquireUpdateLock } = await import('./relay/lib.ts')
+  const release = acquireUpdateLock() // 릴레이가 갱신 도중의 반쯤 바뀐 폴더를 고르지 않도록
+  if (!release) throw new ValidationError('다른 업데이트가 진행 중입니다 (잠시 뒤 다시 시도)')
+  try {
+    const tmp = join(process.env.TMPDIR ?? '/tmp', `clipment-install-${process.pid}.sh`)
+    writeFileSync(tmp, readFileSync(src))
+    const before = appVersion()
+    const r = spawnSync('bash', [tmp, '--update'], { stdio: 'inherit', env: { ...process.env, CLIPMENT_DIR: process.env.CLIPMENT_DIR ?? APP_DIR } })
+    try { unlinkSync(tmp) } catch {}
+    if (r.status !== 0) { process.exitCode = r.status ?? 1; return }
+    const L = await import('./daemon/launchd.ts')
+    const after = spawnSync(process.execPath, [join(APP_DIR, 'src/cli.ts'), '--version'], { encoding: 'utf8' }).stdout.trim()
+    console.log(`버전: ${before} -> ${after || '?'}`)
+    if (existsSync(L.plistPath())) { const d = L.restartDaemon(); console.log(`데몬: ${d.message}`) }
+  } finally { release() }
+  updateClaudePlugin()
+}
+
+async function updateCheck() {
+  const { fetchLatestRelease } = await import('./daemon/updater.ts')
+  const { cmpVersion, majorOf, isBad } = await import('./relay/lib.ts')
+  const { loadDaemonConfig } = await import('./daemon/config.ts')
+  const cur = appVersion()
+  const on = loadDaemonConfig().autoUpdate
+  try {
+    const rel = await fetchLatestRelease()
+    const c = cmpVersion(rel.version, cur)
+    const verdict = c === null ? '비교 불가' : c > 0 ? `새 버전 있음${(majorOf(rel.version) ?? 0) > (majorOf(cur) ?? 0) ? ' (메이저 — 자동 적용 안 함)' : ''}${isBad(rel.version) ? ' (나쁜 버전으로 기록됨)' : ''}` : c === 0 ? '최신입니다' : '현재가 더 높습니다 (다운그레이드 안 함)'
+    console.log(`현재 v${cur} · 최신 릴리스 ${rel.tag} — ${verdict}\n자동 업데이트: ${on ? '켜짐' : '꺼짐'}${c !== null && c > 0 ? '\n업데이트: clipment update' : ''}`)
+  } catch (e: any) {
+    console.error(`확인 실패: ${e?.message ?? e}`)
+    process.exitCode = 1
+  }
+}
+
+async function updateRollback() {
+  const { rollback } = await import('./daemon/updater.ts')
+  const { makeRunner, ChildTracker } = await import('./daemon/runner.ts')
+  const r = await rollback({ run: makeRunner(new ChildTracker()), appDir: APP_DIR, bun: process.execPath })
+  console.log(r.message)
+  if (!r.ok) { process.exitCode = 1; return }
   const L = await import('./daemon/launchd.ts')
-  const after = spawnSync(process.execPath, [join(APP_DIR, 'src/cli.ts'), '--version'], { encoding: 'utf8' }).stdout.trim()
-  console.log(`버전: ${before} -> ${after || '?'}`)
   if (existsSync(L.plistPath())) { const d = L.restartDaemon(); console.log(`데몬: ${d.message}`) }
+}
+
+async function autoUpdateCmd(sub: string | undefined) {
+  const { loadDaemonConfig, saveDaemonConfig } = await import('./daemon/config.ts')
+  const { readBadList, managedDir } = await import('./relay/lib.ts')
+  if (sub === 'on' || sub === 'off') {
+    saveDaemonConfig({ autoUpdate: sub === 'on' })
+    console.log(sub === 'on'
+      ? '자동 업데이트 켬: 새 릴리스 코드가 자동으로 내려받아져 실행됩니다 (열려 있는 세션도 새 서버로 바뀜). 끄려면: clipment autoupdate off'
+      : '자동 업데이트 끔: 새 세션부터 플러그인에 들어 있는 버전만 씁니다. 새 버전이 나오면 알림만 합니다.')
+  } else if (sub !== undefined && sub !== 'status') throw new ValidationError(`autoupdate 하위 명령: on|off|status\n\n${HELP}`)
+  const on = loadDaemonConfig().autoUpdate
+  const bad = Object.keys(readBadList())
+  console.log(`자동 업데이트: ${on ? '켜짐' : '꺼짐'}  (현재 v${appVersion()}, 관리형 설치 ${managedDir()}${existsSync(join(managedDir(), '.git')) ? ' [git 클론]' : ' [git 아님: 데몬은 알림만, 서버 교체는 가능]'})`)
+  if (bad.length) console.log(`나쁜 버전(건너뜀): ${bad.map(v => `v${v}`).join(', ')}`)
 }
 
 async function watch(project: string | undefined, includeExisting: boolean) {

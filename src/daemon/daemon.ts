@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path'
 import {
   listComments, listWorkspaceProjects, readWorkspaceContract, formatContract, CONTRACT_STAMP, type Compat, type WorkspaceContract, pendingRequests, readConfigRoots, reindexRootsFor, scanRoot, indexPath, readJson, indexRoot,
   workspaces, type PendingRequest, type Workspace, currentLock, scriptFileOf, generateVoices, createTtsEngine, type TtsEngine, type VoiceResult,
+  listRequests, drainUnknownRequestTypes,
 } from '../core/index.ts'
 import { AUTO_TYPES, runJob, type AutoRun } from './autorun.ts'
 import { configuredTtsEngine, loadDaemonConfig, type DaemonConfig } from './config.ts'
@@ -11,6 +12,7 @@ import { osascriptNotifier, planNotifications, type Notifier } from './notify.ts
 import { ChildTracker, makeRunner, type Runner } from './runner.ts'
 import { buildHealthReport, newHealthNotifyState, planHealthNotifications } from './health.ts'
 import { clipmentHome, lockPath, logPath, Logger, statePath, TtlCache } from './util.ts'
+import { Updater, type UpdaterDeps } from './updater.ts'
 
 export const RSS_LIMIT_MB = 200
 export const RSS_CHECK_MS = 10 * 60_000
@@ -21,6 +23,10 @@ export const MAX_STATE_PENDING = 50
 
 /** 변화가 있으면 최소 간격으로, 없으면 1.5배씩 늘려 상한까지 */
 export function nextInterval(cur: number, changed: boolean, min: number, max: number): number {
+  // 설정 일부가 빠진 채 주입돼도(NaN) state.json 에 null 이 새지 않도록 유한값으로 보정
+  if (!Number.isFinite(min)) min = 5000
+  if (!Number.isFinite(max)) max = Math.max(min, 30_000)
+  if (!Number.isFinite(cur)) cur = min
   return changed ? min : Math.min(max, Math.max(min, Math.round(cur * 1.5)))
 }
 
@@ -36,6 +42,8 @@ export interface DaemonDeps {
   rootCheckMs?: number
   /** 테스트용: AI 음성 엔진 주입 (기본: 설정된 엔진) */
   tts?: TtsEngine
+  /** 자동 업데이트 점검 (runDaemon 이 만든다. 테스트는 주입하거나 생략) */
+  updater?: Updater
 }
 
 export interface DaemonState {
@@ -90,6 +98,42 @@ export class Daemon {
   }
 
   get appDir() { return this.deps.appDir ?? resolve(import.meta.dir, '../..') }
+
+  private updater: Updater | null = null
+  /** 업데이터를 붙인다 (runDaemon). deps 로 fetch/시계 등을 바꿀 수 있다 */
+  enableUpdater(over: Partial<UpdaterDeps> = {}): Updater {
+    this.updater = this.deps.updater ?? new Updater({
+      run: this.run, appDir: this.appDir, bun: this.deps.bun ?? process.execPath, cfg: this.cfg, notify: this.notifier, log: this.log,
+      isIdle: () => this.isIdle(), exit: code => { this.log.log('info', '업데이트 적용 — 종료 후 launchd 가 재시작'); this.exitCode = code; this.stop() },
+      ...over,
+    })
+    return this.updater
+  }
+
+  /** 업데이트 적용 가능한 한가한 상태: 처리 중 작업·대기 요청·음성 생성이 모두 없음 */
+  async isIdle(): Promise<boolean> {
+    if (this.currentJob || this.jobWorker || this.queue.length || this.scriptBusy) return false
+    const cfg = this.cfg(), now = Date.now()
+    for (const w of workspaces()) {
+      if (!existsSync(w.path)) continue
+      try { if ((await readWorkspaceContract(w.path)).readOnly) continue } catch { continue }
+      let projects: { id: string }[] = []
+      try { projects = await listWorkspaceProjects(w) } catch { continue }
+      for (const p of projects) {
+        const ref = `${w.name}/${p.id}`
+        try {
+          if (await currentLock(ref)) continue
+          // 비종료 상태(pending/received/working)인 요청. 너무 오래된(maxAgeMin 초과) 것은 방치된 것으로 보고 무시
+          for (const r of await listRequests(ref)) {
+            if (r.state === 'done' || r.state === 'failed') continue
+            if (now - Date.parse(r.created) > cfg.maxAgeMin * 60_000) continue
+            return false
+          }
+        } catch { return false } // 읽지 못하면 한가하다고 단정하지 않는다
+      }
+    }
+    return true
+  }
 
   wake = () => { this.wakeFn?.() }
 
@@ -148,6 +192,9 @@ export class Daemon {
     let pending: PendingRequest[] = []
     let ok = true
     try { pending = await pendingRequests(undefined, null, () => {}) } catch (e) { ok = false; this.log.log('warn', '요청 스캔 실패', { err: String(e) }) }
+    // 화이트리스트 밖 type: 실행하지 않고, 폰 앱이 더 새롭다는 신호로만 쓴다 (업데이트 점검 트리거)
+    const unknown = drainUnknownRequestTypes()
+    if (unknown.length) { this.log.log('info', '알 수 없는 요청 type — 업데이트 점검 예약', { n: unknown.length, types: [...new Set(unknown.map(u => u.type))].slice(0, 5) }); this.updater?.noteUnknownType() }
     const fresh: { req: PendingRequest; comments: number }[] = []
     for (const r of pending) {
       const key = r.ref + ':' + r.id
@@ -307,7 +354,7 @@ export class Daemon {
   private writeState(cfg: DaemonConfig, ws: DaemonState['workspaces'], pending: PendingRequest[], ok: boolean, changed: boolean, now: number) {
     const st: DaemonState = {
       pid: process.pid, started: new Date(this.startedAt).toISOString(), updated: new Date(now).toISOString(),
-      version: this.version(), autoRun: cfg.autoRun, pollMs: this.interval, rssMB: Math.round(process.memoryUsage.rss() / 1048576),
+      version: this.version(), autoRun: cfg.autoRun, pollMs: Number.isFinite(this.interval) ? this.interval : cfg.pollMs, rssMB: Math.round(process.memoryUsage.rss() / 1048576),
       lastTickOk: ok,
       pending: pending.slice(0, MAX_STATE_PENDING).map(r => ({ id: r.id, ref: r.ref, type: r.type, version: r.version, agent: r.agent, created: r.created, state: r.state })),
       pendingTotal: pending.length, lastSeen: this.lastSeen, currentJob: this.currentJob, workspaces: ws,
@@ -360,6 +407,7 @@ export class Daemon {
     this.timers.push(setInterval(() => this.checkRss(), RSS_CHECK_MS))
     this.timers.push(setInterval(() => { void this.healthCheck() }, this.cfg().healthCheckMs))
     void this.healthCheck()
+    if (this.updater) this.timers.push(setInterval(() => { void this.updater!.tick().catch(e => this.log.log('warn', '업데이트 점검 오류', { err: String(e) })) }, 60_000))
     while (!this.stopping) {
       try { await this.tick() } catch (e) { this.log.log('error', 'tick 오류', { err: String(e) }) }
       if (this.stopping) break
@@ -387,6 +435,7 @@ export async function runDaemon(deps: DaemonDeps = {}): Promise<number> {
   // launchd 출력 로그가 무한히 커지지 않게
   try { const f = join(clipmentHome(), 'daemon.launchd.log'); if (existsSync(f) && statSync(f).size > 1_000_000) truncateSync(f, 0) } catch {}
   const d = new Daemon({ ...deps, logger })
+  if (process.env.CLIPMENT_NO_UPDATE_CHECK !== '1') d.enableUpdater()
   logger.log('info', '데몬 시작', { pid: process.pid, autoRun: loadDaemonConfig().autoRun })
   const onSig = (s: string) => () => { logger.log('info', `${s} 수신 — 정리 후 종료`); d.stop() }
   const handlers: [NodeJS.Signals, () => void][] = (['SIGTERM', 'SIGINT', 'SIGHUP'] as const).map(s => [s, onSig(s)])
