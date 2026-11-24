@@ -55,6 +55,14 @@ describe('install.sh --update (git 클론)', () => {
     expect(ver(dir)).toBe('0.4.0'); expect(isDetached(dir)).toBe(true)
     expect(git(dir, 'describe', '--tags', '--exact-match')).toBe('v0.4.0')
   })
+  test('새 설치는 git 클론 + 최신 릴리스 태그 (자동 업데이트 가능한 형태)', () => {
+    const r = remote([{ v: '0.3.0', tag: true }, { v: '0.4.0', tag: true }, { v: '0.5.0' }])
+    const dir = join(r.base, 'fresh')
+    const res = runUpdate(r, dir, { CLIPMENT_REPO: r.bare, CLIPMENT_LATEST_TAG: 'v0.4.0' }, [])
+    expect(res.out).toContain('clone:')
+    expect(ver(dir)).toBe('0.4.0'); expect(isDetached(dir)).toBe(true)
+    expect(res.code).toBe(0)
+  })
   test('분리 HEAD(옛 태그)에서도 새 태그로 이동, 이미 최신이면 그대로', () => {
     const r = remote([{ v: '0.3.0', tag: true }, { v: '0.4.0', tag: true }])
     const dir = app(r, 'v0.3.0', true)

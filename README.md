@@ -11,7 +11,7 @@
 ```
 curl -fsSL https://raw.githubusercontent.com/street567/clipment-agent/main/install.sh | bash
 ```
-`~/.clipment/agent` 에 최신 릴리스 설치(없으면 clone) → `bun install --production` → `~/.local/bin/{clipment,cliprev}` 링크 → Claude Code 플러그인 / Codex MCP / Claude 데스크톱 MCP / 워크스페이스 등록 / 데몬(+자동 처리, 기본 off)을 y/N 으로 묻습니다. 다시 실행하면 업데이트입니다.
+`~/.clipment/agent` 에 최신 릴리스를 git clone(안 되면 tarball) → `bun install --production` → `~/.local/bin/{clipment,cliprev}` 링크 → Claude Code 플러그인 / Codex MCP / Claude 데스크톱 MCP / 워크스페이스 등록 / 데몬(+자동 처리, 기본 off)을 y/N 으로 묻습니다. 다시 실행하면 업데이트입니다.
 
 ### 수동 설치
 ```
@@ -166,7 +166,7 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
   # package.json version 을 올리고 커밋/푸시한 뒤
   git tag v0.1.0 && git push origin v0.1.0
   ```
-- `install.sh` 는 기본으로 **최신 릴리스 tarball** 을 설치합니다(`gh` 로그인돼 있으면 릴리스, 아니면 git clone 으로 대체). 버전 고정: `CLIPMENT_VERSION=v0.1.0 ./install.sh`.
+- `install.sh` 는 기본으로 git clone 한 뒤 **최신 릴리스 태그**로 맞춥니다(릴리스가 없으면 main, 클론이 안 되면 릴리스 tarball — `gh` 로그인 필요). 자동 업데이트 적용은 git 클론 설치에서만 되고 tarball 설치는 알림만 합니다. 버전 고정: `CLIPMENT_VERSION=v0.1.0 ./install.sh`.
 - 업데이트: `clipment update` — git 클론이면 **최신 릴리스 태그**(GitHub `releases/latest`, 태그 `vX.Y.Z`)로 옮기고(릴리스가 없을 때만 `main` 을 `git pull --ff-only`, 분리 HEAD 에서도 동작, 현재 버전이 더 높으면 그대로 두고 알림 — 다운그레이드 없음), 의존성을 갱신하고 데몬을 재시작합니다. `claude` 가 PATH 에 있고 `clipment@clipment-agent` 플러그인이 설치돼 있으면 `claude plugin marketplace update clipment-agent` → `claude plugin update clipment@clipment-agent` 도 실행합니다(실패해도 무시, `CLIPMENT_SKIP_PLUGIN_UPDATE=1` 로 생략). 열려 있는 세션은 그대로 두며 새 세션부터 새 버전을 씁니다(자동 업데이트를 켜면 열린 세션도 바뀝니다 — 아래). 확인만: `clipment update --check`. 버전 확인: `clipment --version`.
 
 ### 자동 업데이트 (선택, 기본 꺼짐)

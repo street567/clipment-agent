@@ -94,6 +94,7 @@ describe('script 읽기/쓰기', () => {
     const before = readFileSync(scriptPath('keep'), 'utf8')
     expect(await modifyScript('keep', () => false)).toBe(false)
     expect(readFileSync(scriptPath('keep'), 'utf8')).toBe(before)
+    await new Promise(r => setTimeout(r, 5)) // updated 는 ms 단위
     await modifyScript('keep', raw => { raw.lines[0].text = 'a2' })
     const j = rawScript('keep')
     expect(j.future).toEqual([1, 2])

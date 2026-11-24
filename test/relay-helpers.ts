@@ -102,8 +102,9 @@ export class RpcSession {
   }
   count(method: string) { return this.msgs.filter(m => m.method === method).length }
   async close() {
-    if (!this.exited) { try { this.proc.stdin!.end() } catch {} }
-    await Promise.race([new Promise<void>(r => this.proc.once('exit', () => r())), sleep(5000)])
+    if (this.exited) return
+    try { this.proc.stdin!.end() } catch {}
+    await Promise.race([new Promise<void>(r => this.proc.once('exit', () => r())), sleep(4000)])
     if (!this.exited) this.proc.kill('SIGKILL')
   }
 }

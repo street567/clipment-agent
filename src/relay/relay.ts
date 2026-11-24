@@ -17,7 +17,6 @@ export interface RelayOpts {
   bun?: string
   pollMs?: number
   initTimeoutMs?: number
-  drainMaxMs?: number
   killGraceMs?: number
   select?: () => Target
   log?: (msg: string) => void
@@ -36,7 +35,7 @@ interface Kid {
   write: (line: string) => void
 }
 
-type Mode = 'normal' | 'draining' | 'swapping' | 'restarting'
+type Mode = 'normal' | 'swapping' | 'restarting'
 
 const key = (id: unknown) => JSON.stringify(id)
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
@@ -54,6 +53,8 @@ export class Relay {
   private shuttingDown = false
   private crashes: number[] = []
   private failed = new Set<string>()
+  /** 새 버전이 있지만 진행 중 요청이 끝나길 기다리는 중 */
+  private swapPending = false
   private timer: ReturnType<typeof setInterval> | undefined
   private sessionVersion = ''
   private readonly o: Required<Omit<RelayOpts, 'select' | 'log' | 'env'>> & { select: () => Target; log: (m: string) => void; env: NodeJS.ProcessEnv }
@@ -65,7 +66,6 @@ export class Relay {
       bun: o.bun ?? process.execPath,
       pollMs: o.pollMs ?? num('CLIPMENT_RELAY_POLL_MS', 30_000),
       initTimeoutMs: o.initTimeoutMs ?? num('CLIPMENT_RELAY_INIT_TIMEOUT_MS', 15_000),
-      drainMaxMs: o.drainMaxMs ?? num('CLIPMENT_RELAY_DRAIN_MAX_MS', 20 * 60_000),
       killGraceMs: o.killGraceMs ?? 3000,
       select: o.select ?? (() => selectTarget(o.bundledDir)),
       log: o.log ?? (m => process.stderr.write(`clipment-relay: ${m}\n`)),
@@ -121,7 +121,7 @@ export class Relay {
     if (updateLockActive()) return // 데몬이 업데이트를 적용하는 중
     let t: Target
     try { t = this.select() } catch (e) { this.o.log(`대상 선택 실패: ${e}`); return }
-    if (t.version === this.kid.target.version || this.failed.has(t.version)) return
+    if (t.version === this.kid.target.version || this.failed.has(t.version)) { this.swapPending = false; return }
     void this.swapTo(t).catch(e => { this.o.log(`스왑 오류: ${e}`); if (this.mode !== 'restarting') { this.mode = 'normal'; this.flush() } })
   }
 
@@ -161,10 +161,8 @@ export class Relay {
     let msg: any = null
     try { msg = JSON.parse(line) } catch {}
     if (this.mode !== 'normal') {
-      const isCancel = msg?.method === 'notifications/cancelled'
-      const isResponse = msg && !msg.method && msg.id !== undefined
       if (msg?.method === 'ping' && msg.id !== undefined) return this.toClient({ jsonrpc: '2.0', id: msg.id, result: {} })
-      if (!(this.mode === 'draining' && (isCancel || isResponse))) { this.held.push(line); return }
+      this.held.push(line); return
     }
     this.forward(line, msg)
   }
@@ -178,6 +176,8 @@ export class Relay {
       if (!msg.method && msg.id !== undefined) this.serverInflight.delete(key(msg.id))
     }
     this.kid?.write(line)
+    // 취소로 진행 중 요청이 비었을 수 있다
+    if (this.swapPending && this.isIdle()) setTimeout(() => this.poll(), 0)
   }
 
   private flush() {
@@ -205,6 +205,8 @@ export class Relay {
       } else if (msg.method && msg.id !== undefined) this.serverInflight.add(key(msg.id))
     }
     this.writeOut(line)
+    // 롱폴(wait_for_requests)이 이어지는 세션도 호출 사이의 빈 틈을 놓치지 않게, 응답이 나가는 즉시 교체를 시도한다
+    if (this.swapPending && this.isIdle()) this.poll()
   }
 
   // ---------- 핸드셰이크 ----------
@@ -237,28 +239,15 @@ export class Relay {
 
   // ---------- 스왑 ----------
 
-  private async waitIdle(maxMs: number): Promise<boolean> {
-    const end = Date.now() + maxMs
-    while (this.inflight.size > 0 || this.serverInflight.size > 0) {
-      if (this.shuttingDown || this.mode !== 'draining' || Date.now() > end) return false
-      await sleep(25)
-    }
-    return !this.shuttingDown && this.mode === 'draining'
-  }
+  private isIdle() { return this.inflight.size === 0 && this.serverInflight.size === 0 }
 
-  private async swapTo(first: Target): Promise<void> {
+  private async swapTo(target: Target): Promise<void> {
     if (!this.clientInit || !this.clientInitialized || this.negotiated === null || !this.kid) return // 아직 핸드셰이크 전
-    this.mode = 'draining'
-    const idle = await this.waitIdle(this.o.drainMaxMs)
-    if (!idle) {
-      if (this.mode === 'draining') { this.o.log('진행 중 요청이 끝나지 않아 이번 스왑은 건너뜁니다'); this.mode = 'normal'; this.flush() }
-      return
-    }
-    // 대기하는 동안 목표가 바뀌었을 수 있다
-    let target = first
-    try { target = this.select() } catch {}
-    const old = this.kid!
-    if (target.version === old.target.version || this.failed.has(target.version) || old.isClosed) { this.mode = 'normal'; this.flush(); return }
+    // 진행 중 요청이 있으면 막지 않고 기다린다 (긴 wait_for_requests 동안 다른 호출이 멈추면 안 됨)
+    this.swapPending = !this.isIdle()
+    if (this.swapPending) return
+    const old = this.kid
+    if (old.isClosed) return
     this.mode = 'swapping'
     const fresh = this.spawnKid(target)
     try {
@@ -269,7 +258,9 @@ export class Relay {
       if (target.source === 'managed') addBad(target.version, String(e?.message ?? e))
       fresh.retiring = true
       try { fresh.proc.kill('SIGKILL') } catch {}
-      if (this.mode === 'swapping') { this.mode = 'normal'; this.flush() }
+      this.mode = 'normal'
+      if (old.isClosed) { void this.onKidClosed(old); return } // 핸드셰이크 사이 옛 자식이 죽었다
+      this.flush()
       return
     }
     // 새 자식은 initialize 까지만 끝낸 상태(채널 루프 미시작). 옛 자식을 먼저 내려 푸시를 멈추고 상태를 넘겨받게 한 뒤 initialized 를 보낸다.

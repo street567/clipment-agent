@@ -366,7 +366,7 @@ export class Updater {
       if (!el.ok) { await this.notifyOnce(s.version, `새 버전 v${s.version} · clipment update (자동 적용 불가: ${el.reason})`); return { status: 'ineligible', current: cur, latest: s.version, detail: el.reason } }
       prev = await this.currentRef()
       if (!prev) throw new Error('현재 커밋을 읽지 못함')
-      const co = await this.app(['checkout', '--detach', `refs/tags/${s.tag}`], 60_000)
+      const co = await this.app(['checkout', '--detach', s.sha], 60_000) // 태그가 옮겨져도 스모크를 통과한 그 커밋만
       if (co.code !== 0) throw new Error(`git checkout 실패: ${co.output.slice(-200)}`)
       const i = await this.installDeps(this.d.appDir)
       if (i.code !== 0) throw new Error(`bun install 실패: ${i.output.slice(-200)}`)

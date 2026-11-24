@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Clipment agent 설치 스크립트 (macOS). 여러 번 실행해도 안전합니다.
 #   ./install.sh [--yes] [--update] [--uninstall] [--help]
-#   기본은 GitHub 최신 릴리스 tarball(gh 로그인 시)을 설치하고, gh 가 없으면 git clone 으로 대체합니다.
+#   기본은 git clone 후 최신 릴리스 태그로 맞추고(릴리스가 없으면 main), 클론이 안 되면 릴리스 tarball(gh 로그인 필요)로 대체합니다.
 #   --update: 질문 없이 코어(소스·의존성·링크)만 최신으로 갱신 (clipment update 가 사용)
 # 환경변수:
 #   CLIPMENT_REPO         저장소 (기본 street567/clipment-agent, URL/경로도 가능)
@@ -244,25 +244,36 @@ else
   if [ -d "$APP/.git" ]; then
     say "업데이트(git): $APP"
     git_update
-  elif release_install; then
-    :
+  elif [ "$UPDATE" = 1 ]; then
+    release_install || die "릴리스 다운로드에 실패했습니다 (gh auth status, 네트워크, CLIPMENT_VERSION=$VERSION 확인)."
   else
-    [ "$UPDATE" = 0 ] || die "릴리스 다운로드에 실패했습니다 (gh auth status, 네트워크, CLIPMENT_VERSION=$VERSION 확인)."
-    [ ! -e "$APP" ] || [ -z "$(ls -A "$APP" 2>/dev/null)" ] || die "$APP 이(가) 이미 있고 git 저장소가 아닙니다. 옮기거나 지운 뒤 다시 실행하세요."
-    say "릴리스를 받지 못해 git clone 으로 대체합니다 (gh 로그인하면 릴리스 설치)."
-    mkdir -p "$(dirname "$APP")"
-    say "clone: $REPO -> $APP"
-    case "$REPO" in
-      */*) if [ -e "$REPO" ] || [[ "$REPO" == *:* ]]; then
-             git clone "$REPO" "$APP"
-           elif command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-             gh repo clone "$REPO" "$APP"
-           else
-             git clone "https://github.com/$REPO.git" "$APP"
-           fi
-           [ "$VERSION" = latest ] || git -C "$APP" checkout "$VERSION" ;;
-      *) die "CLIPMENT_REPO 형식을 알 수 없습니다: $REPO" ;;
-    esac
+    [ ! -e "$APP" ] || [ -z "$(ls -A "$APP" 2>/dev/null)" ] || [ -f "$APP/package.json" ] || die "$APP 이(가) 이미 있고 git 저장소가 아닙니다. 옮기거나 지운 뒤 다시 실행하세요."
+    # 자동 업데이트는 git 클론에서만 되므로 클론을 먼저 시도하고, 안 되면 릴리스 tarball 로 대체한다
+    if [ -f "$APP/package.json" ]; then
+      release_install || die "$APP 의 기존 tarball 설치를 갱신하지 못했습니다 (gh auth status, 네트워크 확인)."
+    else
+      mkdir -p "$(dirname "$APP")"
+      say "clone: $REPO -> $APP"
+      cloned=1
+      case "$REPO" in
+        */*) if [ -e "$REPO" ] || [[ "$REPO" == *:* ]]; then
+               git clone "$REPO" "$APP" || cloned=0
+             else
+               git clone "https://github.com/$REPO.git" "$APP" || cloned=0
+             fi ;;
+        *) die "CLIPMENT_REPO 형식을 알 수 없습니다: $REPO" ;;
+      esac
+      if [ "$cloned" = 1 ]; then
+        if [ "$VERSION" != latest ]; then git -C "$APP" checkout "$VERSION"
+        else
+          tag="$(latest_release_tag "$APP")"
+          [ -z "$tag" ] || git -C "$APP" checkout --detach "refs/tags/$tag"
+        fi
+      else
+        warn "git clone 에 실패해 릴리스 tarball 로 설치합니다 (자동 업데이트는 알림만 됩니다)."
+        release_install || die "설치 파일을 받지 못했습니다 (네트워크, gh auth status 확인)."
+      fi
+    fi
   fi
 fi
 

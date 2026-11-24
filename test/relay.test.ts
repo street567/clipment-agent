@@ -86,6 +86,21 @@ describe('릴레이 (실제 stdio 프로세스)', () => {
     expect(s.msgs.filter(m => m.id === '__clipment_relay_init__')).toEqual([]) // 사설 initialize 응답은 삼킴
   })
 
+  test('긴 호출이 도는 동안에도 다른 호출은 막히지 않고, 다 끝난 뒤 스왑된다', async () => {
+    const sb = sandbox(true)
+    const s = await start(sb)
+    await s.init()
+    const slow = s.call('echo', { sleepMs: 2500 }, 10000)
+    await sleep(100)
+    mkFake(sb.managed, '0.4.1')
+    await sleep(600) // 릴레이가 새 버전을 알아챔
+    const t0 = Date.now()
+    expect(await s.call('echo')).toContain('v0.4.0')
+    expect(Date.now() - t0).toBeLessThan(1000)
+    expect(await slow).toContain('v0.4.0')
+    await s.until(() => s.count('notifications/tools/list_changed') === 1, 8000, 'list_changed')
+    expect(await s.call('echo')).toContain('v0.4.1')
+  })
   test('진행 중 호출은 옛 자식에서 끝나고, 그 뒤에 스왑된다', async () => {
     const sb = sandbox(true)
     const s = await start(sb)
