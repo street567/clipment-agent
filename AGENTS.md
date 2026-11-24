@@ -38,3 +38,6 @@
 
 Codex 는 채널 푸시가 없으므로 사용자가 "피드백 확인해줘" 라고 하거나 `cliprev watch` 알림을 보고 1단계부터 시작합니다.
 환경변수: `CLIPREV_ROOT`(단일 워크스페이스, 설정 파일보다 우선), `CLIPREV_CONFIG`(설정 파일 경로), `CLIPREV_AGENT=codex`(답글·진행의 author, 그리고 `agent` 가 codex 인 요청만 수신).
+
+## 서버 구조·자동 업데이트 메모 (0.4.0~)
+`src/mcp.ts` 는 얇은 stdio 릴레이이고 실제 MCP 서버는 `src/server.ts`(자식 프로세스)입니다. 등록 경로(`src/mcp.ts`)는 그대로 쓰면 됩니다. `clipment autoupdate on` 이면 열린 세션도 새 서버로 바뀌며(`tools/list_changed`), 이때 서버 지침은 갱신되지 않으므로 `wait_for_requests` 결과의 `guide` 가 있으면 그 지침을 따르세요. `clipment update --check` 로 새 릴리스 확인, `clipment update` 로 업데이트, `clipment update --rollback` 으로 되돌립니다.

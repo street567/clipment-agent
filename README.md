@@ -109,7 +109,7 @@ MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `l
 
 ### 헬스 체크 (`clipment health [--json]`)
 데몬 설치/로드/실행, 살아 있는 채널 세션(pid/cwd/lastBeat), 아무도 안 잡은 요청과 경과 시간, 요청 없이 오래 열린 코멘트를 보여 주고, 확인할 게 있으면 종료 코드 1. MCP `health` 도구도 같은 JSON 을 줍니다.
-- **세션 하트비트**: 채널 모드 MCP 서버가 `~/.clipment/sessions/<pid>.json`(pid·cwd·startedAt·lastBeat)을 30초마다 갱신하고 종료 시 지웁니다. lastBeat 가 2분 넘었거나 pid 가 죽었으면 stale.
+- **세션 하트비트**: 채널 모드 MCP 서버가 `~/.clipment/sessions/<pid>.json`(pid·cwd·startedAt·lastBeat·version·sessionVersion — 릴레이 아래에서는 pid 가 릴레이 pid)을 30초마다 갱신하고 종료 시 지웁니다. `version`·`sessionVersion` 이 없는 옛 파일도 그대로 읽힙니다. lastBeat 가 2분 넘었거나 pid 가 죽었으면 stale.
 - **채널 재푸시**: 채널 모드 서버가 1분마다 3분 넘게 미처리(진행 이벤트 없음)인 요청을 모든 워크스페이스/프로젝트에서 찾아 "미처리 요청 N건, 확인 필요" 알림(`meta.kind="unclaimed"`)을 푸시. 같은 요청은 3→6→12분 간격(이후 12분)으로 백오프.
 - **데몬 헬스 체크**(autoRun 과 무관, 1분마다): 10분 넘게 미처리 요청 → macOS 알림(요청당 1회) / 대기 요청이 있는데 살아 있는 채널 세션이 없으면 "Clipment 처리 세션이 꺼져 있어요"(최대 30분마다) / 열린 코멘트가 있는데 그걸 덮는 요청(같은 버전·코멘트 이후 생성된 `apply_feedback`, commentIds 가 null 이거나 포함)이 30분 넘게 없으면 프로젝트당 하루 1회 낮은 우선순위 알림(코멘트 스캔은 10분마다). 알림 dedupe 는 데몬 메모리라 재시작하면 한 번 더 올 수 있습니다.
 - 임계값(`~/.config/clipment/daemon.json`, 분 단위): `healthCheckMs`(60000), `unclaimedRepushMin`(3), `unclaimedNotifyMin`(10), `sessionStaleMin`(2), `sessionAlertRepeatMin`(30), `orphanCommentMin`(30).
@@ -167,7 +167,16 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
   git tag v0.1.0 && git push origin v0.1.0
   ```
 - `install.sh` 는 기본으로 **최신 릴리스 tarball** 을 설치합니다(`gh` 로그인돼 있으면 릴리스, 아니면 git clone 으로 대체). 버전 고정: `CLIPMENT_VERSION=v0.1.0 ./install.sh`.
-- 업데이트: `clipment update` — 최신 릴리스로 소스·의존성을 갱신하고 데몬을 재시작합니다. 열려 있는 세션은 그대로 두며 새 세션부터 새 버전을 씁니다(플러그인 변경은 세션 재시작 필요). 버전 확인: `clipment --version`.
+- 업데이트: `clipment update` — git 클론이면 **최신 릴리스 태그**(GitHub `releases/latest`, 태그 `vX.Y.Z`)로 옮기고(릴리스가 없을 때만 `main` 을 `git pull --ff-only`, 분리 HEAD 에서도 동작, 현재 버전이 더 높으면 그대로 두고 알림 — 다운그레이드 없음), 의존성을 갱신하고 데몬을 재시작합니다. `claude` 가 PATH 에 있고 `clipment@clipment-agent` 플러그인이 설치돼 있으면 `claude plugin marketplace update clipment-agent` → `claude plugin update clipment@clipment-agent` 도 실행합니다(실패해도 무시, `CLIPMENT_SKIP_PLUGIN_UPDATE=1` 로 생략). 열려 있는 세션은 그대로 두며 새 세션부터 새 버전을 씁니다(자동 업데이트를 켜면 열린 세션도 바뀝니다 — 아래). 확인만: `clipment update --check`. 버전 확인: `clipment --version`.
+
+### 자동 업데이트 (선택, 기본 꺼짐)
+Claude 채널 세션을 몇 주씩 열어 두는 경우를 위한 기능입니다. **켜면 새 릴리스 코드가 확인 없이 자동으로 내려받아져 이 맥에서 실행됩니다.** `install.sh` 가 y/N 으로 물으며(기본 N, `--yes`·`CLIPMENT_ASSUME_NO` 는 끈 채로 둠) 나중에는 `clipment autoupdate on|off|status` 로 바꿉니다(`daemon.json` 의 `autoUpdate`).
+- **릴레이**: Claude 는 플러그인의 MCP 서버를 세션당 한 번 띄웁니다. 그래서 `src/mcp.ts` 는 얇은 stdio 릴레이이고 실제 서버는 자식 프로세스 `src/server.ts` 입니다(`.mcp.json`·Codex·데스크톱 설정이 가리키는 경로는 그대로). 켜져 있으면 릴레이가 30초마다 `~/.clipment/agent`(`CLIPMENT_DIR`)를 보고, 그곳 `src/server.ts` 가 있고 이름이 `clipment-agent`, major 가 같고, 버전이 번들 이상이며 나쁜 버전 목록(`~/.clipment/bad-versions.json`)에 없으면 그 서버로 **세션을 끊지 않고 갈아 끼웁니다**: 진행 중 요청이 끝나길 기다리고 → 새 서버를 띄워 initialize 를 재생(같은 protocolVersion, 15초 제한) → 옛 서버를 내리고 → 대기시킨 메시지를 흘려 보내고 → `notifications/tools/list_changed` 를 보냅니다. 새 서버가 실패하면 옛 서버를 유지하고 그 버전을 나쁜 버전으로 기록, 서버가 죽으면 백오프로 재시작(반복되면 번들로 복귀)하고 진행 중 요청에는 JSON-RPC 오류를 돌려줍니다. 꺼져 있으면 항상 번들 `server.ts` 만 쓰며 기존과 동일합니다. 환경변수: `CLIPMENT_RELAY_POLL_MS`(기본 30000, 테스트용).
+- **채널 푸시 인수인계**: 이미 푸시한 요청 id·재푸시 백오프·시작 시각은 `~/.clipment/relay/<릴레이 pid>.json` 로 새 서버에 넘겨(종료 시 삭제, 죽은 pid 는 정리) 중복·누락이 없습니다. 푸시 루프와 하트비트는 클라이언트의 `initialized` 뒤에 시작하므로 두 서버가 동시에 푸시하지 않습니다.
+- **한계 — 지침은 갱신되지 않음**: 열린 세션은 서버 `instructions` 와 `SKILL.md` 를 다시 받지 못합니다. 서버 버전이 세션 시작 버전과 다르면 `wait_for_requests` 결과에 현재 지침이 `guide` 로 붙고, 스왑 뒤 첫 채널 푸시에도 덧붙입니다. `clipment health` 는 세션별 서버 버전과 세션 시작 버전을 보여 줍니다. **릴레이 자체(`mcp.ts`)는 세션 시작 때 한 번 로드되므로 바뀌지 않습니다.**
+- **데몬 업데이터**: 하루 한 번(지터) + 화이트리스트 밖 요청 type 이 보일 때(폰 앱이 더 새롭다는 뜻, 시간당 최대 1회) GitHub `releases/latest`(street567/clipment-agent, 비인증 HTTPS, 실패는 조용히 백오프)를 확인합니다. 초안·프리릴리스·`^v\d+\.\d+\.\d+$` 가 아닌 태그·더 낮거나 같은 버전은 무시합니다. 꺼져 있으면 버전당 한 번 "새 버전 vX · clipment update" 알림만(`notify: false` 면 무음), 메이저가 오르면 켜져 있어도 알림만. 켜져 있고 `~/.clipment/agent` 가 **git 클론 + 깨끗한 작업 트리 + origin 이 street567/clipment-agent** 일 때만 적용합니다: 태그를 임시 폴더(`~/.clipment/update-stage`)에 내보내 → `package.json` 버전 = 태그 확인 → `bun install --production --frozen-lockfile --ignore-scripts` → 격리 환경에서 스모크(`cli.ts --version`, MCP 핸드셰이크 + `tools/list`, `daemon run` 생존) → 실패하면 나쁜 버전으로 기록하고 한 번 알림, 아무것도 바꾸지 않음. 통과하면 **한가할 때만**(대기·진행 중 요청 없음, 작업 없음, 음성 생성 없음) 잠금 파일(`update.lock`)을 잡고 분리 체크아웃 + `bun install` → `~/.clipment/update.json` 에 `{previousRef, version, appliedAt}` 기록 → 데몬이 종료 코드 75 로 나가 launchd KeepAlive 가 새 코드로 되살립니다. 적용 중 실패하면 이전 ref 로 복원합니다. 되돌리기: `clipment update --rollback`(이전 ref 로 복귀 + 그 버전을 나쁜 버전으로). 외부 값은 모두 argv 로만 넘깁니다. 테스트용 환경변수: `CLIPMENT_UPDATE_API`(https 또는 로컬 http), `CLIPMENT_UPDATE_ORIGIN`, `CLIPMENT_NO_UPDATE_CHECK=1`.
+- **플러그인 자체의 자동 업데이트**(Claude 쪽 토글): Claude Code 에서 `/plugin` → Marketplaces → `clipment-agent` → auto-update 를 켜면 Claude 가 시작할 때 플러그인(번들 `server.ts`·스킬)을 새로 받습니다. 이것과 위의 `clipment autoupdate` 는 별개입니다.
+- **0.4.0 으로 올라가는 모두에게 한 번은 수동 업데이트 + 세션 재시작이 필요합니다.** 릴레이는 0.4.0 부터 들어 있어 옛 세션(0.3.x)은 교체할 수 없습니다: `clipment update`(또는 `claude plugin update clipment@clipment-agent`) 후 Claude 세션을 한 번 다시 시작하세요.
 
 ## 동작 메모
 - 요청 type 은 `apply_feedback | answer | rerender | cancel | apply_script` 만 처리하고 나머지는 무시합니다. 요청 내용은 명령으로 실행되지 않습니다.
