@@ -3,18 +3,21 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { NotificationSchema } from '@modelcontextprotocol/sdk/types.js'
 import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { initProject } from '../src/core/index.ts'
 import { appWrite, iso, tempRoot, uid } from './helpers.ts'
 
-const MCP = join(import.meta.dir, '../src/mcp.ts')
+const MCP = join(import.meta.dir, '../src/mcp.ts') // 릴레이 → 번들 server.ts (autoUpdate 꺼짐)
 const BUN = process.execPath
+// 개발자 맥의 실제 daemon.json(autoUpdate)이 테스트에 영향을 주지 않게 빈 설정을 가리킨다
+const NO_CFG = { CLIPMENT_DAEMON_CONFIG: join(tmpdir(), `clipment-mcp-test-${process.pid}-daemon.json`) }
 
 async function connect(env: Record<string, string>) {
   const client = new Client({ name: 't', version: '0' }, { capabilities: {} })
   const transport = new StdioClientTransport({
     command: BUN, args: [MCP],
-    env: { ...(process.env as Record<string, string>), ...env },
+    env: { ...(process.env as Record<string, string>), ...NO_CFG, ...env },
   })
   await client.connect(transport)
   return client
@@ -104,7 +107,7 @@ describe('mcp server', () => {
     )
     const transport = new StdioClientTransport({
       command: BUN, args: [MCP],
-      env: { ...(process.env as Record<string, string>), CLIPREV_ROOT: root, CLIPREV_CHANNEL: '1' },
+      env: { ...(process.env as Record<string, string>), ...NO_CFG, CLIPREV_ROOT: root, CLIPREV_CHANNEL: '1' },
     })
     await client.connect(transport)
     try {

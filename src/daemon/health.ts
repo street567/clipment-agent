@@ -17,7 +17,8 @@ export const HEARTBEAT_EVERY_MS = 30_000
 export const sessionsDir = () => join(clipmentHome(), 'sessions')
 const beatFile = (pid: number) => join(sessionsDir(), `${pid}.json`)
 
-export interface Heartbeat { pid: number; cwd: string; startedAt: string; lastBeat: string }
+/** version/sessionVersion 은 0.4.0 부터 (옛 하트비트 파일에는 없음 → 선택 필드). pid 는 릴레이 pid (세션 식별자) */
+export interface Heartbeat { pid: number; cwd: string; startedAt: string; lastBeat: string; version?: string; sessionVersion?: string }
 export interface SessionInfo extends Heartbeat { ageSec: number; alive: boolean; stale: boolean }
 
 export function writeHeartbeat(h: Heartbeat): void {
@@ -30,16 +31,25 @@ export function writeHeartbeat(h: Heartbeat): void {
 export function removeHeartbeat(pid = process.pid): void { try { unlinkSync(beatFile(pid)) } catch {} }
 
 /** 채널 모드 MCP 서버가 부른다. 즉시 한 번 쓰고 주기적으로 갱신. 반환 함수로 중지+파일 삭제. */
-export function startHeartbeat(o: { pid?: number; cwd?: string; everyMs?: number } = {}): () => void {
+export function startHeartbeat(o: { pid?: number; cwd?: string; everyMs?: number; startedAt?: string; version?: string; sessionVersion?: string; removeOnStop?: boolean } = {}): (remove?: boolean) => void {
   const pid = o.pid ?? process.pid
-  const startedAt = new Date().toISOString()
-  const beat = () => { try { writeHeartbeat({ pid, cwd: o.cwd ?? process.cwd(), startedAt, lastBeat: new Date().toISOString() }) } catch {} }
+  const startedAt = o.startedAt ?? new Date().toISOString()
+  const beat = () => {
+    try {
+      writeHeartbeat({
+        pid, cwd: o.cwd ?? process.cwd(), startedAt, lastBeat: new Date().toISOString(),
+        ...(o.version ? { version: o.version } : {}), ...(o.sessionVersion ? { sessionVersion: o.sessionVersion } : {}),
+      })
+    } catch {}
+  }
   beat()
   const t = setInterval(beat, o.everyMs ?? HEARTBEAT_EVERY_MS)
   t.unref?.()
   let done = false
-  const stop = () => { if (done) return; done = true; clearInterval(t); removeHeartbeat(pid) }
-  process.on('exit', stop)
+  // 릴레이 아래에서는 pid(=릴레이) 파일의 주인이 릴레이이므로 서버는 자기 종료 때 파일을 지우지 않는다 (스왑 사이에 세션이 사라져 보이지 않게)
+  const removeDefault = o.removeOnStop ?? pid === process.pid
+  const stop = (remove = removeDefault) => { if (done) return; done = true; clearInterval(t); if (remove) removeHeartbeat(pid) }
+  process.on('exit', () => stop())
   return stop
 }
 
@@ -58,6 +68,7 @@ export function readSessions(now = Date.now(), staleMs = DEFAULT_CONFIG.sessionS
     if (!isAlive && prune) { try { unlinkSync(join(dir, f)) } catch {} }
     out.push({
       pid: j.pid, cwd: String(j.cwd ?? ''), startedAt: String(j.startedAt ?? ''), lastBeat: j.lastBeat,
+      ...(typeof j.version === 'string' ? { version: j.version } : {}), ...(typeof j.sessionVersion === 'string' ? { sessionVersion: j.sessionVersion } : {}),
       ageSec: Number.isFinite(last) ? Math.round((now - last) / 1000) : Infinity,
       alive: isAlive, stale: !isAlive || !Number.isFinite(last) || now - last > staleMs,
     })
@@ -94,6 +105,9 @@ export class RepushTracker {
     return now - s.at >= Math.min(this.baseMs * 2 ** (s.n - 1), this.baseMs * 4)
   }
   mark(id: string, now: number) { const s = this.m.get(id); this.m.set(id, { n: (s?.n ?? 0) + 1, at: now }) }
+  /** 스왑 때 새 서버에 넘기는 상태 */
+  dump(): { id: string; n: number; at: number }[] { return [...this.m].map(([id, s]) => ({ id, n: s.n, at: s.at })) }
+  load(list: { id: string; n: number; at: number }[]) { for (const s of list) this.m.set(s.id, { n: s.n, at: s.at }) }
   /** 더는 미처리가 아닌 요청은 잊는다 */
   retain(ids: Set<string>) { for (const k of this.m.keys()) if (!ids.has(k)) this.m.delete(k) }
 }
@@ -193,12 +207,18 @@ export async function buildHealthReport(o: HealthOpts = {}): Promise<HealthRepor
   return { checkedAt: new Date(now).toISOString(), daemon, sessions, liveSessions: live, unclaimed, staleComments, issues, ok: issues.length === 0 }
 }
 
+/** " · 서버 v0.4.1 (세션 시작 v0.4.0)" — 옛 하트비트(필드 없음)면 빈 문자열 */
+export function versionLabel(s: { version?: string; sessionVersion?: string }): string {
+  if (!s.version) return ''
+  return ` · 서버 v${s.version}${s.sessionVersion && s.sessionVersion !== s.version ? ` (세션 시작 v${s.sessionVersion}, 지침은 옛 버전)` : ''}`
+}
+
 export function formatHealth(r: HealthReport): string {
   const L: string[] = []
   const d = r.daemon
   L.push(`데몬: 설치 ${d.installed ? '예' : '아니오'} · launchd 로드 ${d.loaded ? '예' : '아니오'} · 실행 ${d.running ? `pid ${d.pid}` : '아니오'}`)
   L.push(`채널 세션: 살아 있음 ${r.liveSessions}개 (전체 기록 ${r.sessions.length}개)`)
-  for (const s of r.sessions) L.push(`  pid ${s.pid} ${s.stale ? '[stale]' : '[live]'} cwd=${s.cwd} lastBeat=${s.lastBeat} (${s.ageSec}초 전)`)
+  for (const s of r.sessions) L.push(`  pid ${s.pid} ${s.stale ? '[stale]' : '[live]'} cwd=${s.cwd} lastBeat=${s.lastBeat} (${s.ageSec}초 전)${versionLabel(s)}`)
   L.push(`미처리 요청: ${r.unclaimed.length}건`)
   for (const u of r.unclaimed) L.push(`  ${u.ref} ${u.type} v${u.version} ${u.ageMin}분 경과 agent=${u.agent || '-'} — ${u.id}`)
   L.push(`요청 없는 열린 코멘트: ${r.staleComments.length}개`)

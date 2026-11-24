@@ -9,9 +9,11 @@ export interface DaemonConfig {
   ttsEngine: string
   autoRun: AutoRun; jobTimeoutMin: number; notify: boolean; pollMs: number; maxPollMs: number; maxAgeMin: number
   /** 헬스 체크 */
+  /** 릴리스 코드 자동 업데이트 (기본 꺼짐). 켜면 릴레이가 새 서버로 갈아 끼우고 데몬이 새 릴리스를 자동 적용 */
+  autoUpdate: boolean
   healthCheckMs: number; unclaimedRepushMin: number; unclaimedNotifyMin: number; sessionStaleMin: number; sessionAlertRepeatMin: number; orphanCommentMin: number
 }
-export const DEFAULT_CONFIG: DaemonConfig = { ttsEngine: 'say', autoRun: 'off', jobTimeoutMin: 30, notify: true, pollMs: 5000, maxPollMs: 30000, maxAgeMin: 1440,
+export const DEFAULT_CONFIG: DaemonConfig = { ttsEngine: 'say', autoRun: 'off', jobTimeoutMin: 30, notify: true, autoUpdate: false, pollMs: 5000, maxPollMs: 30000, maxAgeMin: 1440,
   healthCheckMs: 60_000, unclaimedRepushMin: 3, unclaimedNotifyMin: 10, sessionStaleMin: 2, sessionAlertRepeatMin: 30, orphanCommentMin: 30,
 }
 
@@ -25,6 +27,7 @@ export function loadDaemonConfig(file = daemonConfigPath()): DaemonConfig {
     autoRun: AUTO_RUNS.includes(j.autoRun) ? j.autoRun : 'off',
     jobTimeoutMin: num(j.jobTimeoutMin, c.jobTimeoutMin, 1, 600),
     notify: j.notify === false ? false : true,
+    autoUpdate: j.autoUpdate === true,
     pollMs: num(j.pollMs, c.pollMs, 1000, 600_000),
     maxPollMs: num(j.maxPollMs, c.maxPollMs, 1000, 600_000),
     maxAgeMin: num(j.maxAgeMin, c.maxAgeMin, 1, 100_000),
