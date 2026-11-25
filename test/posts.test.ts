@@ -296,7 +296,12 @@ describe('합쳐 보기 파생', () => {
     expect(mergePost(T, ai(), null, 8)).toMatchObject({ staleVersion: true, baseVersion: 7 })
     expect(mergePost(T, ai(), { fields: { title: 'm' }, version: 9, seenAI: 'U2' }, 9)).toMatchObject({ baseVersion: 9, staleVersion: false })
     expect(mergePost(T, ai(), { fields: { title: 'm' }, version: 3, seenAI: 'U2' }, 8).baseVersion).toBe(7) // 큰 값
-    expect(mergePost(T, ai(), { fields: {}, version: 99, seenAI: 'U2' }, 7).baseVersion).toBe(7) // 고친 것 없으면 user.version 무시
+    // 고친 글이 없어도 user.version 이 있으면 큰 값 ("이 버전에도 맞아요")
+    expect(mergePost(T, ai(), { fields: {}, version: 8, seenAI: 'U2' }, 8)).toMatchObject({ baseVersion: 8, staleVersion: false })
+    expect(mergePost(T, ai(), { version: 3 }, 8).baseVersion).toBe(7)
+    // AI 글 없이 user.version 만 있어도 기준 버전이 됨 (보여 줄 값이 있을 때)
+    expect(mergePost(T, null, { fields: { title: 'm' }, version: 5 }, 8)).toMatchObject({ baseVersion: 5, staleVersion: true })
+    expect(mergePost(T, null, { fields: {}, version: 5 }, 8)).toMatchObject({ baseVersion: 5, staleVersion: false }) // 보여 줄 값 없음
     expect(mergePost(T, null, null, null).staleVersion).toBe(false)
   })
   test('extras 항목별 병합·정렬·newAIDraft', () => {

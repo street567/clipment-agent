@@ -200,7 +200,7 @@ export interface PostView {
   extrasFromUser: string[]
   hidden: boolean
   language: PostLanguage
-  /** 기준 버전 (SPEC §16): 사람이 고친 게 있고 user.version 이 있으면 그것과 ai.version 중 큰 값, 아니면 ai.version */
+  /** 기준 버전 (SPEC §16): user.version 과 ai.version 중 있는 것의 큰 값(고친 글이 없어도), 둘 다 없으면 null */
   baseVersion: number | null
   /** 보여 주는 값이 있는데 기준 버전이 현재 업로드용 버전과 다름 */
   staleVersion: boolean
@@ -250,7 +250,7 @@ export function mergePost(t: TargetView, aiJ: any | null, userJ: any | null, upl
     title: uv.title ?? ai.title, body: uv.body ?? ai.body, tags: uv.tags ?? ai.tags, scenes: uv.scenes ?? ai.scenes, extras,
   }
   const userVersion = userJ && Number.isInteger(userJ.version) && userJ.version >= 1 ? (userJ.version as number) : null
-  const baseVersion = userEdited && userVersion !== null ? Math.max(userVersion, ai.version ?? 0) : ai.version
+  const baseVersion = userVersion === null && ai.version === null ? null : Math.max(userVersion ?? 0, ai.version ?? 0)
   const hasShown = shown.title !== null || shown.body !== null || shown.tags !== null || shown.scenes !== null || (extras !== null && extras.length > 0)
   const staleVersion = hasShown && baseVersion !== null && uploadVersion !== null && baseVersion !== uploadVersion
   const seenAI = typeof userJ?.seenAI === 'string' ? userJ.seenAI : ''
