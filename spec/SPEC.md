@@ -311,7 +311,7 @@ versions/vNNN/script.json              # 게시 시점의 대본 스냅샷 (읽�
 - **targets.json**: `{ "schema": 1, "targets": [ { "id": "youtube-shorts" }, { "id": "cafe", "name": "카페" } ], "author": "user", "via": "app", "updated": "..." }`
   - 배열 순서 = 화면 순서. 같은 id 는 첫 항목만 쓴다. 파일이 없거나 깨졌으면 기본 `youtube-shorts`, `instagram-reels`. 빈 배열이면 대상 없음.
   - 항목의 선택 필드 `hidden: true` = 사람이 목록에서 뺀 대상. 화면에 나오지 않는다. 앱에서 빼면 항목을 지우지 않고 `hidden` 을 켠다. **맥(AI)은 `hidden` 을 켜거나 끄지 않고, 앱이 쓴 항목을 지우거나 순서를 바꾸지 않는다(끝에 추가만)** — 사람이 채널·터미널에서 직접 부탁한 순서 변경은 예외.
-  - **AI 가 늘리기**: AI 는 새 대상을 스스로 추가할 수 있다. 목록에 없는 대상에 글을 쓰면 맥이 그 대상을 목록 끝에 `{ "id", "name"?, "addedBy": "<AI 이름>" }` 로 추가한다(파일이 없으면 기본 대상을 먼저 적고 뒤에 추가). 이미 `hidden` 이면 글만 쓰고 숨긴 채 둔다(맥은 그 사실을 AI 에게 알린다). 한 프로젝트 최대 20개(숨김 포함), 넘으면 거부.
+  - **AI 가 늘리기**: AI 는 새 대상을 스스로 추가할 수 있다. 목록에 없는 대상에 글을 쓰면 맥이 그 대상을 목록 끝에 `{ "id", "name"?, "addedBy": "<AI 이름>" }` 로 추가한다(파일이 없으면 기본 대상을 먼저 적고 뒤에 추가. 파일이 있는데 깨졌거나 내려받는 중이면 사람의 목록을 잃을 수 있으므로 추가를 거부). 이미 `hidden` 이면 글만 쓰고 숨긴 채 둔다(맥은 그 사실을 AI 에게 알린다). 한 프로젝트 최대 20개(숨김 포함), 넘으면 거부.
   - 목록에서 뺀 대상의 글 폴더는 그대로 남고(다시 넣으면 그대로 보임) 화면에는 나오지 않는다.
 - **ai.json**:
   ```json
@@ -327,7 +327,7 @@ versions/vNNN/script.json              # 게시 시점의 대본 스냅샷 (읽�
   - `fields` 에 **있는** 키(`title`·`body`·`tags`·`scenes`)만 사람이 고친 것이다. `extras` 는 항목별이다: `"extras": { "pinned-comment": { "label": "고정 댓글", "text": "…" } }` — 있는 id 만 고친 것이고, AI 목록에 없는 id(사람이 추가했거나 AI 가 뺀 것)는 AI 항목 뒤에 id 순으로 보여 준다. `extras` 가 빈 객체면 고치지 않은 것과 같다. 빈 문자열·빈 배열도 "비우기로 고침"이다. `version`(선택): 고칠 때의 기준 버전.
   - `seenAI`(선택): 고치거나 "내 글 유지"를 고를 때 화면에 있던 `ai.json` 의 `updated`. AI 글이 없었으면 빈 문자열.
 - **보여 주는 값** = 항목(`extras` 는 id 별)마다 `user.fields` 에 있으면 그것, 없으면 `ai` 의 값, 둘 다 없으면 없음.
-- **AI 의 새 안 있음** = `user.fields` 가 비어 있지 않고 `ai.updated` 가 있으며 `seenAI` 와 다르고, `user.fields` 에 있는 항목 중 AI 값과 다른 것이 하나라도 있을 때. 앱은 새 안을 따로 보여 주고 두 가지를 준다: **내 글 유지**(`seenAI` 를 지금 `ai.updated` 로) · **새 안 쓰기**(`fields` 를 `{}` 로, `seenAI` 도 갱신).
+- **AI 의 새 안 있음** = `user.fields` 가 비어 있지 않고 `ai.updated` 가 있으며 `seenAI` 와 다르고, `user.fields` 와 `ai.json` **양쪽에 있는** 항목(`extras` 는 id 별) 중 값이 다른 것이 하나라도 있을 때(사람이 추가한 항목처럼 AI 쪽에 없는 것은 비교하지 않는다). 앱은 새 안을 따로 보여 주고 두 가지를 준다: **내 글 유지**(`seenAI` 를 지금 `ai.updated` 로) · **새 안 쓰기**(`fields` 에서 `ai.json` 에도 있는 항목만 빼고 — 사람만 가진 항목은 남긴다 — `seenAI` 도 갱신).
 - **예전 버전 글** = 보여 주는 값이 있고, 기준 버전이 현재 업로드용 버전(§12)과 다르다. 기준 버전 = `user.fields` 가 비어 있지 않고 `user.version` 이 있으면 그것과 `ai.version` 중 큰 값, 아니면 `ai.version`. 앱은 "v006 기준 글"이라고 알린다.
 - **요청 `write_post`** (§2 whitelist 추가): `{ "type": "write_post", "version": N, "targets": ["youtube-shorts"], "message": "" }`. `version` 은 글의 기준 영상. `targets` 가 없거나 비면 대상 목록 전체, 모르는 id 는 건너뛴다. AI 는 해당 `ai.json` 을 쓰고 progress `done` 으로 끝낸다(영상은 만들지 않는다). `message` 는 §2 와 같이 의견 데이터다.
 - 맥 AI 는 새 버전을 게시할 때 대상별 글이 이미 있거나 사람이 글을 부탁했으면 새 버전 기준으로 함께 고친다. 앱 밖에서 "글도 써 줘"라고 하면 같은 방식으로 쓴다.

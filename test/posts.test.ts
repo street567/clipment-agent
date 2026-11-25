@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -132,7 +132,7 @@ describe('대상 목록', () => {
   test('내려받는 중(.icloud)인 targets.json 은 쓰기 거부', async () => {
     mkdirSync(join(root, 'p/.clipment/posts'), { recursive: true })
     writeFileSync(join(root, 'p/.clipment/posts/.targets.json.icloud'), '')
-    await expect(addPostTarget('p', 'cafe', undefined, A)).rejects.toThrow(/내려받는 중/)
+    await expect(addPostTarget('p', 'cafe', undefined, A)).rejects.toThrow(/덮어쓰지 않/)
   })
 })
 
@@ -203,11 +203,27 @@ describe('writePost', () => {
     expect(read('.clipment/posts/targets.json').targets).toEqual([{ id: 'youtube-shorts' }, { id: 'instagram-reels' }, { id: 'tiktok', name: 'TT', addedBy: 'Claude' }])
     expect((await getPosts('p')).targets.map(t => t.id)).toEqual(['youtube-shorts', 'instagram-reels', 'tiktok'])
   })
-  test('깨진 targets.json 이면 기본을 먼저 쓰고 추가', async () => {
+  test('깨진·내려받는 중 targets.json: 추가가 필요한 쓰기는 통째로 거부(아무것도 안 씀), 기본 목록에 있는 대상은 ai.json 만 씀', async () => {
     mkdirSync(join(root, 'p/.clipment/posts'), { recursive: true })
-    writeFileSync(join(root, 'p/.clipment/posts/targets.json'), '{oops')
-    await writePost('p', 'cafe', { version: 1, title: 'x' }, A)
-    expect(read('.clipment/posts/targets.json').targets.map((t: any) => t.id)).toEqual(['youtube-shorts', 'instagram-reels', 'cafe'])
+    const tf = join(root, 'p/.clipment/posts/targets.json')
+    writeFileSync(tf, '{oops')
+    await expect(writePost('p', 'cafe', { version: 1, title: 'x' }, A)).rejects.toThrow(/덮어쓰지 않/)
+    await expect(addPostTarget('p', 'cafe', undefined, A)).rejects.toThrow(/덮어쓰지 않/)
+    await expect(reorderPostTargets('p', ['instagram-reels', 'youtube-shorts'], A)).rejects.toThrow(/덮어쓰지 않/)
+    expect(existsSync(join(root, 'p/.clipment/posts/cafe'))).toBe(false)
+    expect(readFileSync(tf, 'utf8')).toBe('{oops')
+    await writePost('p', 'youtube-shorts', { version: 1, title: 'ok' }, A)
+    expect(read('.clipment/posts/youtube-shorts/ai.json').title).toBe('ok')
+    expect(readFileSync(tf, 'utf8')).toBe('{oops')
+    expect((await addPostTarget('p', 'youtube-shorts', undefined, A)).added).toBe(false)
+    // targets 가 배열이 아닌 JSON 도 깨진 것으로 본다
+    writeFileSync(tf, '{"schema":1,"targets":"x"}')
+    await expect(addPostTarget('p', 'cafe', undefined, A)).rejects.toThrow(/덮어쓰지 않/)
+    // 내려받는 중
+    rmSync(tf)
+    writeFileSync(join(root, 'p/.clipment/posts/.targets.json.icloud'), '')
+    await expect(writePost('p', 'cafe', { version: 1, title: 'x' }, A)).rejects.toThrow(/덮어쓰지 않/)
+    await writePost('p', 'instagram-reels', { version: 1, title: 'y' }, A)
   })
   test('숨긴 대상: 글은 쓰고 숨김 유지, 결과로 알림', async () => {
     put('.clipment/posts/targets.json', { schema: 1, targets: [{ id: 'youtube-shorts' }, { id: 'tiktok', hidden: true }] })
@@ -261,7 +277,7 @@ describe('합쳐 보기 파생', () => {
     const v = mergePost(T, null, null, 3)
     expect(v).toMatchObject({ title: null, body: null, tags: null, scenes: null, extras: null, staleVersion: false, newAIDraft: false, baseVersion: null, userEdited: false })
   })
-  test('newAIDraft: 고친 것 있음 + ai.updated != seenAI + AI 값과 다름', () => {
+  test('newAIDraft: 고친 것 있음 + ai.updated != seenAI + 양쪽에 있는 항목 값이 다름', () => {
     expect(mergePost(T, ai(), { fields: { title: 'mine' }, seenAI: 'U1' }, 7).newAIDraft).toBe(true)
     expect(mergePost(T, ai(), { fields: { title: 'mine' } }, 7).newAIDraft).toBe(true) // seenAI 없음
     expect(mergePost(T, ai(), { fields: { title: 'mine' }, seenAI: 'U2' }, 7).newAIDraft).toBe(false) // 이미 봄
@@ -271,6 +287,9 @@ describe('합쳐 보기 파생', () => {
     expect(mergePost(T, null, { fields: { title: 'm' }, seenAI: '' }, 7).newAIDraft).toBe(false)
     expect(mergePost(T, ai(), { fields: { tags: ['#a'] }, seenAI: 'U1' }, 7).newAIDraft).toBe(false) // 정규화 후 같음
     expect(mergePost(T, ai(), { fields: { scenes: [{ t: 0, text: 'other' }] }, seenAI: 'U1' }, 7).newAIDraft).toBe(true)
+    // AI 쪽에 없는 항목은 비교하지 않음
+    expect(mergePost(T, ai({ title: undefined, scenes: undefined }), { fields: { title: 'mine', scenes: [{ t: 1, text: 'x' }] }, seenAI: 'U1' }, 7).newAIDraft).toBe(false)
+    expect(mergePost(T, ai({ title: undefined }), { fields: { title: 'mine', body: 'other' }, seenAI: 'U1' }, 7).newAIDraft).toBe(true)
   })
   test('staleVersion / baseVersion', () => {
     expect(mergePost(T, ai(), null, 7).staleVersion).toBe(false)
@@ -289,6 +308,7 @@ describe('합쳐 보기 파생', () => {
     expect(v.newAIDraft).toBe(false)
     expect(mergePost(T, a, { fields: { extras: { a: { text: 'mine' } } }, seenAI: 'U1' }, 7).newAIDraft).toBe(true)
     expect(mergePost(T, a, { fields: { extras: { a: { text: 'at' } } }, seenAI: 'U1' }, 7).newAIDraft).toBe(false)
+    expect(mergePost(T, a, { fields: { extras: { m: { text: 'person only' } } }, seenAI: 'U1' }, 7).newAIDraft).toBe(false) // 사람만 가진 extra
     expect(mergePost(T, a, { fields: { extras: {} }, seenAI: 'U1' }, 7)).toMatchObject({ userEdited: false, newAIDraft: false })
     expect(mergePost(T, a, { fields: { extras: { bad: 1, '../x': { text: 'x' } } }, seenAI: 'U1' }, 7).userEdited).toBe(false)
   })

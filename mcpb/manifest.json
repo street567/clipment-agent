@@ -35,6 +35,10 @@
     { "name": "script_get", "description": "대본(보이스) 읽기" },
     { "name": "script_set", "description": "대본 줄 쓰기(AI 초안)" },
     { "name": "voice_generate", "description": "대본 AI 음성 만들기 (say·ffmpeg 필요)" },
+    { "name": "get_posts", "description": "업로드 글(대상별 제목·본문·태그·클립 내용) 읽기" },
+    { "name": "write_post", "description": "업로드 글 쓰기(ai.json 만; 대상·extras 추가)" },
+    { "name": "add_post_target", "description": "업로드 글 대상 추가" },
+    { "name": "reorder_post_targets", "description": "업로드 글 대상 순서 바꾸기(사람이 부탁했을 때만)" },
     { "name": "daemon_status", "description": "백그라운드 데몬 상태" }
   ],
   "compatibility": { "platforms": ["darwin"] }

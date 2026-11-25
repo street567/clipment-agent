@@ -153,6 +153,8 @@ export interface TargetView { id: string; name: string; known: boolean; hidden: 
 /** targets = 화면에 보이는 대상(hidden 제외), all = hidden 포함 전부(순서 그대로), entries = all 의 원본 항목 */
 export interface TargetsInfo { source: 'file' | 'default'; targets: TargetView[]; all: TargetView[]; entries: TargetEntry[]; file: string }
 
+const unusableMsg = (why: string) => new ValidationError(`targets.json 을 지금 쓸 수 없습니다(${why}) — 사람의 대상 목록을 덮어쓰지 않으려고 거부합니다. 동기화가 끝나거나 파일이 고쳐진 뒤 다시 시도하세요`)
+
 function viewOf(e: TargetEntry): TargetView {
   const known = e.id in KNOWN_TARGET_NAMES
   return { id: e.id, known, hidden: e.hidden === true, ...(typeof e.addedBy === 'string' ? { addedBy: e.addedBy } : {}), name: known ? KNOWN_TARGET_NAMES[e.id]! : typeof e.name === 'string' && e.name.trim() ? e.name : e.id }
@@ -252,11 +254,12 @@ export function mergePost(t: TargetView, aiJ: any | null, userJ: any | null, upl
   const hasShown = shown.title !== null || shown.body !== null || shown.tags !== null || shown.scenes !== null || (extras !== null && extras.length > 0)
   const staleVersion = hasShown && baseVersion !== null && uploadVersion !== null && baseVersion !== uploadVersion
   const seenAI = typeof userJ?.seenAI === 'string' ? userJ.seenAI : ''
-  const differs = (uv.title !== undefined && uv.title !== (ai.title ?? ''))
-    || (uv.body !== undefined && uv.body !== (ai.body ?? ''))
-    || (uv.tags !== undefined && !sameTags(uv.tags, ai.tags ?? []))
-    || (uv.scenes !== undefined && !sameScenes(uv.scenes, ai.scenes ?? []))
-    || [...ux].some(([id, u]) => { const a2 = ai.extras?.find(e => e.id === id); return !a2 || a2.text !== u.text || (u.label !== undefined && u.label !== a2.label) })
+  // 양쪽에 있는 항목만 비교한다 (사람만 가진 항목은 새 안을 만들지 않는다)
+  const differs = (uv.title !== undefined && ai.title !== null && uv.title !== ai.title)
+    || (uv.body !== undefined && ai.body !== null && uv.body !== ai.body)
+    || (uv.tags !== undefined && ai.tags !== null && !sameTags(uv.tags, ai.tags))
+    || (uv.scenes !== undefined && ai.scenes !== null && !sameScenes(uv.scenes, ai.scenes))
+    || [...ux].some(([id, u]) => { const a2 = ai.extras?.find(e => e.id === id); return !!a2 && (a2.text !== u.text || (u.label !== undefined && u.label !== a2.label)) })
   const newAIDraft = userEdited && !!ai.updated && seenAI !== ai.updated && differs
   const warnings: string[] = []
   if (a && ai.version === null) warnings.push('ai.json 에 유효한 version 이 없습니다')
@@ -360,12 +363,13 @@ async function assertWritable(ref: string, force?: boolean) {
 }
 
 /** targets.json 현재 상태 (쓰기용): 내려받는 중·밖을 가리키는 링크면 거부, 깨졌거나 없으면 기본 대상 */
-async function loadTargetsForWrite(dir: string): Promise<{ raw: any; info: TargetsInfo }> {
+async function loadTargetsForWrite(dir: string): Promise<{ raw: any; info: TargetsInfo; unusable: string | null }> {
   const cur = await readRaw(dir, ['.clipment', 'posts'], 'targets.json')
   if (cur.unsafe) throw new PostPathError('프로젝트 밖을 가리키는 링크라 쓰지 않습니다: targets.json')
-  if (cur.placeholder) throw new ValidationError('targets.json 을 지금 읽을 수 없습니다(내려받는 중)')
   const info = await readTargets(dir)
-  return { raw: info.source === 'file' && cur.json ? { ...cur.json } : { schema: 1 }, info }
+  // 파일이 있는데 내려받는 중이거나 깨졌으면 사람의 목록을 덮어쓰지 않도록 목록을 바꾸는 쓰기는 거부한다
+  const unusable = cur.placeholder ? '내려받는 중' : cur.exists && info.source === 'default' ? '깨짐' : null
+  return { raw: info.source === 'file' && cur.json ? { ...cur.json } : { schema: 1 }, info, unusable }
 }
 
 async function saveTargets(dir: string, raw: any, entries: TargetEntry[], o: { author: string; authorName?: string }): Promise<void> {
@@ -394,8 +398,9 @@ export async function writePost(ref: string, target: string, input: WritePostInp
   await assertWritable(ref, opts.force)
   const { dir } = resolveProject(ref)
   if (!existsSync(join(versionDir(ref, input.version), 'meta.json'))) throw new ValidationError(`버전 ${input.version} 을(를) 찾을 수 없습니다`)
-  const { raw: traw, info } = await loadTargetsForWrite(dir)
+  const { raw: traw, info, unusable } = await loadTargetsForWrite(dir)
   const existing = info.all.find(t => t.id === target)
+  if (!existing && unusable) throw unusableMsg(unusable)
   if (!existing && info.entries.length >= MAX_TARGETS) throw new ValidationError(`대상은 숨김 포함 최대 ${MAX_TARGETS}개입니다. 기존 대상을 재사용하세요 (${info.entries.map(e => e.id).join(', ')})`)
   const parts = ['.clipment', 'posts', target]
   const cur = await readRaw(dir, parts, 'ai.json')
@@ -461,9 +466,10 @@ export async function addPostTarget(ref: string, target: string, name: string | 
   if (name !== undefined && (typeof name !== 'string' || name.length > 100)) throw new ValidationError('이름은 100자 이하 문자열')
   await assertWritable(ref, opts.force)
   const { dir } = resolveProject(ref)
-  const { raw, info } = await loadTargetsForWrite(dir)
+  const { raw, info, unusable } = await loadTargetsForWrite(dir)
   const ex = info.all.find(t => t.id === target)
   if (ex) return { added: false, hidden: ex.hidden, targets: info }
+  if (unusable) throw unusableMsg(unusable)
   if (info.entries.length >= MAX_TARGETS) throw new ValidationError(`대상은 숨김 포함 최대 ${MAX_TARGETS}개입니다 (${info.entries.map(e => e.id).join(', ')})`)
   await saveTargets(dir, raw, [...info.entries, { id: target, ...(name?.trim() ? { name: name.trim() } : {}), addedBy: opts.author }], opts)
   return { added: true, hidden: false, targets: await readTargets(dir) }
@@ -479,7 +485,8 @@ export async function reorderPostTargets(ref: string, ids: string[], opts: { aut
   if (new Set(ids).size !== ids.length) throw new ValidationError('중복된 대상 id')
   await assertWritable(ref, opts.force)
   const { dir } = resolveProject(ref)
-  const { raw, info } = await loadTargetsForWrite(dir)
+  const { raw, info, unusable } = await loadTargetsForWrite(dir)
+  if (unusable) throw unusableMsg(unusable)
   const cur = info.entries.map(e => e.id)
   if (ids.length !== cur.length || cur.some(id => !ids.includes(id)))
     throw new ValidationError(`순서만 바꿀 수 있습니다: 현재 대상(숨김 포함) 전부 — ${cur.join(', ')} — 와 같은 id 여야 합니다`)
