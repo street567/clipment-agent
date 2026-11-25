@@ -11,7 +11,7 @@ import {
   addProgress, addReply, addComment, authorAllowWarning, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, getEffectiveQuality, setProjectQuality, clearProjectQuality, getWorkspaceQualityInfo, setWorkspaceQuality, assertQuality, QUALITY_SOURCE_LABEL, QUALITIES, getUploadInfo, setUploadVersion, clearUploadVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
-  describeScript, generateVoices, buildNarration, createTtsEngine,
+  describeScript, getPosts, readTargets, writePost, addPostTarget, reorderPostTargets, POST_LANGUAGES, generateVoices, buildNarration, createTtsEngine,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
 import { localTime, parseSeconds, updateClaudePlugin } from './cliutil.ts'
@@ -46,6 +46,13 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   narration <project> --out <file.m4a> [--duration 초] [--json]
                                               줄마다 선택한 음성(내 녹음 또는 최신 AI 음성)을 start 에 놓은 나레이션 트랙 m4a (읽기 전용·결정적).
                                               --duration 생략 시 마지막 음성 끝 + 0.5초
+  posts <project> [--json]                    업로드 글 보기 (SPEC §16: 보이는 대상별 제목·본문·태그·클립 내용·extras, 사람이 고친 것·새 안·예전 버전 표시)
+  post-write <project> <target> --version N [--title T] [--body B] [--tags a,b] [--scenes '[{"t":0,"text":".."}]']
+             [--extras '[{"id":"..","label":"..","text":".."}]'] [--remove-extras id,id] [--language en|ko] [--request-id UUID] [--name 새대상이름] [--force] [--json]
+                                              대상의 ai.json 만 씀(user.json 은 안 건드림). 넘긴 필드만 바꿈. 목록에 없는 대상은 끝에 추가, 숨긴 대상은 숨김 유지
+  post-targets <project> [--json]             업로드 글 대상 목록 (숨긴 대상 포함)
+  post-targets <project> add <id> [--name N]  대상 추가(끝에). 이미 있으면 그대로
+  post-targets <project> reorder <id> <id>…   순서만 바꾸기(사람이 부탁했을 때만; 숨김 포함 현재 id 전부)
   versions <project> [--json]
   comments <project> [--version N | --ids a,b] [--status open|doing|done|question|wontfix] [--json]
                                               --ids: 여러 버전의 코멘트를 id 로 (version 필터 무시)
@@ -101,7 +108,7 @@ async function main() {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
       version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' }, 'fixed-at': { type: 'string' }, ids: { type: 'string' }, at: { type: 'string' }, end: { type: 'string' }, tag: { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
-      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, 'tts-engine': { type: 'string' }, duration: { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' }, check: { type: 'boolean' }, rollback: { type: 'boolean' },
+      'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, 'tts-engine': { type: 'string' }, duration: { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, body: { type: 'string' }, tags: { type: 'string' }, scenes: { type: 'string' }, extras: { type: 'string' }, 'remove-extras': { type: 'string' }, language: { type: 'string' }, 'request-id': { type: 'string' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' }, check: { type: 'boolean' }, rollback: { type: 'boolean' },
     },
   })
 
@@ -245,6 +252,55 @@ async function main() {
         console.log(`${String(l.order).padStart(2)}. ${l.start.toFixed(1)}–${l.captionEnd.toFixed(1)}s [${l.voice}${l.voice === 'mine' && !l.mine ? '(녹음 없음)' : ''}] AI음성:${l.ai}${l.author ? ` ${l.author}` : ''}  ${l.text}  — ${l.id}`)
       return
     }
+    case 'posts': {
+      const v = await getPosts(need(p[0], 'project'))
+      if (o.json) return json(v)
+      console.log(`${v.project}  업로드용 v${v.uploadVersion ?? '?'}  대상 ${v.posts.length}개${v.targetsSource === 'default' ? ' (기본 목록)' : ''}${v.hiddenTargets?.length ? `  숨김: ${v.hiddenTargets.join(',')}` : ''}`)
+      for (const x of v.posts) {
+        const mark = [x.userEdited ? '사람이 고침' : '', x.newAIDraft ? 'AI 새 안 있음' : '', x.staleVersion ? `v${x.baseVersion} 기준(예전 버전)` : ''].filter(Boolean).join(' · ')
+        console.log(`\n[${x.target}] ${x.name}${mark ? `  (${mark})` : ''}`)
+        if (x.title !== null) console.log(`  제목: ${x.title}${x.fromUser.title ? ' *' : ''}`)
+        if (x.body !== null) console.log(`  본문: ${x.body.replace(/\n/g, '\n        ')}${x.fromUser.body ? ' *' : ''}`)
+        if (x.tags !== null) console.log(`  태그: ${x.tags.map(t => '#' + t).join(' ')}${x.fromUser.tags ? ' *' : ''}`)
+        if (x.scenes !== null) for (const s of x.scenes) console.log(`  ${fmt(s.t)} ${s.text}`)
+        for (const e of x.extras ?? []) console.log(`  + ${e.label} (${e.id}): ${e.text}${x.extrasFromUser.includes(e.id) ? ' *' : ''}`)
+        if (!x.ai.exists && !x.userEdited) console.log('  (글 없음)')
+      }
+      return
+    }
+    case 'post-write': {
+      const project = need(p[0], 'project')
+      const target = need(p[1], 'target')
+      const version = intOpt(o.version, 'version')
+      if (version === undefined) throw new ValidationError('--version N 이 필요합니다')
+      const parseJson = (s: string | undefined, name: string) => { if (s === undefined) return undefined; try { return JSON.parse(s) } catch { throw new ValidationError(`--${name} 은 JSON 이어야 합니다`) } }
+      if (o.language !== undefined && !(POST_LANGUAGES as readonly string[]).includes(o.language)) throw new ValidationError(`--language 는 ${POST_LANGUAGES.join('|')}`)
+      const warn = o.force ? await forceWarning(project) : null
+      const r = await writePost(project, target, {
+        version, title: o.title, body: o.body, tags: o.tags === undefined ? undefined : o.tags.split(',').map(s => s.trim()).filter(Boolean),
+        scenes: parseJson(o.scenes, 'scenes'), extras: parseJson(o.extras, 'extras'), removeExtras: o['remove-extras']?.split(',').map(s => s.trim()).filter(Boolean),
+        language: o.language as any, requestId: o['request-id'], targetName: o.name,
+      }, { author: o.author ?? agentName(), force: o.force })
+      if (warn) console.error(warn)
+      for (const w of r.warnings) console.error(`경고: ${w}`)
+      if (o.json) return json(r)
+      console.log(`${r.file}  (v${r.post.baseVersion}${r.targetAdded ? ', 대상 추가됨' : ''}${r.hidden ? ', 숨긴 대상' : ''})`)
+      return
+    }
+    case 'post-targets': {
+      const project = need(p[0], 'project')
+      const sub = p[1]
+      const warn = o.force && sub ? await forceWarning(project) : null
+      const opts = { author: o.author ?? agentName(), authorName: o['author-name'] ?? process.env.CLIPREV_AGENT_NAME, force: o.force }
+      if (sub === 'add') { const r = await addPostTarget(project, need(p[2], 'id'), o.name, opts); if (warn) console.error(warn); console.log(r.added ? '추가했습니다' : r.hidden ? '이미 있음(숨김 상태 그대로)' : '이미 있음') }
+      else if (sub === 'reorder') { await reorderPostTargets(project, p.slice(2), opts); if (warn) console.error(warn); console.log('순서를 바꿨습니다') }
+      else if (sub !== undefined) throw new ValidationError('post-targets <project> [add <id> | reorder <id>…]')
+      const t = await readTargets(resolveProject(project).dir)
+      if (o.json) return json({ source: t.source, targets: t.all })
+      console.log(`대상 ${t.all.length}개${t.source === 'default' ? ' (기본 목록)' : ''}`)
+      for (const x of t.all) console.log(`  ${x.id}  ${x.name}${x.hidden ? '  [숨김]' : ''}${x.addedBy ? `  (추가: ${x.addedBy})` : ''}`)
+      return
+    }
     case 'voice': {
       const project = need(p[0], 'project')
       const { configuredTtsEngine } = await import('./daemon/config.ts')
@@ -339,7 +395,7 @@ async function main() {
       const rs = locked ? [] : (await listRequests(project, { pendingOnly: o.pending })).filter(r => isAuthorAllowed(r, allow))
       if (locked && !o.json) console.error(`잠긴(완료) 프로젝트라 요청을 가져오지 않습니다: ${project}`)
       if (o.json) return json(rs)
-      for (const r of rs) console.log(`[${r.state}] ${r.type}${r.type === 'apply_script' ? (r.draft ? '(draft)' : '') : ''} v${r.version} agent=${r.agent || '-'}${r.authorName ? ` from=${r.authorName}` : ''} ${r.message}  — ${r.id}`)
+      for (const r of rs) console.log(`[${r.state}] ${r.type}${r.type === 'apply_script' ? (r.draft ? '(draft)' : '') : r.type === 'write_post' && r.targets?.length ? `(${r.targets.join(',')})` : ''} v${r.version} agent=${r.agent || '-'}${r.authorName ? ` from=${r.authorName}` : ''} ${r.message}  — ${r.id}`)
       return
     }
     case 'progress': {

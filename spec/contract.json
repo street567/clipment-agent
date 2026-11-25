@@ -1,5 +1,5 @@
 {
-  "version": "1.11.0",
+  "version": "1.12.0",
   "minReaderMajor": 1,
   "files": {
     "project": "schemas/project.schema.json",
@@ -13,6 +13,9 @@
     "rootIndex": "schemas/root-index.schema.json",
     "upload": "schemas/upload.schema.json",
     "quality": "schemas/quality.schema.json",
-    "script": "schemas/script.schema.json"
+    "script": "schemas/script.schema.json",
+    "postTargets": "schemas/post-targets.schema.json",
+    "postAi": "schemas/post-ai.schema.json",
+    "postUser": "schemas/post-user.schema.json"
   }
 }

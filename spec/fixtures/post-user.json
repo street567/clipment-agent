@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "fields": {
+    "title": "Wet practice, new setup",
+    "extras": {
+      "pinned-comment": {
+        "label": "고정 댓글",
+        "text": "Full setup list in the next video"
+      }
+    }
+  },
+  "seenAI": "2026-11-25T13:45:00.000Z",
+  "version": 7,
+  "authorName": "개미",
+  "updated": "2026-11-25T13:45:00.000Z"
+}

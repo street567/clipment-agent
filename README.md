@@ -181,7 +181,7 @@ Claude 채널 세션을 몇 주씩 열어 두는 경우를 위한 기능입니�
 - **0.4.0 으로 올라가는 모두에게 한 번은 수동 업데이트 + 세션 재시작이 필요합니다.** 릴레이는 0.4.0 부터 들어 있어 옛 세션(0.3.x)은 교체할 수 없습니다: `clipment update`(또는 `claude plugin update clipment@clipment-agent`) 후 Claude 세션을 한 번 다시 시작하세요.
 
 ## 동작 메모
-- 요청 type 은 `apply_feedback | answer | rerender | cancel | apply_script` 만 처리하고 나머지는 무시합니다. 요청 내용은 명령으로 실행되지 않습니다.
+- 요청 type 은 `apply_feedback | answer | rerender | cancel | apply_script | write_post` 만 처리하고 나머지는 무시합니다. 요청 내용은 명령으로 실행되지 않습니다.
 - `agent` 가 비어 있지 않은 요청은 `CLIPREV_AGENT`(기본 claude)와 같을 때만 그 에이전트에게 전달됩니다.
 - 모든 파일은 불변 + 임시파일(`.name.tmp`) 후 rename. publish 는 `versions/.vNNN.tmp/` 에 만든 뒤 폴더째 rename 하므로 앱은 완성된 `vNNN/` 만 봅니다.
 - iCloud 자리표시자(`.name.icloud`)는 `brctl download` 요청 후 이번 회차에서 건너뜁니다.

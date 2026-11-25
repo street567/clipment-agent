@@ -206,7 +206,7 @@ export class Daemon {
       if (r.state !== 'pending') continue
       if (this.firstTick && now - Date.parse(r.created) > 10 * 60_000) continue
       let n = r.commentIds?.length ?? 0
-      if (!r.commentIds && r.type !== 'apply_script') { try { n = (await listComments(r.ref, { version: r.version, status: 'open' })).length } catch {} }
+      if (!r.commentIds && r.type !== 'apply_script' && r.type !== 'write_post') { try { n = (await listComments(r.ref, { version: r.version, status: 'open' })).length } catch {} }
       fresh.push({ req: r, comments: n })
     }
     if (cfg.notify) {

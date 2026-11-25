@@ -3,6 +3,10 @@
 버전 규칙 (SPEC §10): **MAJOR** 깨지는 변경(옛 리더가 안전하게 읽거나 쓸 수 없음) · **MINOR** 추가만(모르는 필드는 무시) · **PATCH** 문구·예시 정리.
 1.0.0~1.5.0 은 git 이력(`docs/SPEC-mvp.md`)에서 복원했다.
 
+## 1.12.0 — 업로드 글
+- §16 `<프로젝트>/.clipment/posts/`: 대상 목록 `targets.json`, 대상별 `ai.json`(맥만 씀)·`user.json`(앱만 씀). 항목 `title`·`body`·`tags`·`scenes`(클립 내용)·`extras`(AI 가 늘리는 항목). AI 가 대상 추가(`addedBy`), 사람이 뺀 대상은 `hidden`. 보여 주는 값·AI 새 안·예전 버전 글 파생 규칙. 스키마 `post-targets`·`post-ai`·`post-user`.
+- 요청 type `write_post`(`version`, 선택 `targets`) 추가 — whitelist 확장.
+
 ## 1.11.0 — 리뷰(반영 확인)
 - §15 답글 선택 필드 `fixedAt`(반영 버전에서의 시점, 초), `kind: "review"` + `review: approved|pending`(사람의 확인). 확인됨·확인 필요 파생 규칙.
 - §15 코멘트 선택 필드 `via: "channel"`(앱 밖에서 한 요청을 AI 가 대신 기록).

@@ -4,7 +4,7 @@ export type Tag = (typeof TAGS)[number]
 export const COMMENT_STATUSES = ['open', 'doing', 'done', 'question', 'wontfix'] as const
 export type CommentStatus = (typeof COMMENT_STATUSES)[number]
 
-export const REQUEST_TYPES = ['apply_feedback', 'answer', 'rerender', 'cancel', 'apply_script'] as const
+export const REQUEST_TYPES = ['apply_feedback', 'answer', 'rerender', 'cancel', 'apply_script', 'write_post'] as const
 export type RequestType = (typeof REQUEST_TYPES)[number]
 
 export const PROGRESS_STATES = ['received', 'working', 'done', 'failed'] as const
@@ -74,6 +74,8 @@ export interface Request {
   commentIds: string[] | null; agent: string; authorName?: string; message: string; created: string
   /** apply_script 전용 (SPEC §14): true = 대본 초안만 쓰기(영상 안 만듦), 아니면 대본+음성을 영상에 반영 */
   draft?: boolean
+  /** write_post 전용 (SPEC §16): 글을 쓸 대상 id. 비어 있으면 대상 목록 전체. 대상 id 형식에 맞는 것만 남긴다 */
+  targets?: string[]
 }
 
 export interface ProgressEvent {

@@ -1,5 +1,5 @@
 { "$schema": "https://json-schema.org/draft/2020-12/schema", "title": "requests/<id>.json", "type": "object", "required": ["id","type","version"],
-  "properties": { "schema": {"type":"integer"}, "id": {"type":"string"}, "type": {"type":"string","enum":["apply_feedback","answer","rerender","cancel","apply_script"]},
+  "properties": { "schema": {"type":"integer"}, "id": {"type":"string"}, "type": {"type":"string","enum":["apply_feedback","answer","rerender","cancel","apply_script","write_post"]}, "targets": {"type":"array","items":{"type":"string"}},
     "version": {"type":"integer"}, "draft": {"type":"boolean"}, "commentIds": {"type":["array","null"],"items":{"type":"string"}},
     "agent": {"type":"string"}, "authorName": {"type":"string"}, "message": {"type":"string"}, "created": {"type":"string"} },
   "additionalProperties": true }

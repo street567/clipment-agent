@@ -346,6 +346,13 @@ export function drainUnknownRequestTypes(): { id: string; type: string }[] {
 }
 const seenUnknown = new Set<string>()
 
+/** write_post 의 targets: 대상 id 형식에 맞는 문자열만, 중복 제거 (SPEC §16) */
+function requestTargets(v: unknown): string[] {
+  const out: string[] = []
+  if (Array.isArray(v)) for (const x of v) if (typeof x === 'string' && /^[a-z0-9][a-z0-9-]{0,39}$/.test(x) && !out.includes(x)) out.push(x)
+  return out
+}
+
 function normalizeRequest(id: string, j: any): Request | null {
   if (!j || typeof j !== 'object') return null
   if (!inList(REQUEST_TYPES, j.type)) return null // 화이트리스트 밖 type 은 무시
@@ -359,6 +366,7 @@ function normalizeRequest(id: string, j: any): Request | null {
   }
   if (str(j.authorName).trim()) req.authorName = str(j.authorName).trim()
   if (req.type === 'apply_script') req.draft = j.draft === true
+  if (req.type === 'write_post') req.targets = requestTargets(j.targets)
   return req
 }
 

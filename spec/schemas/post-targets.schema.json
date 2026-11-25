@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": ".clipment/posts/targets.json",
+  "type": "object",
+  "required": [
+    "targets"
+  ],
+  "properties": {
+    "schema": {
+      "type": "integer"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "addedBy": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "author": {
+      "type": "string"
+    },
+    "via": {
+      "type": "string",
+      "enum": [
+        "app",
+        "mac"
+      ]
+    },
+    "updated": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

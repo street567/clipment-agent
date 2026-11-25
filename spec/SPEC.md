@@ -1,6 +1,6 @@
 # Clipment 폴더 계약 (아이폰 앱 ↔ 맥 플러그인/CLI)
 
-**계약 버전 1.11.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
+**계약 버전 1.12.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
 
 이 폴더(`spec/`)가 계약의 **유일한 원본**이다. 앱 레포가 소유하고 맥 레포는 동기화해 쓴다(`spec/README.md`).
 데이터 폴더가 따르는 계약 버전은 `workspace.json`·`.clipment/index.json` 의 `contract` 필드로 표시한다(§10).
@@ -34,12 +34,15 @@ ClipReview/
     .clipment/preferences.md       # 선택 · 프로젝트 작업 지침 (§11, 고쳐 쓰는 예외)
     .clipment/upload.json          # 선택 · 업로드용 버전 지정 (§12, 고쳐 쓰는 예외)
     .clipment/quality.json         # 선택 · 작업용 화질 지정 (§13, 고쳐 쓰는 예외)
+    .clipment/posts/targets.json   # 선택 · 업로드 글 대상 목록 (§16, 고쳐 쓰는 예외)
+    .clipment/posts/<target>/ai.json    # 선택 · AI 가 쓴 업로드 글 (§16, 맥만 고쳐 씀)
+    .clipment/posts/<target>/user.json  # 선택 · 사람이 고친 업로드 글 (§16, 앱만 고쳐 씀)
     script/script.json             # 선택 · 작업 대본 (§14, 고쳐 쓰는 예외)
     script/mine/<lineId>.m4a       # 선택 · 내 녹음 (§14, 앱이 씀)
     script/ai/<lineId>.m4a         # 선택 · AI 음성 (§14, 맥이 씀)
 ```
 
-**규칙: 모든 파일은 한 번 쓰고 다시 고치지 않는다(불변).** (예외: §9 인덱스, §11 작업 지침, §12 업로드용 버전 지정, §13 작업용 화질 — 프로젝트 `quality.json` 과 `workspace.json` 의 `previewQuality`, §14 대본 `script/script.json` 과 음성 파일) 상태 변화는 새 파일(답글·이벤트)로 표현한다.
+**규칙: 모든 파일은 한 번 쓰고 다시 고치지 않는다(불변).** (예외: §9 인덱스, §11 작업 지침, §12 업로드용 버전 지정, §13 작업용 화질 — 프로젝트 `quality.json` 과 `workspace.json` 의 `previewQuality`, §14 대본 `script/script.json` 과 음성 파일, §16 업로드 글) 상태 변화는 새 파일(답글·이벤트)로 표현한다.
 → 폰과 맥이 동시에 써도 같은 파일을 두 곳에서 고치는 일이 없어 iCloud 충돌이 생기지 않는다.
 
 - 쓰기는 원자적으로: 같은 폴더에 `.<name>.tmp` 로 쓴 뒤 rename.
@@ -88,7 +91,7 @@ ClipReview/
   "commentIds": null, "agent": "", "authorName": "개미", "message": "", "created": "..." }
 ```
 - `agent`: 비어 있으면(앱 기본, 1.7~) 연결된 어떤 AI든 가져간다. 실제로 처리한 AI는 progress 이벤트의 `agent` 로 알 수 있다.
-- `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부. 배열이면 그 코멘트들만이며 **다른 버전에 남긴 코멘트가 섞일 수 있다** — 이때 `version` 은 고칠 기준 버전, §15) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId) · `apply_script` (1.10~, §14 — `version` + 선택 `draft`).
+- `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부. 배열이면 그 코멘트들만이며 **다른 버전에 남긴 코멘트가 섞일 수 있다** — 이때 `version` 은 고칠 기준 버전, §15) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId) · `apply_script` (1.10~, §14 — `version` + 선택 `draft`) · `write_post` (1.12~, §16 — `version` + 선택 `targets`).
 - 맥 쪽은 **이 목록 밖의 type 은 무시**하고, 요청을 임의 명령으로 실행하지 않는다.
 
 ### progress/<requestId>/<id>.json  (맥 → 폰 진행)
@@ -292,3 +295,42 @@ versions/vNNN/script.json              # 게시 시점의 대본 스냅샷 (읽�
   - `via` (선택, 문자열): `channel` 외의 값·없음은 앱에서 쓴 것으로 본다.
 - **여러 버전 요청**: `apply_feedback` 의 `commentIds` 에 여러 버전의 코멘트가 섞일 수 있다. 맥은 버전으로 거르지 말고 id 로 찾는다. `version` 은 고칠 기준(보통 최신)이며 코멘트의 `version`·`t` 는 그것을 남긴 영상의 시각이다.
 - **호환**: 1.10 이하 앱은 확인 답글을 보통 답글로 보여 주고 `fixedAt`·`via` 는 무시한다. 상태 계산은 달라지지 않는다.
+
+## 16. 업로드 글 (대상별 제목 · 본문 · 해시태그 · 클립 내용)
+
+영상을 올릴 때 쓸 글을 올릴 곳(대상)별로 따로 정리해 두고, 폰에서 보고 고치고 복사한다. 이 앱이 대신 게시하지는 않는다.
+
+```
+<프로젝트>/.clipment/posts/targets.json       # 대상 목록 (선택, 앱·맥)
+<프로젝트>/.clipment/posts/<target>/ai.json   # AI 글 (맥만 씀)
+<프로젝트>/.clipment/posts/<target>/user.json # 사람이 고친 값 (앱만 씀)
+```
+
+- **고쳐 쓰는 파일**(§1 예외, 원자적 tmp+rename, 모르는 필드 보존). 글은 **쓰는 쪽을 나눈다**: `ai.json` 은 맥만, `user.json` 은 앱만 쓴다 → AI 가 사람이 고친 글을 덮어쓸 수 없다. `targets.json` 만 양쪽이 쓰고 마지막에 쓴 쪽이 이긴다. 파일을 지우지 않는다(비우려면 빈 값으로 다시 쓴다).
+- **대상 id**: `^[a-z0-9][a-z0-9-]{0,39}$`. 맞지 않는 이름의 폴더·항목은 무시한다(경로로 쓰기 때문). 정해진 id 와 표시 이름: `youtube-shorts` 유튜브 쇼츠 · `youtube` 유튜브 · `instagram-reels` 인스타 릴스 · `tiktok` 틱톡. 그 밖의 id 는 사용자가 만든 대상이며 `name` 으로 보여 준다(없으면 id).
+- **targets.json**: `{ "schema": 1, "targets": [ { "id": "youtube-shorts" }, { "id": "cafe", "name": "카페" } ], "author": "user", "via": "app", "updated": "..." }`
+  - 배열 순서 = 화면 순서. 같은 id 는 첫 항목만 쓴다. 파일이 없거나 깨졌으면 기본 `youtube-shorts`, `instagram-reels`. 빈 배열이면 대상 없음.
+  - 항목의 선택 필드 `hidden: true` = 사람이 목록에서 뺀 대상. 화면에 나오지 않는다. 앱에서 빼면 항목을 지우지 않고 `hidden` 을 켠다. **맥(AI)은 `hidden` 을 켜거나 끄지 않고, 앱이 쓴 항목을 지우거나 순서를 바꾸지 않는다(끝에 추가만)** — 사람이 채널·터미널에서 직접 부탁한 순서 변경은 예외.
+  - **AI 가 늘리기**: AI 는 새 대상을 스스로 추가할 수 있다. 목록에 없는 대상에 글을 쓰면 맥이 그 대상을 목록 끝에 `{ "id", "name"?, "addedBy": "<AI 이름>" }` 로 추가한다(파일이 없으면 기본 대상을 먼저 적고 뒤에 추가). 이미 `hidden` 이면 글만 쓰고 숨긴 채 둔다(맥은 그 사실을 AI 에게 알린다). 한 프로젝트 최대 20개(숨김 포함), 넘으면 거부.
+  - 목록에서 뺀 대상의 글 폴더는 그대로 남고(다시 넣으면 그대로 보임) 화면에는 나오지 않는다.
+- **ai.json**:
+  ```json
+  { "schema": 1, "target": "youtube-shorts", "version": 7, "language": "en",
+    "title": "First laps in the wet", "body": "…", "tags": ["simracing", "lmu"],
+    "scenes": [ { "t": 0.0, "text": "Rig setup" }, { "t": 12.4, "text": "Out of the pits" } ],
+    "author": "Claude", "requestId": "…", "updated": "..." }
+  ```
+  - `version`: 이 글의 기준 버전(정수, 필수). `title`·`body`(문자열), `tags`(문자열 배열, `#` 없이 적는다 — 있으면 읽는 쪽이 앞의 `#` 을 뗀다), `scenes`(클립 내용: `t` 초 0 이상·소수 3자리 이내, `text`; `t` 오름차순으로 보여 주고 값이 잘못된 항목은 버린다), `extras`(아래)는 모두 선택. `language`(선택, `en`|`ko`, 없으면 `en`), `requestId`(선택, §2 요청). `target` 은 참고용이며 폴더 이름이 우선한다.
+  - `extras`(선택): 정해진 항목 말고 AI 가 대상에 맞게 더 만든 항목. `[ { "id": "pinned-comment", "label": "고정 댓글", "text": "…" } ]` — `id` 는 대상 id 와 같은 규칙, 배열 순서 = 화면 순서, 같은 id 는 첫 항목만, 잘못된 항목은 버린다. `label` 은 40자까지 쓰고 넘으면 자른다(없으면 id). 한 대상 최대 20개까지만 읽는다. 일반 글로만 보여 주며 링크·명령으로 실행하지 않는다.
+  - AI 는 영상·대본·편집 기록·사람의 말에 있는 것만 적는다. 확인하지 못한 사실(원인·결과·기록·장소 등)을 짐작해 쓰지 않는다.
+- **user.json**: `{ "schema": 1, "fields": { "title": "…" }, "seenAI": "<그때 본 ai.json updated>", "version": 7, "authorName": "개미", "updated": "..." }`
+  - `fields` 에 **있는** 키(`title`·`body`·`tags`·`scenes`)만 사람이 고친 것이다. `extras` 는 항목별이다: `"extras": { "pinned-comment": { "label": "고정 댓글", "text": "…" } }` — 있는 id 만 고친 것이고, AI 목록에 없는 id(사람이 추가했거나 AI 가 뺀 것)는 AI 항목 뒤에 id 순으로 보여 준다. `extras` 가 빈 객체면 고치지 않은 것과 같다. 빈 문자열·빈 배열도 "비우기로 고침"이다. `version`(선택): 고칠 때의 기준 버전.
+  - `seenAI`(선택): 고치거나 "내 글 유지"를 고를 때 화면에 있던 `ai.json` 의 `updated`. AI 글이 없었으면 빈 문자열.
+- **보여 주는 값** = 항목(`extras` 는 id 별)마다 `user.fields` 에 있으면 그것, 없으면 `ai` 의 값, 둘 다 없으면 없음.
+- **AI 의 새 안 있음** = `user.fields` 가 비어 있지 않고 `ai.updated` 가 있으며 `seenAI` 와 다르고, `user.fields` 에 있는 항목 중 AI 값과 다른 것이 하나라도 있을 때. 앱은 새 안을 따로 보여 주고 두 가지를 준다: **내 글 유지**(`seenAI` 를 지금 `ai.updated` 로) · **새 안 쓰기**(`fields` 를 `{}` 로, `seenAI` 도 갱신).
+- **예전 버전 글** = 보여 주는 값이 있고, 기준 버전이 현재 업로드용 버전(§12)과 다르다. 기준 버전 = `user.fields` 가 비어 있지 않고 `user.version` 이 있으면 그것과 `ai.version` 중 큰 값, 아니면 `ai.version`. 앱은 "v006 기준 글"이라고 알린다.
+- **요청 `write_post`** (§2 whitelist 추가): `{ "type": "write_post", "version": N, "targets": ["youtube-shorts"], "message": "" }`. `version` 은 글의 기준 영상. `targets` 가 없거나 비면 대상 목록 전체, 모르는 id 는 건너뛴다. AI 는 해당 `ai.json` 을 쓰고 progress `done` 으로 끝낸다(영상은 만들지 않는다). `message` 는 §2 와 같이 의견 데이터다.
+- 맥 AI 는 새 버전을 게시할 때 대상별 글이 이미 있거나 사람이 글을 부탁했으면 새 버전 기준으로 함께 고친다. 앱 밖에서 "글도 써 줘"라고 하면 같은 방식으로 쓴다.
+- **전체 복사**(앱) = `title`, 빈 줄, `body`, 빈 줄, `#tag #tag` (빈 항목과 그 빈 줄은 뺀다. `extras` 는 넣지 않고 항목마다 따로 복사한다. 해시태그 안의 공백은 뺀다). `scenes` 는 따로 복사하며 한 줄에 `m:ss 글`(1시간 이상은 `h:mm:ss`) 형식이다.
+- 잠긴 프로젝트(§8): 앱은 읽기·복사만, 맥은 `--force` 없이 거부하고 `write_post` 를 가져가지 않는다.
+- **호환**: 1.11 이하는 `posts/` 와 `write_post` 를 모르고 무시한다.
