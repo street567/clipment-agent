@@ -160,7 +160,14 @@ function normalizeComment(id: string, j: any): Comment | null {
   if (str(j.authorName).trim()) c.authorName = str(j.authorName).trim()
   const regions = normalizeRegions(j.regions)
   if (regions && regions.length) c.regions = regions
+  if (j.via === 'channel') c.via = 'channel'
   return c
+}
+
+/** fixedAt: 숫자·유한·0 이상이면 소수 3자리로 반올림. 아니면 undefined (SPEC §15) */
+export function roundFixedAt(v: unknown): number | undefined {
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) return undefined
+  return Math.round(v * 1000) / 1000
 }
 
 function normalizeReply(commentId: string, id: string, j: any): Reply | null {
@@ -172,9 +179,15 @@ function normalizeReply(commentId: string, id: string, j: any): Reply | null {
   if (str(j.authorName).trim()) r.authorName = str(j.authorName).trim()
   if (inList(COMMENT_STATUSES, j.status)) r.status = j.status
   if (isVersionNum(j.fixedIn)) r.fixedIn = j.fixedIn
+  if (r.fixedIn !== undefined) { const fa = roundFixedAt(j.fixedAt); if (fa !== undefined) r.fixedAt = fa }
   const regions = normalizeRegions(j.regions)
   if (regions) r.regions = regions // 빈 배열 = 영역 모두 삭제 (보존)
   if (j.kind === 'regions') r.kind = 'regions'
+  else if (j.kind === 'review') {
+    r.kind = 'review'
+    // 사람(author=user)이 쓴 확인만 유효. 모르는 값은 무시 (SPEC §15)
+    if (r.author === 'user' && (j.review === 'approved' || j.review === 'pending')) r.review = j.review
+  }
   return r
 }
 
@@ -189,30 +202,46 @@ export async function listReplies(slug: string, commentId: string): Promise<Repl
   return out.sort(byCreated)
 }
 
-export function deriveStatus(replies: Reply[]): { status: CommentStatus; fixedIn: number | null } {
+export function deriveStatus(replies: Reply[]): { status: CommentStatus; fixedIn: number | null; fixedAt: number | null; approved: boolean } {
   const sorted = [...replies].sort(byCreated)
   let status: CommentStatus = 'open'
   let fixedIn: number | null = null
-  for (const r of sorted) {
+  let fixedAt: number | null = null
+  let statusIdx = -1
+  let reviewIdx = -1
+  let review: 'approved' | 'pending' | null = null
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i]!
     if (r.status) {
       status = r.status
       fixedIn = r.fixedIn ?? null
+      fixedAt = r.fixedIn !== undefined ? r.fixedAt ?? null : null
+      statusIdx = i
     }
+    // 사람의 확인 답글만(normalizeReply 가 author=user·kind=review 일 때만 review 를 남긴다)
+    if (r.kind === 'review' && r.review) { review = r.review; reviewIdx = i }
   }
-  return { status, fixedIn }
+  const approved = (status === 'done' || status === 'wontfix') && review === 'approved' && reviewIdx > statusIdx
+  return { status, fixedIn, fixedAt, approved }
 }
 
-export interface CommentFilter { version?: number; status?: CommentStatus; tag?: string }
+/** 확인 답글은 사람의 확인일 뿐 AI 가 처리할 새 답글이 아니다 (SPEC §15) */
+export const isReviewReply = (r: { kind?: string }) => r.kind === 'review'
+
+/** ids 를 주면 version 필터 없이 그 id 의 코멘트만 (여러 버전 요청, SPEC §15). 없는 id 는 무시 */
+export interface CommentFilter { version?: number; status?: CommentStatus; tag?: string; ids?: string[] }
 
 export async function listComments(slug: string, filter: CommentFilter = {}): Promise<CommentWithStatus[]> {
   resolveProject(slug)
   const dir = commentsDir(slug)
   const out: CommentWithStatus[] = []
+  const idSet = filter.ids ? new Set(filter.ids) : null
   for (const stem of await listJsonStems(dir)) {
     if (!isId(stem)) continue
+    if (idSet && !idSet.has(stem)) continue
     const c = normalizeComment(stem, await readJson(join(dir, stem + '.json')))
     if (!c) continue
-    if (filter.version !== undefined && c.version !== filter.version) continue
+    if (!idSet && filter.version !== undefined && c.version !== filter.version) continue
     if (filter.tag && c.tag !== filter.tag) continue
     const replies = await listReplies(slug, c.id)
     const d = deriveStatus(replies)
@@ -235,7 +264,7 @@ export async function getThread(slug: string, commentId: string) {
   return { comment, replies, ...deriveStatus(replies), currentRegions: currentRegionViews(comment, replies) }
 }
 
-export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number; force?: boolean }
+export interface ReplyInput { text: string; author: string; authorName?: string; status?: CommentStatus; fixedIn?: number; fixedAt?: number; force?: boolean }
 
 export async function addReply(slug: string, commentId: string, input: ReplyInput): Promise<Reply> {
   await assertWorkspaceWritable(resolveProject(slug).workspace.path)
@@ -247,6 +276,12 @@ export async function addReply(slug: string, commentId: string, input: ReplyInpu
   if (input.status !== undefined && !inList(COMMENT_STATUSES, input.status))
     throw new ValidationError(`잘못된 status: ${input.status} (${COMMENT_STATUSES.join('|')})`)
   if (input.fixedIn !== undefined) assertVersionNum(input.fixedIn)
+  let fixedAt: number | undefined
+  if (input.fixedAt !== undefined) {
+    if (input.fixedIn === undefined) throw new ValidationError('fixedAt 은 fixedIn 과 함께만 쓸 수 있습니다')
+    fixedAt = roundFixedAt(input.fixedAt)
+    if (fixedAt === undefined) throw new ValidationError(`잘못된 fixedAt: ${JSON.stringify(input.fixedAt)} (0 이상 유한 숫자, 초)`)
+  }
   const id = randomUUID()
   const created = nextIso(await listReplies(slug, commentId))
   const r: Reply = { schema: 1, id, commentId, author: input.author, text: input.text, created }
@@ -254,8 +289,45 @@ export async function addReply(slug: string, commentId: string, input: ReplyInpu
   if (an) r.authorName = an.slice(0, 64)
   if (input.status) r.status = input.status
   if (input.fixedIn !== undefined) r.fixedIn = input.fixedIn
+  if (fixedAt !== undefined) r.fixedAt = fixedAt
   await writeJsonNew(join(repliesDir(slug, commentId), id + '.json'), r)
   return r
+}
+
+export const MAX_COMMENT_TEXT = 4000
+
+export interface CommentInput {
+  text: string; version?: number; t?: number; end?: number; tag?: string; authorName?: string; force?: boolean
+}
+
+/**
+ * 사람이 앱 밖(채널·터미널)에서 한 수정 요청을 대신 기록 (SPEC §15). author=user, via=channel.
+ * 잠금·읽기 전용·계약 검사는 addReply 와 같다. version 0 = 영상 전체.
+ */
+export async function addComment(slug: string, input: CommentInput): Promise<Comment> {
+  await assertWorkspaceWritable(resolveProject(slug).workspace.path)
+  if (!input.force) await assertUnlocked(slug)
+  const text = input.text?.trim()
+  if (!text) throw new ValidationError('코멘트 내용이 비어 있습니다')
+  if (input.text.length > MAX_COMMENT_TEXT) throw new ValidationError(`코멘트가 너무 깁니다 (최대 ${MAX_COMMENT_TEXT}자)`)
+  const version = input.version ?? 0
+  if (!Number.isInteger(version) || version < 0 || version > 999) throw new ValidationError(`잘못된 버전 번호: ${JSON.stringify(version)} (0~999 정수, 0=영상 전체)`)
+  if (version > 0 && !(await getVersion(slug, version))) throw new ValidationError(`존재하지 않는 버전: v${String(version).padStart(3, '0')}`)
+  const t = input.t ?? 0
+  if (typeof t !== 'number' || !Number.isFinite(t) || t < 0) throw new ValidationError(`잘못된 시각 t: ${JSON.stringify(input.t)} (0 이상 초)`)
+  let end: number | null = null
+  if (input.end !== undefined) {
+    if (typeof input.end !== 'number' || !Number.isFinite(input.end) || input.end <= t) throw new ValidationError(`end 는 t 보다 큰 유한 숫자여야 합니다: ${JSON.stringify(input.end)}`)
+    end = input.end
+  }
+  const tag = input.tag ?? 'other'
+  if (!inList(TAGS, tag)) throw new ValidationError(`잘못된 tag: ${tag} (${TAGS.join('|')})`)
+  const id = randomUUID()
+  const c: Comment = { schema: 1, id, version, t: Math.round(t * 1000) / 1000, end, tag, text: input.text, author: 'user', created: nowIso(), via: 'channel' }
+  const an = input.authorName?.trim()
+  if (an) c.authorName = an.slice(0, 64)
+  await writeJsonNew(join(commentsDir(slug), id + '.json'), c)
+  return c
 }
 
 export function assertAuthor(a: string): string {

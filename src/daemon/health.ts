@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  allowedAuthors, currentLock, isAuthorAllowed, listComments, listRequests, listWorkspaceProjects, pendingRequests, readWorkspaceContract, workspaces,
+  allowedAuthors, currentLock, isAuthorAllowed, listComments, listReplies, listRequests, listWorkspaceProjects, pendingRequests, readWorkspaceContract, workspaces,
   type PendingRequest,
 } from '../core/index.ts'
 import { DEFAULT_CONFIG, type DaemonConfig } from './config.ts'
@@ -132,20 +132,26 @@ export interface StaleComment { ref: string; commentId: string; version: number;
 /**
  * 열린(open) 코멘트 중 `olderThanMs` 이상 묵었는데 그 코멘트를 덮는 요청이 없는 것.
  * SPEC §요청: apply_feedback 의 commentIds=null 은 "그 버전의 열린 코멘트 전부", 배열이면 그 코멘트들.
- * 덮는다 = apply_feedback 이고 코멘트 생성 이후에 만들어졌고 version 이 같고(코멘트 version 0 이면 아무 version) commentIds 가 null 이거나 포함.
+ * 덮는다 = apply_feedback 이고 코멘트가 (다시) 열린 시점 이후에 만들어졌고, commentIds 배열이면 거기 포함(요청 version 과 무관 — 여러 버전의 코멘트가 섞일 수 있다, SPEC §15),
+ * commentIds 가 null 이면 version 이 같을 때(코멘트 version 0 이면 아무 version).
+ * 열린 시점 = 다시 열린 코멘트면 현재 open 상태를 만든 답글의 created(openedAt), 아니면 코멘트 created.
+ * via=channel(사람이 채널에서 한 말을 AI 가 대신 남긴 코멘트)은 이미 처리 중이므로 제외.
  * 처리 끝난(done) 요청도 덮은 것으로 본다(그 뒤에도 open 이면 AI 가 답글을 안 단 것이라 요청 문제가 아님 → 보수적으로 제외).
  */
 export function staleCommentsOf(
-  comments: { id: string; version: number; t: number; created: string; text: string }[],
+  comments: { id: string; version: number; t: number; created: string; text: string; via?: string; openedAt?: string }[],
   requests: { type: string; version: number; commentIds: string[] | null; created: string }[],
   ref: string, now: number, olderThanMs: number,
 ): StaleComment[] {
   const out: StaleComment[] = []
   for (const c of comments) {
-    const cm = Date.parse(c.created)
+    if (c.via === 'channel') continue
+    const created = Date.parse(c.created)
+    const opened = c.openedAt ? Date.parse(c.openedAt) : NaN
+    const cm = Number.isFinite(opened) && Number.isFinite(created) ? Math.max(created, opened) : created
     if (!Number.isFinite(cm) || now - cm < olderThanMs) continue
     const covered = requests.some(r => r.type === 'apply_feedback' && Date.parse(r.created) >= cm
-      && (c.version === 0 || r.version === c.version) && (r.commentIds === null || r.commentIds.includes(c.id)))
+      && (r.commentIds ? r.commentIds.includes(c.id) : (c.version === 0 || r.version === c.version)))
     if (!covered) out.push({ ref, commentId: c.id, version: c.version, t: c.t, created: c.created, ageMin: Math.floor((now - cm) / MIN), text: c.text.slice(0, 80) })
   }
   return out
@@ -162,9 +168,15 @@ export async function findStaleComments(now: number, olderThanMs: number): Promi
       const ref = `${w.name}/${p.id}`
       try {
         if (await currentLock(ref)) continue
-        const open = (await listComments(ref, { status: 'open' })).filter(c => isAuthorAllowed(c, allow))
+        const open = (await listComments(ref, { status: 'open' })).filter(c => isAuthorAllowed(c, allow) && c.via !== 'channel')
         if (!open.length) continue
-        out.push(...staleCommentsOf(open, await listRequests(ref), ref, now, olderThanMs))
+        // 다시 열린 코멘트: 현재 open 상태를 만든 (가장 최근 status) 답글의 created 가 기준
+        const withOpened = await Promise.all(open.map(async c => {
+          if (!c.replyCount) return c
+          const last = (await listReplies(ref, c.id)).filter(r => r.status).pop()
+          return last ? { ...c, openedAt: last.created } : c
+        }))
+        out.push(...staleCommentsOf(withOpened, await listRequests(ref), ref, now, olderThanMs))
       } catch {}
     }
   }

@@ -43,11 +43,17 @@ export interface Comment {
   schema: number; id: string; version: number; t: number; end: number | null
   tag: Tag; text: string; author: string; authorName?: string; created: string
   regions?: Region[]
+  /** 사람이 앱 밖(채널·터미널)에서 한 요청을 AI 가 대신 남긴 코멘트 (SPEC §15). 그 외 값·없음 = 앱 */
+  via?: 'channel'
 }
 
 export interface CommentWithStatus extends Comment {
   status: CommentStatus
   fixedIn: number | null
+  /** 반환한 fixedIn 과 같은 답글의 fixedAt (fixedIn 버전 영상에서 바뀐 곳의 시작 초). 없으면 null */
+  fixedAt: number | null
+  /** 확인됨 (SPEC §15): done|wontfix 이고 사람이 approved 로 확인했으며 그 뒤 새 status 답글이 없음 */
+  approved: boolean
   replyCount: number
   /** 현재 영역(답글의 최신 regions, 없으면 코멘트 것). 없으면 [] */
   currentRegions: RegionView[]
@@ -56,7 +62,11 @@ export interface CommentWithStatus extends Comment {
 export interface Reply {
   schema: number; id: string; commentId: string; author: string; authorName?: string; text: string
   status?: CommentStatus; fixedIn?: number; created: string
-  regions?: Region[]; kind?: 'regions'
+  /** fixedIn 버전 영상에서 바뀐 곳의 시작 시각(초, SPEC §15). fixedIn 이 있을 때만 의미 */
+  fixedAt?: number
+  /** 사람의 확인(author=user, kind=review 일 때만 의미, SPEC §15). AI 는 쓰지 않는다 */
+  review?: 'approved' | 'pending'
+  regions?: Region[]; kind?: 'regions' | 'review'
 }
 
 export interface Request {

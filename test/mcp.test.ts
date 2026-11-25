@@ -34,7 +34,7 @@ describe('mcp server', () => {
     const c = await connect({ CLIPREV_ROOT: root, CLIPREV_AGENT: 'codex' })
     try {
       const tools = (await c.listTools()).tools.map(t => t.name).sort()
-      expect(tools).toEqual(['daemon_status', 'get_frame', 'get_preferences', 'get_thread', 'health', 'index_root', 'list_comments', 'list_projects', 'list_versions', 'list_workspaces', 'preview_quality', 'publish_version', 'reply', 'report_progress', 'script_get', 'script_set', 'set_preferences', 'upload_version', 'voice_generate', 'wait_for_requests'])
+      expect(tools).toEqual(['add_comment', 'daemon_status', 'get_frame', 'get_preferences', 'get_thread', 'health', 'index_root', 'list_comments', 'list_projects', 'list_versions', 'list_workspaces', 'preview_quality', 'publish_version', 'reply', 'report_progress', 'script_get', 'script_set', 'set_preferences', 'upload_version', 'voice_generate', 'wait_for_requests'])
       expect(text(await c.callTool({ name: 'list_projects', arguments: {} }))[0].id).toBe('demo')
       const meta = text(await c.callTool({ name: 'publish_version', arguments: { project: 'demo', video_path: clip, note: 'n' } }))
       expect(meta.version).toBe(1)

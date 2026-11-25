@@ -1,4 +1,15 @@
 import { spawnSync } from 'node:child_process'
+import { ValidationError } from './core/paths.ts'
+
+/** "12.5" | "1:05" | "1:05.5" | "0:01:05" → 초. 음수·잘못된 값은 ValidationError */
+export function parseSeconds(v: string, name: string): number {
+  const bad = () => new ValidationError(`--${name} 는 초(12.5) 또는 m:ss(.s) 여야 합니다: ${v}`)
+  const parts = v.trim().split(':')
+  if (parts.length > 3 || parts.some(x => !/^\d+(\.\d+)?$/.test(x))) throw bad()
+  const n = parts.reduce((acc, x) => acc * 60 + Number(x), 0)
+  if (!Number.isFinite(n)) throw bad()
+  return n
+}
 
 /** ISO(UTC) 시각 → 로컬 "2026-11-25 03:16:12 (5초 전)". state.json 은 UTC 라 그대로 보이면 9시간 전처럼 보인다 */
 export function localTime(iso: unknown, now = Date.now()): string {

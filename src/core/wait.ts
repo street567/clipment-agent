@@ -25,6 +25,13 @@ export function isAuthorAllowed(r: { authorName?: string }, allow: string[] | nu
   return !allow || (!!r.authorName && allow.includes(r.authorName))
 }
 
+/** 허용 목록이 있는데 이 이름이 거기 없으면 경고문 (add_comment 의 authorName=CLIPREV_USER_NAME 이 목록 밖이면 앱/요청 필터에서 걸릴 수 있음). 없으면 null */
+export function authorAllowWarning(ws: { allowAuthors?: string[] } | undefined, authorName?: string): string | null {
+  const allow = allowedAuthors(ws)
+  if (!allow || isAuthorAllowed({ authorName }, allow)) return null
+  return `경고: 허용 작성자 목록(${allow.join(',')})에 ${authorName ? `"${authorName}"` : '(이름 없음)'} 이(가) 없습니다. CLIPREV_USER_NAME 을 허용된 이름으로 설정하세요`
+}
+
 /**
  * 이 에이전트가 처리할 대기 요청 (모든 워크스페이스). 요청의 agent 가 비어 있지 않고 다른 에이전트 이름이면 제외.
  * 잠긴 프로젝트는 제외. (type 화이트리스트는 listRequests 에서 이미 적용됨)

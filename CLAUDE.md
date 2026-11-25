@@ -10,7 +10,8 @@ Clipment(iOS 앱 `com.street567.clipment`)의 맥 쪽: `clipment`(=`cliprev`) CL
 - `install.sh` 설치/제거 스크립트(macOS), `scripts/make-bundle.sh` tar 번들
 - `spec/` 폰↔맥 폴더 계약 전체 사본 (원본: 앱 레포 `clip-review/spec/`, 출처 커밋은 `spec/SYNCED_FROM.txt`). `docs/SPEC.md` 는 포인터
 - `src/core/contract.ts` 지원 계약 버전(SUPPORTED) · 호환 판단. `test/contract.test.ts` 가 `spec/contract.json` 과 어긋나면 실패
-- 환경변수는 호환을 위해 `CLIPREV_*` 유지
+- 환경변수는 호환을 위해 `CLIPREV_*` 유지 (`CLIPREV_USER_NAME`: add_comment 의 대신 남긴 코멘트 authorName)
+- 리뷰(SPEC §15, 1.11): `kind:review` 답글은 사람(author=user)만 유효하며 상태·요청·알림을 만들지 않는다(`deriveStatus` 의 approved 에만 반영). `addComment`(via=channel)는 데몬 stale 점검에서 제외
 
 ## 명령
 ```

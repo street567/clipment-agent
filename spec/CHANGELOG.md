@@ -3,6 +3,11 @@
 버전 규칙 (SPEC §10): **MAJOR** 깨지는 변경(옛 리더가 안전하게 읽거나 쓸 수 없음) · **MINOR** 추가만(모르는 필드는 무시) · **PATCH** 문구·예시 정리.
 1.0.0~1.5.0 은 git 이력(`docs/SPEC-mvp.md`)에서 복원했다.
 
+## 1.11.0 — 리뷰(반영 확인)
+- §15 답글 선택 필드 `fixedAt`(반영 버전에서의 시점, 초), `kind: "review"` + `review: approved|pending`(사람의 확인). 확인됨·확인 필요 파생 규칙.
+- §15 코멘트 선택 필드 `via: "channel"`(앱 밖에서 한 요청을 AI 가 대신 기록).
+- 요청 `commentIds` 에 다른 버전의 코멘트가 섞일 수 있음을 명시(맥은 id 로 찾는다).
+
 ## 1.10.0 — 대본(보이스)
 - §14 프로젝트 대본 `<프로젝트>/script/script.json`(고쳐 쓰는 파일: 폰·맥 모두 쓰고 마지막이 이김) — `language`(en|ko) + `lines[]{id,start,end?,text,voice(ai|mine),aiTextHash?,updated,author?}`. 스키마 `script.schema.json`.
 - 내 녹음 `script/mine/<lineId>.m4a`(앱), AI 음성 `script/ai/<lineId>.m4a`(맥) + `aiTextHash`(= SHA-256(language+"\n"+NFC·trim 텍스트) 앞 16 hex)로 오래됨 판단. 맥은 오래된 AI 음성을 자동 재생성.

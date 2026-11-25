@@ -1,6 +1,6 @@
 # Clipment 폴더 계약 (아이폰 앱 ↔ 맥 플러그인/CLI)
 
-**계약 버전 1.10.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
+**계약 버전 1.11.0** (`spec/contract.json` 과 같아야 함 · 변경 이력은 `spec/CHANGELOG.md`)
 
 이 폴더(`spec/`)가 계약의 **유일한 원본**이다. 앱 레포가 소유하고 맥 레포는 동기화해 쓴다(`spec/README.md`).
 데이터 폴더가 따르는 계약 버전은 `workspace.json`·`.clipment/index.json` 의 `contract` 필드로 표시한다(§10).
@@ -80,6 +80,7 @@ ClipReview/
 - `author`: `user` | `claude` | `codex` | 그 밖의 AI 이름 문자열.
 - `status` (선택): `open` | `doing` | `done` | `question` | `wontfix`. 코멘트의 현재 상태 = `status` 가 있는 답글 중 가장 최근 것, 없으면 `open`.
 - `fixedIn` (선택): 반영된 버전 번호.
+- `fixedAt`·`review` (선택, 1.11~): 새 버전에서의 시점과 사람의 확인 — §15.
 
 ### requests/<id>.json  (폰 → 맥 "액션")
 ```json
@@ -87,7 +88,7 @@ ClipReview/
   "commentIds": null, "agent": "", "authorName": "개미", "message": "", "created": "..." }
 ```
 - `agent`: 비어 있으면(앱 기본, 1.7~) 연결된 어떤 AI든 가져간다. 실제로 처리한 AI는 progress 이벤트의 `agent` 로 알 수 있다.
-- `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId) · `apply_script` (1.10~, §14 — `version` + 선택 `draft`).
+- `type` 은 정해진 것만: `apply_feedback` (commentIds null = 그 버전의 열린 코멘트 전부. 배열이면 그 코멘트들만이며 **다른 버전에 남긴 코멘트가 섞일 수 있다** — 이때 `version` 은 고칠 기준 버전, §15) · `answer` (질문 답글을 달았으니 이어서 진행) · `rerender` · `cancel` (`message` 에 취소할 requestId) · `apply_script` (1.10~, §14 — `version` + 선택 `draft`).
 - 맥 쪽은 **이 목록 밖의 type 은 무시**하고, 요청을 임의 명령으로 실행하지 않는다.
 
 ### progress/<requestId>/<id>.json  (맥 → 폰 진행)
@@ -269,3 +270,25 @@ versions/vNNN/script.json              # 게시 시점의 대본 스냅샷 (읽�
 - 잠긴 프로젝트(§8): 앱은 대본·녹음·요청 모두 읽기 전용(재생·열람만). 맥은 잠긴 프로젝트의 AI 음성을 만들지 않고 `apply_script` 도 가져가지 않는다.
 - 맥 AI 음성 생성은 결정적인 로컬 작업(TTS)이며 요청이 필요 없다: `script.json` 이 바뀌면 오래된·없는 AI 음성을 자동으로 다시 만든다.
 - **호환**: 1.9 이하 리더는 `script/` 와 `apply_script` 를 모르고 무시한다(`apply_script` 요청은 whitelist 밖이므로 무시됨).
+
+## 15. 리뷰 (반영 확인 · 새 시점 · 대신 남긴 코멘트)
+
+모든 버전의 코멘트를 "반영됐는지, 사람이 확인했는지"로 모아 보는 화면(앱의 리뷰 탭)을 위한 규칙이다. 파일은 §1 대로 불변이고 상태는 답글에서 파생한다.
+
+- **반영 버전** = `fixedIn` 이 있는 가장 최근 답글의 값. **반영 시점** = 바로 그 답글의 `fixedAt`.
+  - `fixedAt` (선택, 숫자): `fixedIn` 버전 영상에서 바뀐 곳의 시작 시각(초, 0 이상, 소수 3자리). `fixedIn` 이 없거나 값이 잘못되면(음수·숫자 아님) 무시한다. 없으면 코멘트의 `t` 를 쓰되 어긋날 수 있다고 알린다.
+  - AI 는 반영 답글(`status: "done"`)에 무엇을 어떻게 바꿨는지 적고, 화면에서 확인할 곳이 있으면 `fixedAt` 을 적는다. 영상 전체에 걸친 변경이면 생략한다.
+- **확인** = 사람이 AI 의 결과를 보고 끝냈다는 표시. 답글에 `kind: "review"` 와 `review` 를 담아 쓴다.
+  ```json
+  { "schema": 1, "id": "…", "commentId": "…", "author": "user", "authorName": "개미",
+    "text": "확인했어요", "kind": "review", "review": "approved", "created": "..." }
+  ```
+  - `review`: `approved` 확인 · `pending` 확인 취소. 모르는 값은 무시한다. `status` 는 함께 쓰지 않는다(코멘트 상태를 바꾸지 않음). `text` 는 옛 앱에서도 읽히게 짧은 문장을 넣는다.
+  - `author` 가 `user` 인 것만 유효하다. **AI 는 `review` 를 쓰지 않는다**(자기 결과를 스스로 확인할 수 없다).
+  - **확인됨** = 현재 상태가 `done` 또는 `wontfix` 이고, 가장 최근 유효한 `review` 답글이 `approved` 이며 그것이 `status` 를 가진 가장 최근 답글보다 뒤다. 다시 열리거나 AI 가 새로 `done` 을 달면 확인은 풀린다.
+  - **확인 필요** = 현재 상태가 `question` 이거나, `done`·`wontfix` 인데 확인됨이 아닌 것.
+  - 확인 답글은 AI 에게 할 일을 주지 않는다(요청이 아니다).
+- **대신 남긴 코멘트**: 사람이 앱 밖(채널·터미널 대화)에서 한 수정 요청을 AI 가 기록할 때, 코멘트를 `author: "user"`, `via: "channel"` 로 쓴다. 사람이 한 말만, 뜻을 바꾸지 않고 적는다. 특정 시점이 아니면 `version: 0`. 앱은 "채널에서"라고 표시한다. 이후 답글·반영은 보통 코멘트와 같다.
+  - `via` (선택, 문자열): `channel` 외의 값·없음은 앱에서 쓴 것으로 본다.
+- **여러 버전 요청**: `apply_feedback` 의 `commentIds` 에 여러 버전의 코멘트가 섞일 수 있다. 맥은 버전으로 거르지 말고 id 로 찾는다. `version` 은 고칠 기준(보통 최신)이며 코멘트의 `version`·`t` 는 그것을 남긴 영상의 시각이다.
+- **호환**: 1.10 이하 앱은 확인 답글을 보통 답글로 보여 주고 `fixedAt`·`via` 는 무시한다. 상태 계산은 달라지지 않는다.

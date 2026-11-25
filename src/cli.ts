@@ -8,13 +8,13 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import {
   readWorkspaceContract, newerContractMessage, addWorkspace, removeWorkspace, indexRoot, rootStatuses, DEFAULT_INDEX_DEPTH, resolveCloudWorkspace, PROVIDER_LABEL, type CloudProvider, workspaceStatuses, currentLock, setLock, forceWarning, listWorkspaceProjects, resolveProject, workspaces,
-  addProgress, addReply, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
+  addProgress, addReply, addComment, authorAllowWarning, agentName, allowedAuthors, isAuthorAllowed, COMMENT_STATUSES, extractFrame, getThread, getVersion, initProject,
   formatRegions, regionLegend, listComments, listProjects, listReplies, listRequests, listVersions, PROGRESS_STATES,
   publishVersion, getEffectiveQuality, setProjectQuality, clearProjectQuality, getWorkspaceQualityInfo, setWorkspaceQuality, assertQuality, QUALITY_SOURCE_LABEL, QUALITIES, getUploadInfo, setUploadVersion, clearUploadVersion, sleep, ValidationError, readPreferences, setPreferences, initWorkspacePrefs,
   describeScript, generateVoices, buildNarration, createTtsEngine,
   type CommentStatus, type ProgressState,
 } from './core/index.ts'
-import { localTime, updateClaudePlugin } from './cliutil.ts'
+import { localTime, parseSeconds, updateClaudePlugin } from './cliutil.ts'
 
 const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLIPREV_ROOT > ~/.config/cliprev/workspaces.json > iCloud ClipReview)
   <project> = <워크스페이스>/<프로젝트> 또는 (유일할 때) <프로젝트>
@@ -47,9 +47,14 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
                                               줄마다 선택한 음성(내 녹음 또는 최신 AI 음성)을 start 에 놓은 나레이션 트랙 m4a (읽기 전용·결정적).
                                               --duration 생략 시 마지막 음성 끝 + 0.5초
   versions <project> [--json]
-  comments <project> [--version N] [--status open|doing|done|question|wontfix] [--json]
+  comments <project> [--version N | --ids a,b] [--status open|doing|done|question|wontfix] [--json]
+                                              --ids: 여러 버전의 코멘트를 id 로 (version 필터 무시)
   thread <project> <commentId> [--json]
-  reply <project> <commentId> <text> [--status S] [--fixed-in N] [--author A] [--author-name 표시이름] [--force]
+  reply <project> <commentId> <text> [--status S] [--fixed-in N] [--fixed-at <초|m:ss(.s)>] [--author A] [--author-name 표시이름] [--force]
+                                              --fixed-at: 새 버전(fixed-in) 영상에서 바뀐 곳의 시작 시각 (fixed-in 과 함께만)
+  comment <project> <text> [--version N] [--at <초|m:ss(.s)>] [--end 초] [--tag T] [--force]
+                                              사람이 채널·터미널에서 한 수정 요청을 대신 기록 (author=user, via=channel; 이름은 CLIPREV_USER_NAME).
+                                              version 기본 0(영상 전체), at 기본 0
   requests <project> [--pending] [--json]
   progress <project> <requestId> <state> [message] [--agent A]
   frame <project> <commentId> [--out file.jpg] [--no-regions]   기본: 현재 영역을 사각형으로 그려 저장
@@ -94,7 +99,7 @@ async function main() {
     allowPositionals: true,
     options: {
       json: { type: 'boolean' }, title: { type: 'string' }, note: { type: 'string' },
-      version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' },
+      version: { type: 'string' }, status: { type: 'string' }, 'fixed-in': { type: 'string' }, 'fixed-at': { type: 'string' }, ids: { type: 'string' }, at: { type: 'string' }, end: { type: 'string' }, tag: { type: 'string' },
       author: { type: 'string' }, agent: { type: 'string' }, pending: { type: 'boolean' },
       'author-name': { type: 'string' }, force: { type: 'boolean' }, name: { type: 'string' }, google: { type: 'boolean' }, dropbox: { type: 'boolean' }, onedrive: { type: 'boolean' }, account: { type: 'string' }, sub: { type: 'string' }, create: { type: 'boolean' }, allow: { type: 'string' }, depth: { type: 'string' }, fix: { type: 'boolean' },  'no-regions': { type: 'boolean' }, 'kill-orphans': { type: 'boolean' }, 'auto-run': { type: 'string' }, 'job-timeout': { type: 'string' }, 'tts-engine': { type: 'string' }, duration: { type: 'string' }, lines: { type: 'string' }, file: { type: 'string' }, follow: { type: 'boolean' }, yes: { type: 'boolean' }, lite: { type: 'boolean' }, quality: { type: 'string' }, workspace: { type: 'string' }, 'no-original': { type: 'boolean' }, upload: { type: 'boolean' }, clear: { type: 'boolean' }, out: { type: 'string' }, all: { type: 'boolean' }, check: { type: 'boolean' }, rollback: { type: 'boolean' },
     },
@@ -274,10 +279,11 @@ async function main() {
     case 'comments': {
       const status = o.status as CommentStatus | undefined
       if (status && !(COMMENT_STATUSES as readonly string[]).includes(status)) throw new ValidationError(`잘못된 --status: ${status}`)
-      const cs = await listComments(need(p[0], 'project'), { version: intOpt(o.version, 'version'), status })
+      const ids = o.ids === undefined ? undefined : o.ids.split(',').map(x => x.trim()).filter(Boolean)
+      const cs = await listComments(need(p[0], 'project'), { version: intOpt(o.version, 'version'), status, ids })
       if (o.json) return json(cs)
       for (const c of cs)
-        console.log(`[${c.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}  — ${c.id}`
+        console.log(`[${c.status}${c.approved ? '·확인됨' : ''}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}${c.via === 'channel' ? ' (채널에서)' : ''}: ${c.text}  — ${c.id}`
           + (c.currentRegions.length ? `\n    ${formatRegions(c.currentRegions)}` : ''))
       return
     }
@@ -285,10 +291,10 @@ async function main() {
       const th = await getThread(need(p[0], 'project'), need(p[1], 'commentId'))
       if (o.json) return json(th)
       const c = th.comment
-      console.log(`[${th.status}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}: ${c.text}`)
+      console.log(`[${th.status}${th.approved ? '·확인됨' : ''}] v${c.version} ${range(c)} (${c.tag}) ${c.authorName ?? c.author}${c.via === 'channel' ? ' (채널에서)' : ''}: ${c.text}`)
       if (th.currentRegions.length) console.log(`  ${formatRegions(th.currentRegions)}`)
       for (const r of th.replies)
-        console.log(`  ↳ ${r.authorName ?? r.author}${r.status ? ` [${r.status}]` : ''}${r.fixedIn ? ` fixedIn v${r.fixedIn}` : ''}: ${r.kind === 'regions' && !r.text ? '(영역을 수정했습니다)' : r.text}`)
+        console.log(`  ↳ ${r.authorName ?? r.author}${r.status ? ` [${r.status}]` : ''}${r.fixedIn ? ` fixedIn v${r.fixedIn}${r.fixedAt !== undefined ? ` @${fmt(r.fixedAt)}` : ''}` : ''}${r.kind === 'review' && r.review ? ` (확인:${r.review === 'approved' ? '확인함' : '취소'})` : ''}: ${r.kind === 'regions' && !r.text ? '(영역을 수정했습니다)' : r.text}`)
       return
     }
     case 'reply': {
@@ -298,10 +304,27 @@ async function main() {
         author: o.author ?? agentName(),
         authorName: o['author-name'] ?? process.env.CLIPREV_AGENT_NAME,
         status: o.status as CommentStatus | undefined,
-        fixedIn: intOpt(o['fixed-in'], 'fixed-in'), force: o.force,
+        fixedIn: intOpt(o['fixed-in'], 'fixed-in'),
+        fixedAt: o['fixed-at'] === undefined ? undefined : parseSeconds(o['fixed-at'], 'fixed-at'),
+        force: o.force,
       })
       if (warn) console.error(warn)
       return json(r)
+    }
+    case 'comment': {
+      const project = need(p[0], 'project')
+      const warn = o.force ? await forceWarning(project) : null
+      const c = await addComment(project, {
+        text: need(p.slice(1).join(' ') || undefined, 'text'),
+        version: intOpt(o.version, 'version'),
+        t: o.at === undefined ? undefined : parseSeconds(o.at, 'at'),
+        end: o.end === undefined ? undefined : parseSeconds(o.end, 'end'),
+        tag: o.tag, force: o.force, authorName: process.env.CLIPREV_USER_NAME,
+      })
+      if (warn) console.error(warn)
+      const aw = authorAllowWarning(resolveProject(project).workspace, c.authorName)
+      if (aw) console.error(aw)
+      return json(c)
     }
     case 'requests': {
       const project = need(p[0], 'project')
@@ -522,7 +545,7 @@ async function watch(project: string | undefined, includeExisting: boolean) {
       for (const c of await listComments(ref)) {
         emit({ kind: 'comment', workspace, project: ref, ...c }, 'c:' + ref + c.id)
         for (const r of await listReplies(ref, c.id))
-          if (r.author === 'user') emit({ kind: 'user_reply', workspace, project: ref, ...r }, 'r:' + ref + r.id)
+          if (r.author === 'user' && r.kind !== 'review') emit({ kind: 'user_reply', workspace, project: ref, ...r }, 'r:' + ref + r.id)
       }
       if (await currentLock(ref)) continue
       const wsObj = workspaces().find(w => w.name === workspace)

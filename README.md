@@ -74,7 +74,9 @@ clipment quality --workspace 내작업 [값|--clear]                       # 워
 clipment upload-version simracing-vertical [N|--clear]  # 업로드용 버전 보기·지정·해제 (지정이 없으면 원본 있는 최신 → 최신)
 clipment versions|comments|thread|requests|progress|reply|frame|watch ...
 clipment comments simracing-vertical --version 1 --status open --json
-clipment reply simracing-vertical <commentId> "반영했습니다" --status done --fixed-in 2
+clipment reply simracing-vertical <commentId> "자막 위치를 아래로 옮겼습니다 (y 0.2→0.8)" --status done --fixed-in 2 --fixed-at 12.5   # 또는 --fixed-at 0:12.5
+clipment comments simracing-vertical --ids <id1>,<id2> --json     # 여러 버전의 코멘트를 id 로 (SPEC §15)
+clipment comment simracing-vertical "인트로를 3초 줄여줘" --version 2 --at 0:05   # 채널에서 한 요청을 대신 기록 (author=user, via=channel; 이름은 CLIPREV_USER_NAME)
 clipment frame simracing-vertical <commentId> --out /tmp/f.jpg   # 코멘트의 영역(regions)을 사각형으로 그림, --no-regions 로 끔
 clipment watch            # 2초 폴링, 새 코멘트/사용자 답글/요청을 JSON 한 줄씩
 clipment script simracing-vertical [--json]               # 대본(SPEC §14) 줄·시각·음성 종류·AI 음성 상태(fresh|stale|missing)
@@ -102,7 +104,7 @@ claude plugin install clipment@clipment-agent
 
 화면 영역(regions, SPEC §6): `comments`/`thread` 출력에 현재 영역과 위치 힌트가 나오고, `frame`/`get_frame`(regions=false 로 끔)은 ffmpeg drawbox 로 박스를 그립니다. 이 ffmpeg 빌드에 drawtext 가 없을 수 있어 라벨 숫자를 drawbox 7세그먼트 배지(1~99)로 직접 그리고 라벨별 색을 쓰며 출력에 범례를 붙입니다.
 
-MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`, `get_thread`, `get_frame`, `reply`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `script_get`, `script_set`, `voice_generate`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
+MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `list_workspaces`, `list_projects`, `list_versions`, `list_comments`(ids 필터), `get_thread`, `get_frame`, `reply`(fixedAt), `add_comment`, `report_progress`, `publish_version`, `upload_version`, `preview_quality`, `script_get`, `script_set`, `voice_generate`, `wait_for_requests`, `get_preferences`, `set_preferences`, `index_root`. 스킬: `apply-feedback`, `organize-root`.
 
 ### 처리 담당 규칙
 처리 담당 세션은 `agent` 를 지정하지 않은 요청을 **모든 워크스페이스·프로젝트에서 전부** 처리합니다(다른 세션이 만든 프로젝트라도 건너뛰지 않음). 요청은 채널 알림 또는 `wait_for_requests` 로 받고 임시 셸 루프는 쓰지 않습니다. 이 규칙은 `apply-feedback` 스킬, `AGENTS.md`, MCP 서버 instructions 에 같이 적혀 있습니다.

@@ -1,4 +1,4 @@
 source: /Users/pgzcore/Projects/delta-trend/clip-review
-commit: d576101fac6a2185b9f4e6a7fc3596ccb21892e8
-synced: 2026-11-23T09:24:03Z
+commit: 0e285edaf704304eff8ee3f7e3ea98a1dd527100
+synced: 2026-11-25T01:00:38Z
 (scripts/sync-spec.sh 로 복사한 사본입니다. 직접 고치지 마세요 — 원본은 앱 레포 spec/)
