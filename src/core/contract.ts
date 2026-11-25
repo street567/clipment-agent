@@ -4,7 +4,7 @@ import { ValidationError } from './paths.ts'
 
 /** 이 구현이 지원하는 계약 major.minor. spec/contract.json 과 어긋나면 테스트가 실패한다. */
 export const SUPPORTED = { major: 1, minor: 11 } as const
-/** 데이터에 찍는 값 ("1.10") */
+/** 데이터에 찍는 값 ("1.11") */
 export const CONTRACT_STAMP = `${SUPPORTED.major}.${SUPPORTED.minor}`
 
 export interface ContractVersion { major: number; minor: number }

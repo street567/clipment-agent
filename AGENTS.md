@@ -22,7 +22,7 @@
 ## 흐름 (MCP 도구 이름 / 같은 일을 하는 CLI)
 1. 요청 확인: `wait_for_requests` / `cliprev requests <project> --pending --json` (또는 `cliprev watch`)
 2. 수신 알림: `report_progress` received / `cliprev progress <project> <requestId> received "확인"`
-3. 열린 코멘트: `list_comments`(status=open) / `cliprev comments <project> --version N --status open --json`. 요청에 `commentIds` 가 있으면 `list_comments`(ids=[…]) / `cliprev comments <project> --ids a,b --json` (여러 버전이 섞일 수 있음: 코멘트의 version·t 는 그것을 남긴 영상 기준, 고칠 기준은 요청 version. 프레임은 코멘트 버전으로 확인하고 최신 편집에서 같은 장면을 찾음). 다시 열린 코멘트는 `get_thread`/`cliprev thread` 로 사용자의 마지막 답글(다시 하라는 이유)을 먼저 읽는다
+3. 열린 코멘트: `list_comments`(status=open) / `cliprev comments <project> --version N --status open --json`. 요청에 `commentIds` 가 있으면 `list_comments`(ids=[…], status=open) / `cliprev comments <project> --ids a,b --status open --json` (여러 버전이 섞일 수 있음: 코멘트의 version·t 는 그것을 남긴 영상 기준, 고칠 기준은 요청 version. 프레임은 코멘트 버전으로 확인하고 최신 편집에서 같은 장면을 찾음). 다시 열린 코멘트는 `get_thread`/`cliprev thread` 로 사용자의 마지막 답글(다시 하라는 이유)을 먼저 읽는다
 4. 코멘트마다 프레임 확인: `get_frame` / `cliprev frame <project> <commentId> --out /tmp/x.jpg` 후 이미지 열람 (`--no-regions` 로 박스 끄기)
    - 코멘트에 영역이 있으면(`currentRegions` / CLI "영역 N: [1] x… y… (아래쪽 가운데)") 프레임 이미지에 박스가 그려져 있으니 반드시 열어 보고, "여기/이 부분"은 박스 안으로 해석하세요. 본문의 "N번 영역"은 라벨 N 인 박스입니다(이미지에선 왼쪽 위 배지의 7세그먼트 숫자 + 라벨별 색, 출력의 legend 에 라벨→색 대응).
 5. 편집 반영 (사용자 프로젝트에서)

@@ -37,7 +37,7 @@ description: 아이폰 Clipment 앱에서 남긴 영상 코멘트를 반영한�
    - 아니면 `wait_for_requests` 를 호출한다(긴 대기 시 timeout_sec 지정). 빈 결과면 대기 요청이 없다고 사용자에게 알린다.
 2. `report_progress` (state=`received`, 메시지 "확인했습니다") 를 바로 보낸다. 그리고 작업 지침(`preferences` / `get_preferences`)과 요청 `message` 를 읽는다.
 3. type 별 처리
-   - `apply_feedback`: `list_comments`(project, version, status=`open`) 로 대상 코멘트를 가져온다. 요청에 `commentIds` 가 있으면 `list_comments`(project, ids=commentIds) 로 그 코멘트만 찾는다(version 필터 없이 id 로; 여러 버전의 코멘트가 섞일 수 있다). 코멘트의 `version`·`t` 는 **그것을 남긴 영상** 기준이고 고칠 기준은 요청의 `version`(보통 최신)이다. 프레임은 코멘트의 버전으로 확인(`get_frame` commentId)하고, 최신 편집에서는 같은 장면을 찾아 반영한다.
+   - `apply_feedback`: `list_comments`(project, version, status=`open`) 로 대상 코멘트를 가져온다. 요청에 `commentIds` 가 있으면 `list_comments`(project, ids=commentIds, status=`open`) 로 그 코멘트만 찾는다(이미 끝난 것은 다시 하지 않는다. version 필터 없이 id 로; 여러 버전의 코멘트가 섞일 수 있다). 코멘트의 `version`·`t` 는 **그것을 남긴 영상** 기준이고 고칠 기준은 요청의 `version`(보통 최신)이다. 프레임은 코멘트의 버전으로 확인(`get_frame` commentId)하고, 최신 편집에서는 같은 장면을 찾아 반영한다.
    - **다시 열린 코멘트**(done 이었다가 사용자가 되돌림, 상태 open)는 `get_thread` 로 사용자의 마지막 답글(다시 하라는 이유)을 먼저 읽고 그 내용을 반영한다.
    - `answer`: 사용자가 달아 둔 답글을 `get_thread` 로 읽고 `question` 이었던 코멘트부터 이어서 진행.
    - `rerender`: 코멘트 변경 없이 5단계(게시)만 다시.
