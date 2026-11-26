@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cardId } from '../../src/kanban/core/ids.ts'
 import { appAction, appComment, base, boardDir, readJ, runHook, SID, setup, sleep, PLUGIN, type Env } from './helpers.ts'
@@ -180,3 +180,48 @@ describe('monitor (신호만, 본문 없음)', () => {
     expect(readJ(nowP).state).toBe('idle')
   })
 })
+
+describe('monitor 다중 워크스페이스', () => {
+  // B = e.root(범위 있음), A = 기본. 세션은 B 범위 폴더에서 시작했고, 감시는 상관없는 cwd 에서 뜬다.
+  async function twoWs() {
+    const e = setup(null as any)
+    const a = join(e.dir, 'A'), pb = join(e.dir, 'projB'), other = join(e.dir, 'other')
+    for (const d of [a, pb, other]) mkdirSync(d)
+    writeFileSync(e.cfgPath, JSON.stringify({ enabled: true, monitor: cfg.monitor, workspaces: [{ root: a }, { root: e.root, includePaths: [pb] }] }))
+    return { e, a, pb, other }
+  }
+  const startB = async (e: Env, pb: string) => {
+    const h = (ev: string, extra: Record<string, any> = {}) => runHook(e, { ...base(), cwd: join(pb, 'x'), hook_event_name: ev, ...extra })
+    await h('SessionStart', { source: 'startup' })
+    await h('UserPromptSubmit', { prompt_id: 'p1', prompt: '로그인 화면 고쳐 줘' })
+    await h('Stop', { last_assistant_message: '끝', background_tasks: [{ id: 'm', type: 'monitor', status: 'running' }] })
+  }
+  test('감시 cwd 가 상관없어도 세션 상태의 root(B)를 따라 B 카드만 신호', async () => {
+    const { e, a, pb, other } = await twoWs()
+    await startB(e, pb)
+    const p = Bun.spawn([process.execPath, join(PLUGIN, 'src/kanban/monitor.ts')], {
+      cwd: other, env: { ...e.env, CLAUDE_PID: String(process.pid), CLAUDE_CODE_SESSION_ID: SID }, stdout: 'pipe', stderr: 'pipe',
+    })
+    procs.push(p)
+    const lines: string[] = []
+    ;(async () => { for await (const c of p.stdout as any) lines.push(...new TextDecoder().decode(c).split('\n').filter(Boolean)) })()
+    appComment(e, SC, 'B 보드의 의견')
+    expect(await until(() => lines.length >= 1)).toBe(true)
+    expect(lines[0]).toContain('새 의견 1건')
+    expect(readdirSync(a)).toEqual([]) // A 는 건드리지 않음
+  })
+  test('세션 상태가 늦게 생겨도(경주) 감시가 계속 확인해서 B 로 붙는다', async () => {
+    const { e, pb, other } = await twoWs()
+    const p = Bun.spawn([process.execPath, join(PLUGIN, 'src/kanban/monitor.ts')], {
+      cwd: other, env: { ...e.env, CLAUDE_PID: String(process.pid), CLAUDE_CODE_SESSION_ID: SID }, stdout: 'pipe', stderr: 'pipe',
+    })
+    procs.push(p)
+    const lines: string[] = []
+    ;(async () => { for await (const c of p.stdout as any) lines.push(...new TextDecoder().decode(c).split('\n').filter(Boolean)) })()
+    await sleep(600)
+    await startB(e, pb)
+    appComment(e, SC, 'B 보드의 의견')
+    expect(await until(() => lines.length >= 1)).toBe(true)
+  })
+})
+

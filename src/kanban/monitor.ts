@@ -2,7 +2,7 @@
 // 감시 스크립트(experimental.monitors): 이 세션 카드의 미전달 코멘트·처리를 찾아 한 줄로 출력한다. 출력하면 쉬던 세션이 깨어난다.
 // 내장 모듈만 사용. 변경이 없으면 파일 I/O 는 상태 파일 mtime + 카드 폴더 mtime stat 뿐이다.
 import { join } from 'node:path'
-import { loadConfig } from './config.ts'
+import { loadAllConfig, loadConfig, type Config } from './config.ts'
 import { bumpAlive, newCtx } from './core/board.ts'
 import { evalAvailable, loadBoard } from './core/delegate.ts'
 import { delegSignalLine, pendingForCard, signalLine, type Pending } from './core/deliver.ts'
@@ -26,10 +26,24 @@ function alive(pid: number): boolean {
 }
 
 async function main() {
-  const cfg = loadConfig(process.env.CLAUDE_PROJECT_DIR || process.cwd())
-  if (!cfg) return
+  const all0 = loadAllConfig()
+  if (!all0) return
   const parent = Number(process.env.CLAUDE_PID) || process.ppid
-  const store = new Store(cfg.root, cfg.board)
+  // 워크스페이스: ① 세션 로컬 상태에 기록된 root(hook 이 진짜 cwd 로 정함) ② CLAUDE_PROJECT_DIR ③ process.cwd().
+  // 세션 상태가 아직 없으면(SessionStart 와의 경주) GRACE 동안은 매 틱 다시 확인하고, 그 뒤에도 없으면 ②③ 으로 정한다.
+  const startMs = Date.now()
+  const GRACE_MS = Number(process.env.AGENT_KANBAN_MONITOR_GRACE_MS) || 30_000 // 환경변수는 테스트용
+  let cfg: Config | null = null
+  let store!: Store
+  const fallbackCfg = (): Config | null => (process.env.CLAUDE_PROJECT_DIR ? loadConfig(process.env.CLAUDE_PROJECT_DIR) : null) ?? loadConfig(process.cwd())
+  const resolveCfg = (s: SessionState | null): Config | null => {
+    if (s?.root) {
+      const c = loadConfig(undefined, { workspaceRoot: s.root })
+      return c && c.root === s.root ? c : null // 워크스페이스가 설정에서 빠졌으면 조용히 대기
+    }
+    if (s || Date.now() - startMs > GRACE_MS) return fallbackCfg()
+    return null
+  }
   const sigFile = (sid: string) => join(stateDir(), 'signals', `${sid}.json`)
   let sig: Record<string, { count: number; lastMs: number }> = {}
   let curSid = ''
@@ -121,15 +135,23 @@ async function main() {
         deleg.clear()
         delegSeen.clear()
         boardKey = ''
+        cfg = null // 세션이 바뀌면 워크스페이스도 다시 정한다
       }
       const mt = sessionMtime(sid)
-      if (mt === null) return
-      if (mt !== lastMt || !st) {
+      if (mt !== null && (mt !== lastMt || !st)) {
         st = loadSession(sid)
         lastMt = mt
       }
-      if (!st) return
-      if (st.boardId !== cfg!.board || (st.root && st.root !== cfg!.root)) return
+      if (!cfg) {
+        cfg = resolveCfg(mt === null ? null : st)
+        if (!cfg) return // 아직 모름 — 다음 틱에 다시
+        store = new Store(cfg.root, cfg.board)
+        boardKey = ''
+        board = null
+      }
+      if (mt === null || !st) return
+      if (st.root && st.root !== cfg.root) { cfg = null; return } // 세션이 다른 워크스페이스로 확정됨 → 다음 틱에 다시 정함
+      if (st.boardId !== cfg.board) return
 
       // 1) 폴더 mtime 이 바뀐 카드만 다시 읽는다
       for (const cid of Object.keys(st.cards)) {
@@ -190,7 +212,7 @@ async function main() {
     }
   }
 
-  setInterval(tick, Math.round(cfg.monitor.intervalSec * 1000))
+  setInterval(tick, Math.round(all0.monitor.intervalSec * 1000))
   await tick()
 }
 
