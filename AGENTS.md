@@ -1,4 +1,6 @@
-# Clipment — Codex / 기타 에이전트 안내
+# app-bridge (Clipment + 에이전트 칸반) — Codex / 기타 에이전트 안내
+
+이 레포(`street567/app-bridge`)는 Clipment(아래 전체)와 에이전트 칸반(`src/kanban/`, Claude Code 플러그인에서는 hooks·MCP 서버 `kanban`, 설정 전에는 꺼져 있음)을 함께 담습니다. 칸반 설정/상태: MCP 도구 `kanban_setup`·`kanban_status`, CLI `kanban setup --root <폴더>`·`kanban status`. Codex 에서 칸반 쓰기: `docs/kanban-codex/`.
 
 아이폰 앱에서 사용자가 영상에 시점 코멘트를 남기면, 이 폴더의 도구로 읽어 반영하고 답글·진행·새 버전을 남깁니다.
 계약 문서: `docs/SPEC.md`. 파일은 워크스페이스 폴더(iCloud 등)에서 직접 만지지 말고 **반드시 아래 도구로만** 읽고 씁니다.

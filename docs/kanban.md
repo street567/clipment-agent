@@ -1,5 +1,8 @@
 # agent-kanban 플러그인
 
+> 이 문서는 agent-kanban 레포 `plugin/README.md` 에서 옮겨 온 것입니다. 이제 칸반은 `street567/app-bridge` 플러그인(`app-bridge@street567`)의 일부입니다. 경로 읽는 법: `src/X.ts` → `src/kanban/X.ts`, `codex/` → `docs/kanban-codex/`, 설치는 플러그인 하나(`claude plugin install app-bridge@street567`), MCP 서버 시작은 `bun run start:kanban`. 설정은 `kanban setup --root <폴더>` 또는 MCP 도구 `kanban_setup` 으로도 됩니다.
+
+
 Claude Code 세션의 진행을 아이폰 칸반 앱에서 볼 수 있게 하고, 폰에서 남긴 의견을 세션에 전달합니다. 서버·로그인 없이 사용자 클라우드 폴더의 파일로만 아이폰 앱과 대화합니다(계약: `../spec/SPEC.md`).
 
 구성: `hooks/hooks.json`(세션 상태 기록) · `monitors/monitors.json`(폰 의견·맡긴 일 신호) · `.mcp.json`(board_ask · board_note · board_reply · board_list · board_inbox · board_card · board_members · board_label · board_take · board_submit) · `skills/kanban`(에이전트용 규칙) · `src/cli.ts`(`kanban` 명령) · `codex/`(Codex 설치 예시). 런타임은 bun. 계약 1.1(여럿이 쓰는 보드: 담당·카테고리·리스트·맡기기·여러 LLM).
