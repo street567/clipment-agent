@@ -1,0 +1,189 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "board-op",
+ "type": "object",
+ "required": [
+  "id",
+  "by",
+  "set",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "by": {
+   "type": "object",
+   "required": [
+    "author"
+   ],
+   "properties": {
+    "author": {
+     "enum": [
+      "user",
+      "agent"
+     ]
+    },
+    "name": {
+     "type": "string"
+    },
+    "member": {
+     "type": "string",
+     "pattern": "^[a-z0-9-]{1,64}$"
+    }
+   }
+  },
+  "set": {
+   "type": "object",
+   "minProperties": 1,
+   "maxProperties": 200,
+   "properties": {
+    "defaultHuman": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[a-z0-9-]{1,64}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "patternProperties": {
+    "^member\\.[a-z0-9-]{1,64}$": {
+     "anyOf": [
+      {
+       "type": "object",
+       "required": [
+        "name",
+        "kind"
+       ],
+       "properties": {
+        "name": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 20
+        },
+        "kind": {
+         "enum": [
+          "human",
+          "llm"
+         ]
+        },
+        "agent": {
+         "type": "string",
+         "pattern": "^[a-z0-9-]{1,20}$"
+        },
+        "project": {
+         "type": "string",
+         "minLength": 0,
+         "maxLength": 60
+        },
+        "color": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9
+        },
+        "rank": {
+         "type": "number"
+        }
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "^label\\.[a-z0-9-]{1,64}$": {
+     "anyOf": [
+      {
+       "type": "object",
+       "required": [
+        "name",
+        "color",
+        "rank"
+       ],
+       "properties": {
+        "name": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 20
+        },
+        "color": {
+         "type": "integer",
+         "minimum": 0,
+         "maximum": 9
+        },
+        "rank": {
+         "type": "number"
+        },
+        "assignees": {
+         "type": "array",
+         "items": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]{1,64}$"
+         },
+         "maxItems": 8
+        }
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "^list\\.[a-z0-9-]{1,64}$": {
+     "anyOf": [
+      {
+       "type": "object",
+       "required": [
+        "title",
+        "base",
+        "rank"
+       ],
+       "properties": {
+        "title": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 20
+        },
+        "base": {
+         "enum": [
+          "waiting",
+          "working",
+          "mine",
+          "done"
+         ]
+        },
+        "rank": {
+         "type": "number"
+        }
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "^rank\\.": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

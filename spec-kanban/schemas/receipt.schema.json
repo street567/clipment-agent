@@ -1,0 +1,36 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "receipt",
+ "type": "object",
+ "required": [
+  "id",
+  "cardId",
+  "sessionId",
+  "via",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "cardId": {
+   "type": "string"
+  },
+  "sessionId": {
+   "type": "string"
+  },
+  "via": {
+   "enum": [
+    "stop",
+    "inbox"
+   ]
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

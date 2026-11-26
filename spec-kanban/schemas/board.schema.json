@@ -1,0 +1,24 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "board",
+ "type": "object",
+ "required": [
+  "id",
+  "title"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "title": {
+   "type": "string"
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

@@ -1,0 +1,26 @@
+{
+  "description": "에이전트 칸반: Codex 세션의 진행을 보드에 기록 (예시 — /ABSOLUTE/PATH 를 이 저장소의 실제 절대 경로로 바꾸세요)",
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "startup|resume|clear", "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 10, "statusMessage": "에이전트 칸반" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 10 } ] }
+    ],
+    "PostToolUse": [
+      { "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 10 } ] }
+    ],
+    "PermissionRequest": [
+      { "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 10 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 10 } ] }
+    ],
+    "Interrupt": [
+      { "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 3 } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "bun \"/ABSOLUTE/PATH/agent-kanban/plugin/src/hook.ts\" --agent codex", "timeout": 3 } ] }
+    ]
+  }
+}

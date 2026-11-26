@@ -1,0 +1,25 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "take",
+ "type": "object",
+ "required": [
+  "cardId",
+  "sessionId",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "cardId": {
+   "type": "string"
+  },
+  "sessionId": {
+   "type": "string"
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

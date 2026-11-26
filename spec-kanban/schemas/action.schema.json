@@ -1,0 +1,54 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "action",
+ "type": "object",
+ "required": [
+  "id",
+  "cardId",
+  "ref",
+  "kind",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "cardId": {
+   "type": "string"
+  },
+  "ref": {
+   "type": "string"
+  },
+  "kind": {
+   "enum": [
+    "approve",
+    "reject",
+    "choose",
+    "done"
+   ]
+  },
+  "choice": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "text": {
+   "type": "string"
+  },
+  "authorName": {
+   "type": "string"
+  },
+  "created": {
+   "type": "string"
+  },
+  "authorMember": {
+   "type": "string",
+   "pattern": "^[a-z0-9-]{1,64}$"
+  }
+ },
+ "additionalProperties": true
+}

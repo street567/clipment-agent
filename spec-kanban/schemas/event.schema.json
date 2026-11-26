@@ -1,0 +1,93 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "event",
+ "type": "object",
+ "required": [
+  "id",
+  "cardId",
+  "sessionId",
+  "type",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "cardId": {
+   "type": "string"
+  },
+  "sessionId": {
+   "type": "string"
+  },
+  "type": {
+   "enum": [
+    "created",
+    "progress",
+    "paused",
+    "needs_human",
+    "resolved",
+    "report",
+    "done",
+    "failed"
+   ]
+  },
+  "summary": {
+   "type": "string",
+   "maxLength": 4000
+  },
+  "tool": {
+   "type": "string"
+  },
+  "title": {
+   "type": "string",
+   "maxLength": 120
+  },
+  "ref": {
+   "type": "string"
+  },
+  "ask": {
+   "type": "object",
+   "required": [
+    "kind"
+   ],
+   "properties": {
+    "kind": {
+     "enum": [
+      "approve",
+      "decide",
+      "do",
+      "info",
+      "check"
+     ]
+    },
+    "options": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 6
+    },
+    "to": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{1,64}$"
+     },
+     "maxItems": 8
+    }
+   }
+  },
+  "created": {
+   "type": "string"
+  },
+  "via": {
+   "enum": [
+    "self"
+   ]
+  }
+ },
+ "additionalProperties": true
+}

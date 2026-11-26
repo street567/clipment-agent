@@ -1,0 +1,7 @@
+[
+  {
+    "name": "kanban-comments",
+    "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/kanban/monitor.ts\"",
+    "description": "에이전트 칸반: 폰에서 남긴 의견 전달"
+  }
+]

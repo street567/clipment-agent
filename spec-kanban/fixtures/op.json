@@ -1,0 +1,25 @@
+{
+ "schema": 1,
+ "id": "00000011-0000-4000-8000-000000000000",
+ "cardId": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+ "by": {
+  "author": "user",
+  "name": "민수",
+  "member": "u-minsu"
+ },
+ "set": {
+  "assignee.u-minsu": true,
+  "assignee.llm-claude": null,
+  "label.l-dev": true,
+  "due": "2026-11-28",
+  "list": "later",
+  "state": "waiting",
+  "check.c1": {
+   "text": "문구 확인",
+   "done": false,
+   "rank": 1,
+   "assignee": "u-jiyeon"
+  }
+ },
+ "created": "2026-11-25T01:23:45.678Z"
+}

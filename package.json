@@ -1,16 +1,22 @@
 {
   "name": "clipment-agent",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
-  "description": "Clipment mac side: clipment (alias cliprev) CLI + MCP server (Claude Code plugin / Codex)",
-  "bin": { "clipment": "./src/cli.ts", "cliprev": "./src/cli.ts" },
+  "description": "app-bridge (street567): Clipment mac side (clipment/cliprev CLI + MCP) + Agent Kanban (hooks, monitor, board MCP, kanban CLI) — Claude Code plugin / Codex",
+  "bin": {
+    "clipment": "./src/cli.ts",
+    "cliprev": "./src/cli.ts",
+    "kanban": "./src/kanban/cli.ts"
+  },
   "scripts": {
     "start": "bun install --no-summary 1>&2 && bun src/mcp.ts",
     "cli": "bun src/cli.ts",
     "test": "bun test",
-    "typecheck": "bun node_modules/typescript/bin/tsc --noEmit"
+    "typecheck": "bun node_modules/typescript/bin/tsc --noEmit",
+    "start:kanban": "bun install --no-summary 1>&2 && bun src/kanban/mcp.ts",
+    "kanban": "bun src/kanban/cli.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -18,6 +24,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "ajv": "^8.20.0"
   }
 }

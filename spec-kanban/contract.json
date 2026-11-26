@@ -1,0 +1,20 @@
+{
+  "version": "1.1.0",
+  "minReaderMajor": 1,
+  "files": {
+    "kanban": "schemas/kanban.schema.json",
+    "board": "schemas/board.schema.json",
+    "session": "schemas/session.schema.json",
+    "now": "schemas/now.schema.json",
+    "card": "schemas/card.schema.json",
+    "event": "schemas/event.schema.json",
+    "comment": "schemas/comment.schema.json",
+    "action": "schemas/action.schema.json",
+    "receipt": "schemas/receipt.schema.json",
+    "probe": "schemas/probe.schema.json",
+    "probeEcho": "schemas/probe-echo.schema.json",
+    "op": "schemas/op.schema.json",
+    "boardOp": "schemas/board-op.schema.json",
+    "take": "schemas/take.schema.json"
+  }
+}

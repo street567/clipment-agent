@@ -1,0 +1,62 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "card",
+ "type": "object",
+ "required": [
+  "id",
+  "kind",
+  "title",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "sessionId": {
+   "type": "string"
+  },
+  "kind": {
+   "enum": [
+    "session",
+    "task",
+    "ask",
+    "manual"
+   ]
+  },
+  "title": {
+   "type": "string",
+   "maxLength": 120
+  },
+  "detail": {
+   "type": "string"
+  },
+  "created": {
+   "type": "string"
+  },
+  "by": {
+   "type": "object",
+   "required": [
+    "author"
+   ],
+   "properties": {
+    "author": {
+     "enum": [
+      "user",
+      "agent"
+     ]
+    },
+    "name": {
+     "type": "string"
+    },
+    "member": {
+     "type": "string",
+     "pattern": "^[a-z0-9-]{1,64}$"
+    }
+   }
+  }
+ },
+ "additionalProperties": true
+}

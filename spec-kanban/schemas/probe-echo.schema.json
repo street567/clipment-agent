@@ -1,0 +1,21 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "probe-echo",
+ "type": "object",
+ "required": [
+  "id",
+  "seenAt"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "seenAt": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

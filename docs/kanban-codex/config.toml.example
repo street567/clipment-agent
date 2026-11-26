@@ -1,0 +1,8 @@
+# 에이전트 칸반 보드 MCP 서버를 Codex 에 붙이는 예시 (미확인: Codex 의 MCP 설정 형식은 직접 확인해 주세요)
+# /ABSOLUTE/PATH 를 이 저장소의 실제 절대 경로로 바꾸세요.
+[mcp_servers.kanban]
+command = "bun"
+args = ["run", "--cwd", "/ABSOLUTE/PATH/agent-kanban/plugin", "--shell=bun", "--silent", "start"]
+
+[mcp_servers.kanban.env]
+AGENT_KANBAN_AGENT = "codex"

@@ -1,0 +1,24 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "probe",
+ "type": "object",
+ "required": [
+  "id",
+  "sentAt"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "n": {
+   "type": "integer"
+  },
+  "sentAt": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

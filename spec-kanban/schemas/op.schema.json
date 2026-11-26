@@ -1,0 +1,190 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "op",
+ "type": "object",
+ "required": [
+  "id",
+  "cardId",
+  "by",
+  "set",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "by": {
+   "type": "object",
+   "required": [
+    "author"
+   ],
+   "properties": {
+    "author": {
+     "enum": [
+      "user",
+      "agent"
+     ]
+    },
+    "name": {
+     "type": "string"
+    },
+    "member": {
+     "type": "string",
+     "pattern": "^[a-z0-9-]{1,64}$"
+    }
+   }
+  },
+  "set": {
+   "type": "object",
+   "minProperties": 1,
+   "maxProperties": 200,
+   "properties": {
+    "title": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 120
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "detail": {
+     "anyOf": [
+      {
+       "type": "string",
+       "minLength": 0,
+       "maxLength": 4000
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "due": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "list": {
+     "anyOf": [
+      {
+       "type": "string",
+       "pattern": "^[a-z0-9-]{1,64}$"
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "state": {
+     "anyOf": [
+      {
+       "enum": [
+        "waiting",
+        "working",
+        "mine",
+        "done"
+       ]
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "archived": {
+     "anyOf": [
+      {
+       "const": true
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   },
+   "patternProperties": {
+    "^assignee\\.[a-z0-9-]{1,64}$": {
+     "anyOf": [
+      {
+       "const": true
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "^label\\.[a-z0-9-]{1,64}$": {
+     "anyOf": [
+      {
+       "const": true
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "^check\\.[a-z0-9-]{1,64}$": {
+     "anyOf": [
+      {
+       "type": "object",
+       "required": [
+        "text",
+        "done",
+        "rank"
+       ],
+       "properties": {
+        "text": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 200
+        },
+        "done": {
+         "type": "boolean"
+        },
+        "rank": {
+         "type": "number"
+        },
+        "assignee": {
+         "type": "string",
+         "pattern": "^[a-z0-9-]{1,64}$"
+        }
+       }
+      },
+      {
+       "type": "null"
+      }
+     ]
+    },
+    "^released\\.[1-9][0-9]{0,5}$": {
+     "anyOf": [
+      {
+       "const": true
+      },
+      {
+       "type": "null"
+      }
+     ]
+    }
+   }
+  },
+  "created": {
+   "type": "string"
+  },
+  "cardId": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

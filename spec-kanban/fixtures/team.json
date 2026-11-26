@@ -1,0 +1,3954 @@
+[
+ {
+  "name": "LLM 카드 기본 담당은 세션의 LLM",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000003-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000001-0000-4000-8000-000000000000",
+    "type": "created",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000002-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "working",
+   "listId": "working",
+   "assignees": [
+    "llm-claude"
+   ],
+   "actors": [
+    "llm-claude"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "agent 없는 1.0 세션은 claude",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy"
+  },
+  "boardOps": [
+   {
+    "id": "00000005-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000004-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "llm-claude"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "codex 세션",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "codex"
+  },
+  "boardOps": [
+   {
+    "id": "00000007-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000006-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "llm-codex"
+   ],
+   "actors": [
+    "llm-codex"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "project 가 맞는 멤버가 먼저",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "alpha-improve",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000009-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000008-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "alpha"
+   ],
+   "actors": [
+    "alpha"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "project 가 같아도 agent 가 다르면 공용",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "alpha-improve",
+   "agent": "codex"
+  },
+  "boardOps": [
+   {
+    "id": "0000000b-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "0000000a-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "llm-codex"
+   ]
+  }
+ },
+ {
+  "name": "LLM 카드에 사람을 더하면 둘 다",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "0000000e-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000000c-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-jiyeon": true
+    },
+    "created": "2026-11-25T01:00:03.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "0000000d-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "u-jiyeon",
+    "llm-claude"
+   ],
+   "actors": [
+    "u-jiyeon",
+    "llm-claude"
+   ],
+   "nature": "both"
+  }
+ },
+ {
+  "name": "열린 요청: 담당 미정이면 defaultHuman",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000011-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000010-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000000f-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "approve"
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "working",
+   "listId": "mine",
+   "actors": [
+    "u-minsu"
+   ],
+   "nature": "human",
+   "assignees": [
+    "llm-claude"
+   ]
+  }
+ },
+ {
+  "name": "열린 요청: ask.to 의 사람만",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000014-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000013-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000012-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "decide",
+     "options": [
+      "A",
+      "B"
+     ],
+     "to": [
+      "u-jiyeon",
+      "llm-claude"
+     ]
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "listId": "mine",
+   "actors": [
+    "u-jiyeon"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "열린 요청: 여러 사람, rank 순",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000017-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000016-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000015-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "do",
+     "to": [
+      "u-jiyeon",
+      "u-minsu"
+     ]
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "listId": "mine",
+   "actors": [
+    "u-minsu",
+    "u-jiyeon"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "열린 요청: 카드의 사람 담당이 defaultHuman 보다 먼저",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "0000001b-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000019-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-jiyeon": true
+    },
+    "created": "2026-11-25T01:00:03.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "0000001a-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000018-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "do"
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "actors": [
+    "u-jiyeon"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "열린 요청: 사람이 하나도 없으면 빈 담당·human",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [],
+  "ops": [],
+  "events": [
+   {
+    "id": "0000001d-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000001c-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "do"
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "listId": "mine",
+   "actors": [],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "처리되면 다시 LLM",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000021-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "0000001f-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000001e-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "approve",
+     "to": [
+      "u-jiyeon"
+     ]
+    }
+   }
+  ],
+  "actions": [
+   {
+    "id": "00000020-0000-4000-8000-000000000000",
+    "ref": "0000001e-0000-4000-8000-000000000000",
+    "kind": "approve",
+    "created": "2026-11-25T01:00:03.000Z",
+    "authorMember": "u-minsu"
+   }
+  ],
+  "expect": {
+   "listId": "working",
+   "actors": [
+    "llm-claude"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "문제는 사람",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000024-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000022-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000023-0000-4000-8000-000000000000",
+    "type": "failed",
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "failed",
+   "listId": "mine",
+   "actors": [
+    "u-minsu"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "LLM 카드의 state 는 무시",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000027-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000025-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "done"
+    },
+    "created": "2026-11-25T01:00:05.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000026-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "working",
+   "listId": "working"
+  }
+ },
+ {
+  "name": "LLM 카드의 title op 는 무시",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "0000002a-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000028-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "title": "바꿈"
+    },
+    "created": "2026-11-25T01:00:05.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000029-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "title": "제목"
+  }
+ },
+ {
+  "name": "같은 base 의 사용자 리스트",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "0000002d-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000002b-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "list": "later"
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "0000002c-0000-4000-8000-000000000000",
+    "type": "created",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "waiting",
+   "listId": "later"
+  }
+ },
+ {
+  "name": "base 가 달라지면 기본 리스트로",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000031-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000002e-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "list": "later"
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "0000002f-0000-4000-8000-000000000000",
+    "type": "created",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000030-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:03.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "working",
+   "listId": "working"
+  }
+ },
+ {
+  "name": "없어진 리스트는 기본으로",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000032-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   },
+   {
+    "id": "00000033-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "list.later": null
+    },
+    "created": "2026-11-25T01:00:09.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000034-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "list": "later"
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000035-0000-4000-8000-000000000000",
+    "type": "created",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "waiting",
+   "listId": "waiting"
+  }
+ },
+ {
+  "name": "사람 차례의 사용자 리스트",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000039-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000037-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "list": "review"
+    },
+    "created": "2026-11-25T01:00:03.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000038-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000036-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:02.000Z",
+    "ask": {
+     "kind": "do"
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "listId": "review"
+  }
+ },
+ {
+  "name": "manual 기본: 대기·담당 없음",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000003a-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "base": "waiting",
+   "listId": "waiting",
+   "assignees": [],
+   "actors": [],
+   "nature": "none",
+   "rank": -1795568400
+  }
+ },
+ {
+  "name": "manual 사람 담당",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000003d-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000003b-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-jiyeon": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000003c-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-minsu": true
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "base": "waiting",
+   "actors": [
+    "u-minsu",
+    "u-jiyeon"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "manual 사람과 LLM",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000003f-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000003e-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.alpha": true,
+     "assignee.u-minsu": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "actors": [
+    "u-minsu",
+    "alpha"
+   ],
+   "nature": "both"
+  }
+ },
+ {
+  "name": "담당 빼기",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000042-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000040-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-jiyeon": true,
+     "assignee.u-minsu": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000041-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-jiyeon": null
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "u-minsu"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "manual state mine, 담당 없으면 defaultHuman",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000044-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000043-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "mine"
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "base": "turn",
+   "listId": "mine",
+   "actors": [
+    "u-minsu"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "manual state mine 에 LLM 담당만 있으면 defaultHuman",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000046-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000045-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "mine",
+     "assignee.alpha": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "base": "turn",
+   "listId": "mine",
+   "actors": [
+    "u-minsu"
+   ],
+   "nature": "human"
+  }
+ },
+ {
+  "name": "manual 완료로 옮김",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000049-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000047-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "working"
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000048-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "done"
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "base": "done",
+   "listId": "done"
+  }
+ },
+ {
+  "name": "맡긴 일 확인 요청",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000004d-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000004b-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.alpha": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "0000004c-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "0000004a-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:03.000Z",
+    "ask": {
+     "kind": "check",
+     "to": [
+      "u-jiyeon"
+     ]
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "working",
+   "listId": "mine",
+   "actors": [
+    "u-jiyeon"
+   ],
+   "nature": "human",
+   "assignees": [
+    "alpha"
+   ]
+  }
+ },
+ {
+  "name": "check 승인 = 완료",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000052-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000004f-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.alpha": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000050-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "0000004e-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:03.000Z",
+    "ask": {
+     "kind": "check"
+    }
+   }
+  ],
+  "actions": [
+   {
+    "id": "00000051-0000-4000-8000-000000000000",
+    "ref": "0000004e-0000-4000-8000-000000000000",
+    "kind": "approve",
+    "created": "2026-11-25T01:00:04.000Z"
+   }
+  ],
+  "expect": {
+   "base": "done",
+   "listId": "done"
+  }
+ },
+ {
+  "name": "check 거절 = 멈춤",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000057-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000054-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.alpha": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000055-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "00000053-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:03.000Z",
+    "ask": {
+     "kind": "check"
+    }
+   }
+  ],
+  "actions": [
+   {
+    "id": "00000056-0000-4000-8000-000000000000",
+    "ref": "00000053-0000-4000-8000-000000000000",
+    "kind": "reject",
+    "created": "2026-11-25T01:00:04.000Z",
+    "text": "다시"
+   }
+  ],
+  "expect": {
+   "base": "waiting",
+   "listId": "waiting",
+   "actors": [
+    "alpha"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "check 는 첫 action 만",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000005c-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000059-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "00000058-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:03.000Z",
+    "ask": {
+     "kind": "check"
+    }
+   }
+  ],
+  "actions": [
+   {
+    "id": "0000005a-0000-4000-8000-000000000000",
+    "ref": "00000058-0000-4000-8000-000000000000",
+    "kind": "approve",
+    "created": "2026-11-25T01:00:04.000Z"
+   },
+   {
+    "id": "0000005b-0000-4000-8000-000000000000",
+    "ref": "00000058-0000-4000-8000-000000000000",
+    "kind": "reject",
+    "created": "2026-11-25T01:00:05.000Z"
+   }
+  ],
+  "expect": {
+   "base": "done"
+  }
+ },
+ {
+  "name": "check 거절 뒤 다시 일함",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000061-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "0000005e-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "0000005d-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:03.000Z",
+    "ask": {
+     "kind": "check"
+    }
+   },
+   {
+    "id": "0000005f-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:06.000Z"
+   }
+  ],
+  "actions": [
+   {
+    "id": "00000060-0000-4000-8000-000000000000",
+    "ref": "0000005d-0000-4000-8000-000000000000",
+    "kind": "reject",
+    "created": "2026-11-25T01:00:04.000Z"
+   }
+  ],
+  "expect": {
+   "base": "working",
+   "listId": "working"
+  }
+ },
+ {
+  "name": "manual state 가 요청보다 뒤면 요청이 닫힘",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000065-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000064-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "waiting"
+    },
+    "created": "2026-11-25T01:00:05.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000063-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "00000062-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:03.000Z",
+    "ask": {
+     "kind": "do"
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "waiting",
+   "listId": "waiting"
+  }
+ },
+ {
+  "name": "manual state 가 요청보다 앞이면 요청이 열림",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000069-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000068-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "waiting"
+    },
+    "created": "2026-11-25T01:00:05.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "00000067-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "00000066-0000-4000-8000-000000000000",
+    "type": "needs_human",
+    "created": "2026-11-25T01:00:06.000Z",
+    "ask": {
+     "kind": "do"
+    }
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "waiting",
+   "listId": "mine"
+  }
+ },
+ {
+  "name": "이벤트가 state 보다 뒤면 이벤트가 이김",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000006c-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000006a-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "state": "done"
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [
+   {
+    "id": "0000006b-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "base": "working"
+  }
+ },
+ {
+  "name": "title·due·archived",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000006f-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000006d-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "title": "옛 제목",
+     "due": "2026-11-27",
+     "archived": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000006e-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "title": "새 제목",
+     "due": "2026-11-28"
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "title": "새 제목",
+   "due": "2026-11-28",
+   "archived": true
+  }
+ },
+ {
+  "name": "null 로 지움",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000072-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000070-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "due": "2026-11-27",
+     "archived": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000071-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "due": null,
+     "archived": null
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "due": null,
+   "archived": false
+  }
+ },
+ {
+  "name": "틀린 값은 그 열쇠만 무시",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000075-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000073-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "due": "2026-11-27"
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000074-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "due": 5,
+     "label.l-dev": true,
+     "label.l-ops": "yes",
+     "모르는열쇠": 1
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "due": "2026-11-27",
+   "labels": [
+    "l-dev"
+   ]
+  }
+ },
+ {
+  "name": "같은 시각이면 id 가 큰 것이 이김",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000076-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "ffffffff-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "due": "2026-12-02"
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "00000000-0000-4000-8000-00000000000f",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "due": "2026-12-01"
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "due": "2026-12-02"
+  }
+ },
+ {
+  "name": "카테고리는 rank 순, 지운 카테고리는 빠짐",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000077-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   },
+   {
+    "id": "00000078-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "label.l-ops": null
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000079-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "label.l-ops": true,
+     "label.l-dev": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "labels": [
+    "l-dev"
+   ]
+  }
+ },
+ {
+  "name": "직접 순서",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "0000007a-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   },
+   {
+    "id": "0000007b-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "rank.0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9": 3
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000007c-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "rank.0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9": -12.5
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "rank": -12.5
+  }
+ },
+ {
+  "name": "체크리스트 항목별 합치기",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000081-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "0000007d-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "check.c1": {
+      "text": "하나",
+      "done": false,
+      "rank": 2
+     },
+     "check.c2": {
+      "text": "둘",
+      "done": false,
+      "rank": 1
+     },
+     "check.c3": {
+      "text": "셋",
+      "done": false,
+      "rank": 3
+     }
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   },
+   {
+    "id": "0000007e-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "check.c2": {
+      "text": "둘",
+      "done": true,
+      "rank": 1
+     }
+    },
+    "created": "2026-11-25T01:00:02.000Z"
+   },
+   {
+    "id": "0000007f-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "check.c1": {
+      "text": "하나!",
+      "done": false,
+      "rank": 2
+     }
+    },
+    "created": "2026-11-25T01:00:03.000Z"
+   },
+   {
+    "id": "00000080-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "check.c3": null
+    },
+    "created": "2026-11-25T01:00:04.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "checks": [
+    [
+     "c2",
+     "둘",
+     true
+    ],
+    [
+     "c1",
+     "하나!",
+     false
+    ]
+   ]
+  }
+ },
+ {
+  "name": "기본 LLM 멤버 이름 바꾸기",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "task",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목",
+   "sessionId": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc"
+  },
+  "session": {
+   "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
+   "name": "zippy",
+   "agent": "claude"
+  },
+  "boardOps": [
+   {
+    "id": "00000082-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.llm-claude": {
+      "name": "클로드",
+      "kind": "llm",
+      "agent": "claude",
+      "rank": 0
+     }
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [],
+  "events": [
+   {
+    "id": "00000083-0000-4000-8000-000000000000",
+    "type": "progress",
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "llm-claude"
+   ],
+   "nature": "llm"
+  }
+ },
+ {
+  "name": "지운 멤버는 담당에 남되 actors 성격은 나머지로",
+  "card": {
+   "id": "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9",
+   "kind": "manual",
+   "created": "2026-11-25T01:00:00.000Z",
+   "title": "제목"
+  },
+  "session": null,
+  "boardOps": [
+   {
+    "id": "00000085-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "member.u-minsu": {
+      "name": "민수",
+      "kind": "human",
+      "rank": 0
+     },
+     "member.u-jiyeon": {
+      "name": "지연",
+      "kind": "human",
+      "rank": 1
+     },
+     "member.alpha": {
+      "name": "알파",
+      "kind": "llm",
+      "rank": 2,
+      "agent": "claude",
+      "project": "alpha-improve"
+     },
+     "label.l-dev": {
+      "name": "개발",
+      "color": 2,
+      "rank": 0
+     },
+     "label.l-ops": {
+      "name": "운영",
+      "color": 3,
+      "rank": 1
+     },
+     "list.later": {
+      "title": "나중에",
+      "base": "waiting",
+      "rank": 2.5
+     },
+     "list.review": {
+      "title": "검토",
+      "base": "mine",
+      "rank": 0.5
+     },
+     "defaultHuman": "u-minsu"
+    },
+    "created": "2026-11-25T01:00:00.000Z"
+   }
+  ],
+  "ops": [
+   {
+    "id": "00000084-0000-4000-8000-000000000000",
+    "by": {
+     "author": "user",
+     "name": "민수",
+     "member": "u-minsu"
+    },
+    "set": {
+     "assignee.u-minsu": true,
+     "assignee.u-gone": true
+    },
+    "created": "2026-11-25T01:00:01.000Z"
+   }
+  ],
+  "events": [],
+  "actions": [],
+  "expect": {
+   "assignees": [
+    "u-minsu",
+    "u-gone"
+   ],
+   "nature": "human"
+  }
+ }
+]

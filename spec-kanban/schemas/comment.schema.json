@@ -1,0 +1,50 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "comment",
+ "type": "object",
+ "required": [
+  "id",
+  "cardId",
+  "author",
+  "text",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "type": "integer"
+  },
+  "id": {
+   "type": "string"
+  },
+  "cardId": {
+   "type": "string"
+  },
+  "author": {
+   "enum": [
+    "user",
+    "agent"
+   ]
+  },
+  "authorName": {
+   "type": "string"
+  },
+  "text": {
+   "type": "string",
+   "maxLength": 4000
+  },
+  "replyTo": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "created": {
+   "type": "string"
+  },
+  "authorMember": {
+   "type": "string",
+   "pattern": "^[a-z0-9-]{1,64}$"
+  }
+ },
+ "additionalProperties": true
+}
