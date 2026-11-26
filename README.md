@@ -136,11 +136,13 @@ claude --dangerously-load-development-channels plugin:client-ai-bridge@street567
 Claude Code 세션의 진행(작업·승인 대기·완료)을 hooks 로 기록해 클라우드 폴더의 보드로 남기고, 폰에서 남긴 의견을 세션에 전달합니다. 코드는 `src/kanban/`, 테스트 `test/kanban/`, 계약 `spec-kanban/`(칸반 계약 1.1, 이 레포에서는 바꾸지 않음), 자세한 설명 [docs/kanban.md](docs/kanban.md), Codex 예시 `docs/kanban-codex/`.
 
 **설정하기 전에는 완전히 꺼져 있습니다**: hook 은 아무 출력 없이 exit 0, 감시(monitor)는 아무것도 내보내지 않고, 칸반 MCP 도구는 "not set up" 이라고 답합니다. 보드 폴더(이미 있는 iCloud/구글 드라이브 등의 폴더)를 지정하면 켜집니다.
-- 설정: Claude 에게 "칸반 설정해줘, 폴더는 …" → MCP 도구 `kanban_setup(root, confirmReplace?, create?)`. 또는 터미널 `kanban setup --root <폴더>` (= `clipment kanban setup --root <폴더>`).
-  - 폴더가 없으면 만들지 않고 알려 줍니다(`create=true` / `--create` 로 명시했을 때만 생성).
-  - 이미 **다른** 폴더로 설정돼 있으면 바꾸지 않고 현재/새 폴더를 알려 줍니다. 바꾸려면 `confirmReplace=true` / `--confirm-replace` (이전 설정은 `config.json.bak` 로 백업).
-  - 설정 파일: `~/.config/agent-kanban/config.json` (`AGENT_KANBAN_CONFIG` 로 교체).
-- 상태: MCP 도구 `kanban_status`, 터미널 `kanban status [--json]` — 설정 여부·root·root 접근 가능 여부·hooks/monitor 상태. 설정 없이도 동작.
+- 설정: Claude 에게 "칸반 설정해줘, 폴더는 …" → MCP 도구 `kanban_setup(root, name?, includePaths?, create?, confirmReplace?)`. 또는 터미널 `kanban setup --root <폴더> [--name 이름] [--include <프로젝트 폴더>]...`.
+  - 폴더가 없으면 만들지 않고 알려 줍니다(`create=true` / `--create` 로 명시했을 때만 생성). 바꾸기 전에 `config.json.bak` 으로 백업.
+  - **보드 폴더를 여러 개** 둘 수 있습니다(워크스페이스). 세션의 작업 폴더(cwd)가 어떤 `includePaths` 안이면 그 보드(가장 긴 경로 우선), 아니면 `includePaths` 없는 "기본" 보드 하나로 갑니다. 어디에도 안 맞으면(또는 기본이 둘이면) 그 세션은 기록하지 않습니다.
+  - 결과: `created` · `added`(새 root + includePaths) · `updated`(등록된 root 의 이름/범위 변경) · `unchanged` · `needsScope`(새 root 인데 범위가 없고 이미 기본 보드가 있음 → 아무것도 바꾸지 않고 기존 목록을 돌려줌. 어느 프로젝트 폴더를 새 보드로 보낼지 사용자에게 물어야 함) · `replaced`(`confirmReplace=true`: 옛 방식의 단일 root 교체. 추가가 우선).
+  - 설정 파일: `~/.config/agent-kanban/config.json` (`AGENT_KANBAN_CONFIG` 로 교체). 옛 단일 `root` 설정도 그대로 동작합니다.
+- 상태: MCP 도구 `kanban_status`, 터미널 `kanban status [--json]` — 모든 보드(이름·root·닿는지·kanban.json·includePaths), 이 세션/폴더가 가는 보드(또는 안 가는 이유), 경고(기본 보드 둘, 범위 겹침, 닿지 않는 root). 설정 없이도 동작.
+- 연결 해제: MCP 도구 `kanban_remove(root, confirm: true)` / `kanban remove --root <폴더> --confirm` — 맥 설정에서만 뺍니다(백업 후). 폴더·보드 파일은 절대 지우지 않습니다.
 - hooks 는 설정 직후 다음 이벤트부터 동작하고, 감시(monitor)는 세션 시작 때 설정을 읽으므로 새 세션부터 폰 의견이 전달됩니다.
 - CLI: 별도 명령 `kanban` (`~/.local/bin/kanban` → `src/kanban/cli.ts`) 이고 `clipment kanban <하위명령>` 으로도 같은 것을 부를 수 있습니다. `kanban --help` 에 하위 명령 목록(init, setup, status, board, member, label, agent, doctor, probe, prune …).
 - MCP 서버 `kanban` 시작: `bun run start:kanban` (`.mcp.json` 이 호출).

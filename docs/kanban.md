@@ -31,10 +31,28 @@ kanban doctor                              # 설정·폴더·bun·iCloud 상태�
   "telegram": { "enabled": false, "chatId": "", "tokenEnv": "AGENT_KANBAN_TELEGRAM_TOKEN", "apiBase": "https://api.telegram.org" }
 }
 ```
-- `includePaths`/`excludePaths`: 작업 폴더가 그 밑일 때만 / 그 밑이면 제외.
+- `includePaths`/`excludePaths`: 작업 폴더가 그 밑일 때만 / 그 밑이면 제외. (여러 보드는 아래 "여러 보드(워크스페이스)")
 - `allowAuthors`(선택): 있으면 `authorName` 이 목록에 있는 코멘트·처리만 전달.
 - `includeHeadless`: `claude -p`·SDK 세션(`CLAUDE_CODE_ENTRYPOINT` 가 `sdk` 로 시작)도 기록할지. 기본은 제외. (그 변수가 없으면 부모 프로세스 인자의 `-p`/`--print` 를 보고, 그래도 모르면 대화형으로 취급합니다.)
 - 텔레그램: 새 "사람 차례"와 "문제"가 생길 때 한 번 알림. 토큰은 환경변수(`tokenEnv`)에서만 읽고, 파일을 찾아 읽지 않습니다. 기본 꺼짐.
+
+## 여러 보드(워크스페이스) (0.7.0~)
+보드 폴더를 여러 개 둘 수 있습니다. 클라우드 계약은 그대로이고, 맥 설정과 세션 라우팅만 바뀝니다.
+```json
+{
+  "enabled": true,
+  "workspaces": [
+    { "name": "개인", "root": "~/…/Agent Kanban" },
+    { "name": "회사", "root": "~/…/Work Kanban", "board": "main", "includePaths": ["~/work/app", "~/work/api"], "excludePaths": [] }
+  ],
+  "excludePaths": [], "includeHeadless": false, "monitor": {…}, "telegram": {…}
+}
+```
+- 전역 옵션(`enabled`, `includeHeadless`, `allowAuthors`, `monitor`, `telegram`, 최상위 `excludePaths`)은 최상위에 둡니다. 옛 최상위 `root`(+`board`/`includePaths`)는 워크스페이스 하나로 읽습니다. 둘 다 있으면 `workspaces` 가 우선이고, 목록에 없는 옛 `root` 는 추가 워크스페이스로 붙습니다(경로 기준 중복 제거). `AGENT_KANBAN_ROOT` 는 "이 root 하나만 쓰는 워크스페이스" override 입니다.
+- **라우팅(세션 cwd 기준)**: ① 전역/워크스페이스 `excludePaths` 밑이면 제외 ② `includePaths` 가 cwd 를 포함하는 워크스페이스 중 가장 긴 접두사 ③ 없으면 `includePaths` 없는 "기본" 워크스페이스가 정확히 하나일 때 그것 ④ 그 외(기본이 둘, 같은 범위 겹침, 해당 없음)는 추적 안 함 — hook 은 조용히 exit 0, monitor 는 무출력, `kanban_status` 가 이유와 경고를 알려 줌. hook·monitor·MCP 보드 도구는 모두 그 세션의 워크스페이스 root·board 를 씁니다(세션은 처음 붙은 워크스페이스에 머뭅니다).
+- 설정: `kanban setup --root <폴더> [--name 이름] [--include <프로젝트 폴더>]...` / `kanban_setup`. 새 폴더에 범위가 없는데 이미 기본이 있으면 `needsScope`(종료코드 3)로 아무것도 바꾸지 않습니다 — 어느 프로젝트 폴더를 새 보드로 보낼지 사용자에게 물은 뒤 `--include` 로 다시 실행하세요. 기존 범위를 옮기거나 추측하지 마세요. `--confirm-replace` 는 옛 "단일 root 교체"(추가를 권장).
+- 연결 해제: `kanban remove --root <폴더> --confirm` / `kanban_remove`. 설정에서만 빼고(`config.json.bak` 백업) 폴더·파일은 지우지 않습니다. 기본 보드를 빼면 결과의 `defaultRemoved: true` — 범위 밖 폴더 세션은 더 이상 추적되지 않습니다.
+- 처음 setup 으로 설정을 고치면 옛 최상위 `root`/`board`/`includePaths` 는 `workspaces` 로 옮겨 씁니다(전역 옵션은 유지, 이전 파일은 `.bak`). 0.7 미만 플러그인은 `workspaces` 만 있는 설정을 못 읽으니 되돌릴 땐 `.bak` 을 쓰세요.
 
 ## 팀 보드 (계약 1.1)
 - **멤버**: 사람과 LLM. LLM 은 보드에 나온 세션의 종류마다 `llm-claude`·`llm-codex` 처럼 자동으로 생기고, 프로젝트별로 나누려면 `kanban member add 알파 --agent claude --project <작업 폴더 이름>`. 담당이 정해지지 않은 사람 차례는 기본 담당(`kanban member add 민수 --default`)이 봅니다.
@@ -46,7 +64,7 @@ kanban doctor                              # 설정·폴더·bun·iCloud 상태�
 - **여러 LLM**: Codex 는 `codex/README.md`. hooks 를 붙이지 못한 LLM 은 `kanban agent <start|progress|ask|report|done|fail> --agent gemini --session <id> --name <폴더> --text "…"` 로 스스로 남깁니다(이벤트에 `via:"self"`, 앱에는 "자기 보고"로 표시).
 
 ## kanban 명령
-`init` · `status` · `board [--archived]`(텍스트 보드: 담당 [사람]/[LLM]·카테고리·기한, 보관 카드는 숨김 — `--archived` 로 보관함) · `member add|list|remove` · `label add|list|remove`(사람이 터미널에서 설정, `--as 이름` 으로 작성자 이름, 기본 "나") · `agent …` · `doctor` · `probe [-n 30]`(앱 왕복 지연 p50/p90/max, 앱의 측정 화면을 열어 둘 것) · `upload-probe`(맥에서 쓴 파일이 iCloud 에 올라갈 때까지) · `prune --days N [--apply]`(완료 카드를 `boards/<board>/archive/` 로 옮김. 기본은 미리보기, 삭제 없음).
+`init` · `setup` · `remove` · `status` · `board [--archived]`(텍스트 보드: 담당 [사람]/[LLM]·카테고리·기한, 보관 카드는 숨김 — `--archived` 로 보관함) · `member add|list|remove` · `label add|list|remove`(사람이 터미널에서 설정, `--as 이름` 으로 작성자 이름, 기본 "나") · `agent …` · `doctor` · `probe [-n 30]`(앱 왕복 지연 p50/p90/max, 앱의 측정 화면을 열어 둘 것) · `upload-probe`(맥에서 쓴 파일이 iCloud 에 올라갈 때까지) · `prune --days N [--apply]`(완료 카드를 `boards/<board>/archive/` 로 옮김. 기본은 미리보기, 삭제 없음).
 
 ## 끄기
 - 잠깐: 설정의 `"enabled": false` (hooks·monitor 가 즉시 아무것도 안 함).
