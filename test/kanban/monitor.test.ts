@@ -126,9 +126,13 @@ describe('monitor (신호만, 본문 없음)', () => {
     const B = '11111111-2222-4333-8444-555555555555'
     await runHook(e, { ...base(B), hook_event_name: 'SessionStart' })
     await runHook(e, { ...base(B), hook_event_name: 'UserPromptSubmit', prompt_id: 'q', prompt: '다른 세션의 일입니다' })
-    const m = monitor(e)
+    // hook 과 감시가 같은 부모(테스트 러너)를 공유하면 pid 매핑이 B 로 잡힌다(실제로는 claude 프로세스마다 세션 하나).
+    // 감시는 별도 부모를 가진 세션 A 로 띄운다 — 환경(ps 조상에 claude 가 있는지)에 따라 결과가 갈리던 테스트.
+    const parent = Bun.spawn(['sleep', '30'])
+    const m = monitor(e, { CLAUDE_PID: String(parent.pid) })
     appComment(e, cardId('session', B, ''), 'B 에게만')
     await sleep(1200)
+    parent.kill()
     expect(m.lines.length).toBe(0)
   })
   test('pid 매핑이 CLAUDE_CODE_SESSION_ID 보다 우선(세션이 바뀐 경우)', async () => {
