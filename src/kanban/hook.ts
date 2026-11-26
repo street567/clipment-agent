@@ -12,7 +12,7 @@ import { displayAgent } from './core/agent.ts'
 import { closeAnswered, currentCardId, dropTaken, emit, ensureCard, needsHuman, newCtx, queueNotice, sessionCardId, setNow, setTitle, touchWorking, type Ctx } from './core/board.ts'
 import { claim, collectPending, renderForStop } from './core/deliver.ts'
 import { isSessionId } from './core/ids.ts'
-import { clearPidMap, findClaudePid, logLine, newSessionState, setPidMap, withSession } from './core/localstate.ts'
+import { clearPidMap, findClaudePid, loadSession, logLine, newSessionState, setPidMap, withSession } from './core/localstate.ts'
 import { clean } from './core/redact.ts'
 import { Store } from './core/store.ts'
 import { summarizeTool } from './core/summarize.ts'
@@ -350,7 +350,8 @@ async function run(cfg: Config, rawInput: any, agent: string): Promise<string | 
   const store = new Store(cfg.root, cfg.board)
   let ctxNotices: Ctx['notices'] = []
   const out = await withSession(sid, () => newSessionState(sid, cfg.board, name), async (st) => {
-    if (st.boardId !== cfg.board) Object.assign(st, newSessionState(sid, cfg.board, st.name))
+    if (st.boardId !== cfg.board || (st.root && st.root !== cfg.root)) Object.assign(st, newSessionState(sid, cfg.board, st.name))
+    st.root = cfg.root
     st.agent = agent
     const ctx = newCtx(cfg, store, st)
     if (!st.inited) {
@@ -415,8 +416,6 @@ async function run(cfg: Config, rawInput: any, agent: string): Promise<string | 
 async function main() {
   let ev = '?'
   try {
-    const cfg = loadConfig()
-    if (!cfg) return
     let input: any
     try {
       input = JSON.parse(readFileSync(0, 'utf8'))
@@ -424,6 +423,13 @@ async function main() {
       return
     }
     ev = String(input?.hook_event_name ?? '?')
+    // 세션 cwd → 워크스페이스. 이미 이 세션이 붙은 워크스페이스가 아직 이 폴더를 허용하면 그대로 유지(세션 중 cd 로 보드가 바뀌지 않게)
+    const sid0 = input?.session_id
+    const prev = isSessionId(sid0) ? loadSession(sid0)?.root : undefined
+    const cwd = typeof input?.cwd === 'string' ? input.cwd : undefined
+    let cfg = prev ? loadConfig(cwd, { workspaceRoot: prev }) : null
+    if (!cfg || cfg.root !== prev || !pathAllowed(cfg, cwd)) cfg = loadConfig(cwd)
+    if (!cfg) return
     const out = await run(cfg, input, resolveAgent(process.argv.slice(2)))
     if (process.env.AGENT_KANBAN_DEBUG_SCANS) process.stderr.write(`scans=${Store.cardScans}\n`)
     if (out) await new Promise<void>((r) => process.stdout.write(out + '\n', () => r()))

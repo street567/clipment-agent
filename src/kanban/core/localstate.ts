@@ -39,6 +39,7 @@ export interface SessionState {
   v: 1
   sessionId: string
   boardId: string
+  root?: string // 이 세션이 붙은 워크스페이스 root(다중 워크스페이스)
   name: string
   agent?: string // LLM 종류(없으면 claude)
   taken?: string[] // 맡은 카드(맡은 순서)

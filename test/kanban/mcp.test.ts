@@ -37,8 +37,9 @@ describe('MCP 왕복', () => {
     await ready(e)
     const { c } = await connect(e)
     const names = (await c.listTools()).tools.map((t) => t.name).sort()
-    expect(names).toEqual(['board_ask', 'board_card', 'board_inbox', 'board_label', 'board_list', 'board_members', 'board_note', 'board_reply', 'board_submit', 'board_take', 'kanban_setup', 'kanban_status'])
-    expect(names.some((n) => /done|complete|move|finish/.test(n))).toBe(false)
+    expect(names).toEqual(['board_ask', 'board_card', 'board_inbox', 'board_label', 'board_list', 'board_members', 'board_note', 'board_reply', 'board_submit', 'board_take', 'kanban_remove',
+      'kanban_setup', 'kanban_status'])
+    expect(names.some((n) => /done|complete|(^|_)move|finish/.test(n))).toBe(false)
   })
 
   test('board_inbox: 본문과 id 를 주고 receipt(via inbox)를 만들며 한 번만, 없으면 "새 의견 없음"', async () => {

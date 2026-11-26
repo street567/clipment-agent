@@ -5,7 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { loadConfig, type Config } from './config.ts'
+import { loadAllConfig, loadConfig, type Config } from './config.ts'
 import { displayAgent, resolveAgent } from './core/agent.ts'
 import { closeAnswered, dropTaken, emit, ensureCard, needsHuman, newCtx, registerManual, sessionCardId, type Ctx } from './core/board.ts'
 import { checkMine, describeCard, evalAvailable, holderOf, loadBoard, refreshTaken, scanAvailable } from './core/delegate.ts'
@@ -18,7 +18,7 @@ import { Store, type CardRec } from './core/store.ts'
 import { allMembers, cardView, findLabel, findMember, getMember, type Board, type CardView, type Member } from './core/team.ts'
 import { sendTelegram } from './core/telegram.ts'
 import { iso } from './core/fs.ts'
-import { kanbanStatus, setupKanban } from './setup.ts'
+import { kanbanStatus, removeWorkspace, setupKanban } from './setup.ts'
 
 export class UserError extends Error {}
 
@@ -41,11 +41,16 @@ export function resolveSessionId(): string | null {
 }
 
 async function withBoard<T>(fn: (ctx: Ctx, cfg: Config, store: Store) => T | Promise<T>): Promise<T> {
-  const cfg = loadConfig()
-  if (!cfg) throw new UserError('에이전트 칸반이 꺼져 있거나 설정이 없어요(not set up). kanban_setup(root) 또는 `kanban setup --root <폴더>` 로 설정해 주세요.')
+  if (!loadAllConfig()) throw new UserError('에이전트 칸반이 꺼져 있거나 설정이 없어요(not set up). kanban_setup(root) 또는 `kanban setup --root <폴더>` 로 설정해 주세요.')
   const sid = resolveSessionId()
   if (!sid) throw new UserError('이 세션을 찾지 못했어요(세션 id 없음).')
-  if (!loadSession(sid)) throw new UserError('이 세션은 보드에 연결되어 있지 않아요(hooks 가 아직 이 세션을 기록하지 않았거나 제외된 세션).')
+  const prevSt = loadSession(sid)
+  if (!prevSt) throw new UserError('이 세션은 보드에 연결되어 있지 않아요(hooks 가 아직 이 세션을 기록하지 않았거나 제외된 세션).')
+  // 이 세션이 hooks 로 붙은 워크스페이스(st.root)를 쓴다. 옛 세션 상태(root 없음)는 세션 cwd 로 라우팅
+  const cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd()
+  const found = prevSt.root ? loadConfig(cwd, { workspaceRoot: prevSt.root }) : loadConfig(cwd)
+  const cfg = found && (!prevSt.root || found.root === prevSt.root) ? found : null
+  if (!cfg) throw new UserError(prevSt.root ? '이 세션이 붙은 보드 폴더가 설정에서 빠졌어요(kanban_remove 등). 새 세션에서 다시 시작하거나 kanban_status 로 확인하세요.' : '이 폴더는 어느 보드에도 연결되어 있지 않아요(includePaths 에 없고 기본 보드도 없거나 모호함). kanban_status 로 확인하세요.')
   const store = new Store(cfg.root, cfg.board)
   let notices: Ctx['notices'] = []
   const out = await withSession(sid, () => { throw new Error('unreachable') }, async (st) => {
@@ -429,20 +434,54 @@ export function buildServer(): McpServer {
 
   mcp.registerTool(
     'kanban_status',
-    { description: '칸반 설정 상태: 설정됐는지, 보드 폴더(root)와 닿는지, hooks·감시(monitor) 상태. 설정이 없어도 동작한다. 설정이 없으면 "not set up".', inputSchema: {} },
-    async () => text(JSON.stringify(kanbanStatus(), null, 1)),
+    {
+      description:
+        '칸반 설정 상태. 설정된 모든 워크스페이스(보드 폴더)의 name·root·reachable·hasKanbanJson·board·includePaths, 이 세션(cwd)이 어느 워크스페이스로 가는지(또는 왜 추적되지 않는지: current), 경고(기본 보드 2개, includePaths 겹침, 닿지 않는 root)를 알려 준다. ' +
+        '설정이 없어도 동작하고, 없으면 "not set up". 읽기 전용. 사용자가 보드를 추가·정리하려 할 때 먼저 불러 현재 상태를 보여 준다.',
+      inputSchema: {},
+    },
+    async () => {
+      const sid = (() => { try { return resolveSessionId() } catch { return null } })()
+      const sessionRoot = sid ? loadSession(sid)?.root : undefined
+      return text(JSON.stringify(kanbanStatus({ sessionRoot }), null, 1))
+    },
   )
 
   mcp.registerTool(
     'kanban_setup',
     {
       description:
-        '칸반을 설정한다(보드 폴더 지정). root 는 이미 있는 폴더(예: iCloud/구글 드라이브 안 폴더)여야 하고, 없으면 만들지 않고 알려 준다(사용자가 만들라고 했을 때만 create=true). ' +
-        '이미 다른 root 로 설정돼 있으면 바꾸지 않고 현재/새 root 를 알려 주니, 사용자에게 확인받은 뒤에만 confirmReplace=true 로 다시 호출한다(config.json.bak 백업). 설정이 없는 세션에서도 쓸 수 있다.',
-      inputSchema: { root: z.string().min(1).max(1000), confirmReplace: z.boolean().optional(), create: z.boolean().optional() },
+        '칸반 보드 폴더(워크스페이스)를 추가·설정한다. 여러 보드를 둘 수 있고 세션은 작업 폴더(cwd)로 보드가 정해진다: includePaths 에 cwd 가 들어 있는 보드(가장 긴 경로 우선), 없으면 includePaths 없는 "기본" 보드 하나. ' +
+        'root 는 이미 있는 폴더(예: iCloud/구글 드라이브 안 폴더)여야 하고, 없으면 만들지 않고 알려 준다(사용자가 만들라고 했을 때만 create=true). name 은 보드 이름(선택). includePaths 는 이 보드로 보낼 프로젝트 폴더들(선택). 바꾸기 전에 config.json.bak 으로 백업한다. ' +
+        '결과: created(설정 없었음) · added(새 root + includePaths) · updated(이미 등록된 root 의 name/includePaths 변경) · unchanged · needsScope · replaced · refused · error. 항상 전체 workspaces 목록이 같이 온다. ' +
+        '【needsScope】 새 root 를 includePaths 없이 부르는데 이미 기본 보드가 있으면 아무것도 바꾸지 않고 needsScope 와 existingWorkspaces 를 돌려준다. 이때 절대 범위를 추측하거나 기존 보드의 includePaths 를 옮기지 말고, 사용자에게 물어본다: ' +
+        '"새 보드로 보낼 프로젝트 폴더가 어디인가요?"(답을 includePaths 로 다시 호출) 또는 "기존 기본 보드에 범위를 줄까요?"(기존 root + includePaths 로 호출). 사용자 답을 받은 뒤에만 다시 호출한다. ' +
+        'confirmReplace=true 는 "기존 단일 보드의 root 를 이 root 로 교체"하는 옛 방식이며 사용자가 명시적으로 교체를 원할 때만 쓴다(보드를 추가하는 것이 우선). 설정이 없는 세션에서도 쓸 수 있다.',
+      inputSchema: {
+        root: z.string().min(1).max(1000),
+        name: z.string().max(60).optional(),
+        includePaths: z.array(z.string().min(1).max(1000)).max(50).optional(),
+        create: z.boolean().optional(),
+        confirmReplace: z.boolean().optional(),
+      },
     },
     async (a) => {
       const r = setupKanban(a)
+      const isErr = !r.ok && r.result !== 'needsScope'
+      return { ...(isErr ? { isError: true } : {}), content: [{ type: 'text' as const, text: JSON.stringify(r, null, 1) }] }
+    },
+  )
+
+  mcp.registerTool(
+    'kanban_remove',
+    {
+      description:
+        '워크스페이스(보드 폴더) 하나를 Mac 설정에서만 뺀다("연결 해제"). 폴더와 그 안의 파일·보드는 절대 지우거나 바꾸지 않는다(휴대폰 앱의 보드도 그대로). 반드시 사용자 동의를 받은 뒤 confirm=true 로 호출한다(없으면 refused 만 돌려주고 바꾸지 않음). 바꾸기 전 config.json.bak 으로 백업. ' +
+        '뺀 뒤 그 보드 범위의 세션은 더 추적되지 않는다. 결과의 defaultRemoved 가 true 면 기본 보드를 뺀 것이니 includePaths 밖 폴더 세션이 추적되지 않게 됐음을 사용자에게 알린다. 남은 workspaces 목록이 같이 온다.',
+      inputSchema: { root: z.string().min(1).max(1000), confirm: z.boolean().optional() },
+    },
+    async (a) => {
+      const r = removeWorkspace(a)
       return { ...(r.ok ? {} : { isError: true }), content: [{ type: 'text' as const, text: JSON.stringify(r, null, 1) }] }
     },
   )

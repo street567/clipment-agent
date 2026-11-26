@@ -26,7 +26,7 @@ function alive(pid: number): boolean {
 }
 
 async function main() {
-  const cfg = loadConfig()
+  const cfg = loadConfig(process.env.CLAUDE_PROJECT_DIR || process.cwd())
   if (!cfg) return
   const parent = Number(process.env.CLAUDE_PID) || process.ppid
   const store = new Store(cfg.root, cfg.board)
@@ -129,7 +129,7 @@ async function main() {
         lastMt = mt
       }
       if (!st) return
-      if (st.boardId !== cfg!.board) return
+      if (st.boardId !== cfg!.board || (st.root && st.root !== cfg!.root)) return
 
       // 1) 폴더 mtime 이 바뀐 카드만 다시 읽는다
       for (const cid of Object.keys(st.cards)) {

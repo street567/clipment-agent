@@ -15,7 +15,7 @@ import { clean } from './core/redact.ts'
 import { createHash } from 'node:crypto'
 import { logDir, stateDir, type SessionState } from './core/localstate.ts'
 import { Store } from './core/store.ts'
-import { kanbanStatus, setupKanban } from './setup.ts'
+import { kanbanStatus, removeWorkspace, setupKanban } from './setup.ts'
 import { oneLine } from './core/redact.ts'
 import { resolve } from 'node:path'
 
@@ -64,13 +64,35 @@ function cmdInit(args: string[]) {
   if (!cfg) out('(설정의 enabled 가 true 가 아니라 hooks 는 아직 꺼져 있어요)')
 }
 
+function flags(args: string[], name: string): string[] {
+  const r: string[] = []
+  args.forEach((a, i) => { if (a === name && args[i + 1] && !args[i + 1].startsWith('--')) r.push(args[i + 1]) })
+  return r
+}
+
 function cmdSetup(args: string[]) {
   const root = flag(args, '--root') ?? args.find((a) => !a.startsWith('--'))
   if (!root) {
-    out('사용법: kanban setup --root <보드 폴더> [--create] [--confirm-replace]')
+    out('사용법: kanban setup --root <보드 폴더> [--name 이름] [--include <프로젝트 폴더>]... [--create] [--confirm-replace]')
     process.exit(2)
   }
-  const r = setupKanban({ root, confirmReplace: has(args, '--confirm-replace'), create: has(args, '--create') })
+  const inc = flags(args, '--include')
+  const r = setupKanban({ root, name: flag(args, '--name'), ...(inc.length ? { includePaths: inc } : {}), confirmReplace: has(args, '--confirm-replace'), create: has(args, '--create') })
+  out(r.message)
+  if (r.result === 'needsScope') {
+    for (const w of r.existingWorkspaces ?? []) out(` - ${w.name ?? '(이름 없음)'}  ${w.root}  ${w.includePaths.length ? 'include: ' + w.includePaths.join(', ') : '(기본)'}`)
+    process.exit(3)
+  }
+  if (!r.ok) process.exit(1)
+}
+
+function cmdRemove(args: string[]) {
+  const root = flag(args, '--root') ?? args.find((a) => !a.startsWith('--'))
+  if (!root) {
+    out('사용법: kanban remove --root <보드 폴더> [--confirm]  (설정에서만 뺍니다. 폴더는 지우지 않아요)')
+    process.exit(2)
+  }
+  const r = removeWorkspace({ root, confirm: has(args, '--confirm') })
   out(r.message)
   if (!r.ok) process.exit(1)
 }
@@ -93,10 +115,16 @@ function sessionStates(): SessionState[] {
 }
 
 function cmdStatus() {
+  const st = kanbanStatus()
+  out(`설정: ${configPath()} → ${st.configured ? '켜짐' : '꺼짐/없음'}`)
+  if (!st.configured) out('칸반이 아직 설정되지 않았어요(not set up). kanban setup --root <폴더>')
   const cfg = loadConfig()
-  out(`설정: ${configPath()} → ${cfg ? '켜짐' : '꺼짐/없음'}`)
-  if (!cfg) out('칸반이 아직 설정되지 않았어요(not set up). kanban setup --root <폴더>')
-  if (cfg) out(`root: ${cfg.root}  board: ${cfg.board}  텔레그램: ${cfg.telegram.enabled ? '켜짐' : '꺼짐'}`)
+  if (st.configured) {
+    for (const w of st.workspaces ?? []) out(` - ${w.name ?? '(이름 없음)'}  ${w.root}  board=${w.board}  ${w.reachable ? '닿음' : '닿지 않음'}  ${w.hasKanbanJson ? 'kanban.json 있음' : 'kanban.json 없음'}  ${w.includePaths.length ? 'include: ' + w.includePaths.join(', ') : '(기본)'}`)
+    out(`현재 폴더: ${st.current?.tracked ? '→ ' + (st.current.workspace?.name ?? st.current.workspace?.root) : '추적 안 함'} (${st.current?.reason})`)
+    for (const w of st.warnings ?? []) out(`경고: ${w}`)
+    if (cfg) out(`텔레그램: ${cfg.telegram.enabled ? '켜짐' : '꺼짐'}`)
+  }
   const ss = sessionStates().sort((a, b) => b.updatedMs - a.updatedMs)
   out(`세션 ${ss.length}개`)
   for (const s of ss.slice(0, 20)) {
@@ -482,7 +510,7 @@ function cmdPrune(args: string[]) {
 }
 
 const USAGE =
-  '사용법: kanban <init [--root DIR] | setup --root DIR [--create] [--confirm-replace] | status [--json] | board [--archived] | member <add|list|remove> | label <add|list|remove> | agent <start|progress|ask|report|done|fail> | doctor | probe [-n 30] | upload-probe | prune --days N [--apply]>'
+  '사용법: kanban <init [--root DIR] | setup --root DIR [--name N] [--include DIR]... [--create] [--confirm-replace] | remove --root DIR [--confirm] | status [--json] | board [--archived] | member <add|list|remove> | label <add|list|remove> | agent <start|progress|ask|report|done|fail> | doctor | probe [-n 30] | upload-probe | prune --days N [--apply]>'
 
 async function main() {
   const [cmd, ...args] = process.argv.slice(2)
@@ -491,6 +519,7 @@ async function main() {
   switch (cmd) {
     case 'init': return cmdInit(args)
     case 'setup': return cmdSetup(args)
+    case 'remove': return cmdRemove(args)
     case 'status': return has(args, '--json') ? cmdStatusJson() : cmdStatus()
     case 'board': return cmdBoard(args)
     case 'member': return cmdMember(args)
