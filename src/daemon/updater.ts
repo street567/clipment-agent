@@ -56,7 +56,7 @@ export function updateApi(env: NodeJS.ProcessEnv = process.env): string {
 export async function fetchLatestRelease(fetchFn: FetchLike = fetch as unknown as FetchLike, o: { api?: string; timeoutMs?: number } = {}): Promise<ReleaseInfo> {
   const url = `${o.api ?? updateApi()}/repos/${REPO}/releases/latest`
   const res = await fetchFn(url, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'app-bridge-updater', 'X-GitHub-Api-Version': '2022-11-28' },
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'client-ai-bridge-updater', 'X-GitHub-Api-Version': '2022-11-28' },
     signal: AbortSignal.timeout(o.timeoutMs ?? 10_000),
   })
   if (!res.ok) throw new Error(`GitHub 응답 ${res.status}`)

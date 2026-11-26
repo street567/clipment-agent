@@ -42,7 +42,7 @@ describe('설정/CLI', () => {
   })
   test('update --check: 로컬 가짜 API 로 보고만 한다 (아무것도 안 바꿈)', async () => {
     let tag = 'v9.9.9'
-    const srv = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: req => new URL(req.url).pathname === '/repos/street567/app-bridge/releases/latest' ? Response.json({ tag_name: tag, prerelease: false, draft: false }) : new Response('no', { status: 404 }) })
+    const srv = Bun.serve({ port: 0, hostname: '127.0.0.1', fetch: req => new URL(req.url).pathname === '/repos/street567/client-ai-bridge/releases/latest' ? Response.json({ tag_name: tag, prerelease: false, draft: false }) : new Response('no', { status: 404 }) })
     try {
       const env = { CLIPMENT_UPDATE_API: `http://127.0.0.1:${srv.port}` }
       const r = await Bun.spawn([BUN, join(REPO, 'src/cli.ts'), 'update', '--check'], { env: { ...process.env, ...env }, stdout: 'pipe' })
@@ -152,16 +152,16 @@ describe('claude 플러그인 갱신 (가짜 claude)', () => {
     return { env: { ...process.env, PATH: `${dir}:/usr/bin:/bin`, CLIPMENT_SKIP_PLUGIN_UPDATE: '' } as NodeJS.ProcessEnv, calls: () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n') : []) }
   }
   test('설치돼 있으면 마켓플레이스 → 플러그인 순서로 갱신', () => {
-    const f = fakeClaude('[{"id":"app-bridge@street567"}]')
+    const f = fakeClaude('[{"id":"client-ai-bridge@street567"}]')
     expect(updateClaudePlugin(f.env)).toBe('updated')
-    expect(f.calls()).toEqual(['plugin list --json', 'plugin marketplace update street567', 'plugin update app-bridge@street567'])
+    expect(f.calls()).toEqual(['plugin list --json', 'plugin marketplace update street567', 'plugin update client-ai-bridge@street567'])
   })
   test('미설치/환경변수로 건너뜀/claude 없음/실패해도 비치명', () => {
     let f = fakeClaude('[]'); expect(updateClaudePlugin(f.env)).toBe('not-installed'); expect(f.calls()).toEqual(['plugin list --json'])
-    f = fakeClaude('[{"id":"app-bridge@street567"}]'); expect(updateClaudePlugin({ ...f.env, CLIPMENT_SKIP_PLUGIN_UPDATE: '1' })).toBe('skipped'); expect(f.calls()).toEqual([])
+    f = fakeClaude('[{"id":"client-ai-bridge@street567"}]'); expect(updateClaudePlugin({ ...f.env, CLIPMENT_SKIP_PLUGIN_UPDATE: '1' })).toBe('skipped'); expect(f.calls()).toEqual([])
     f = fakeClaude('[{"id":"clipment@clipment-agent"}]'); expect(updateClaudePlugin(f.env)).toBe('not-installed'); expect(f.calls()).toEqual(['plugin list --json']) // 예전 플러그인만 있으면 갱신하지 않고 이전을 안내
     expect(updateClaudePlugin({ PATH: '/nonexistent' } as any)).toBe('no-claude')
-    f = fakeClaude('app-bridge@street567  enabled', 'plugin marketplace update street567'); expect(updateClaudePlugin(f.env)).toBe('failed')
+    f = fakeClaude('client-ai-bridge@street567  enabled', 'plugin marketplace update street567'); expect(updateClaudePlugin(f.env)).toBe('failed')
     expect(f.calls().length).toBe(3) // 마켓플레이스가 실패해도 플러그인 갱신은 시도
   })
 })

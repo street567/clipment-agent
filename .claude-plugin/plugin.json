@@ -1,6 +1,6 @@
 {
-  "name": "app-bridge",
-  "description": "street567 앱 브리지: Clipment(영상 리뷰 채널/MCP) + 에이전트 칸반(hooks·감시·보드 MCP). 칸반은 보드 폴더를 설정하기 전까지 아무것도 하지 않습니다.",
+  "name": "client-ai-bridge",
+  "description": "아이폰 앱과 맥의 AI를 잇는 플러그인: Clipment(영상 리뷰 채널/MCP) + 에이전트 칸반(hooks·감시·보드 MCP). 칸반은 보드 폴더를 설정하기 전까지 아무것도 하지 않습니다.",
   "version": "0.6.0",
   "keywords": ["video", "review", "channel", "mcp", "kanban", "hooks"]
 }

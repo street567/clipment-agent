@@ -1,6 +1,6 @@
-# app-bridge (구 clipment-agent)
+# client-ai-bridge (구 clipment-agent)
 
-GitHub `street567/app-bridge`, 마켓플레이스 `street567`, 플러그인 `app-bridge` (설치: `claude plugin install app-bridge@street567`). **이름의 단일 출처: `src/names.ts` + `install.sh` 위 NAMES 블록 + `.claude-plugin/*.json` + 문서 (`grep -rn "app-bridge"`로 한 번에 찾을 수 있게 유지).** package.json `name` 과 릴리스 tar.gz 이름은 옛 업데이터/릴레이(0.5.x)가 `clipment-agent` 로 검증하므로 일부러 `clipment-agent` 유지(`PKG_NAME`). 업데이터 origin 허용: `app-bridge` 와 옛 `clipment-agent`(https/ssh).
+GitHub `street567/client-ai-bridge`, 마켓플레이스 `street567`, 플러그인 `client-ai-bridge` (설치: `claude plugin install client-ai-bridge@street567`). **이름의 단일 출처: `src/names.ts` + `install.sh` 위 NAMES 블록 + `.claude-plugin/*.json` + 문서 (`grep -rn "client-ai-bridge"`로 한 번에 찾을 수 있게 유지).** package.json `name` 과 릴리스 tar.gz 이름은 옛 업데이터/릴레이(0.5.x)가 `clipment-agent` 로 검증하므로 일부러 `clipment-agent` 유지(`PKG_NAME`). 업데이터 origin 허용: `client-ai-bridge` 와 옛 `clipment-agent`(https/ssh).
 
 한 플러그인에 두 기능: **Clipment**(아래) + **에이전트 칸반**(`src/kanban/` 코드·`test/kanban/` 테스트·`spec-kanban/` 칸반 계약 1.1·`hooks/hooks.json`·`monitors/monitors.json`·`skills/kanban`·`docs/kanban.md`). 칸반은 `~/.config/agent-kanban/config.json` 이 없으면 완전히 꺼짐(hook exit 0 무출력, monitor 무출력, 도구 "not set up"). 설정: `kanban_setup`/`kanban_status` 도구, `kanban setup|status` CLI(`clipment kanban …` 로도). 칸반 hooks/monitor 는 내장 모듈만 써야 함(node_modules 없이 동작). 칸반 계약(`spec-kanban/`)은 이 레포에서 바꾸지 않음. 칸반 MCP 시작은 `bun run start:kanban`.
 

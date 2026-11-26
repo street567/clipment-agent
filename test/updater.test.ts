@@ -152,13 +152,13 @@ describe('업데이터', () => {
     expect(ver()).toBe('0.5.0'); expect(r.exits).toEqual([75]); expect(readUpdateState().staged).toBeUndefined()
   })
 
-  test('origin 허용: 새 이름(app-bridge)과 예전 이름(clipment-agent)의 https/ssh 형태 모두, 그 외는 거부', async () => {
+  test('origin 허용: 새 이름(client-ai-bridge)과 예전 이름(clipment-agent)의 https/ssh 형태 모두, 그 외는 거부', async () => {
     mkRemote([{ version: '0.5.0', tag: true }]); clone('v0.5.0')
     const r = rig({ origin: false })
-    const ok = ['https://github.com/street567/app-bridge.git', 'https://github.com/street567/app-bridge', 'git@github.com:street567/app-bridge.git', 'ssh://git@github.com/street567/app-bridge.git',
+    const ok = ['https://github.com/street567/client-ai-bridge.git', 'https://github.com/street567/client-ai-bridge', 'git@github.com:street567/client-ai-bridge.git', 'ssh://git@github.com/street567/client-ai-bridge.git',
       'https://github.com/street567/clipment-agent.git', 'https://github.com/street567/clipment-agent', 'git@github.com:street567/clipment-agent.git', 'ssh://git@github.com/street567/clipment-agent.git']
     for (const url of ok) { git(appDir, 'remote', 'set-url', 'origin', url); expect(await r.u.eligible()).toEqual({ ok: true }) }
-    for (const url of ['https://github.com/street567/other.git', 'https://github.com/evil/app-bridge.git', 'https://github.com/street567/app-bridge.git.evil', 'http://github.com/street567/app-bridge.git']) {
+    for (const url of ['https://github.com/street567/other.git', 'https://github.com/evil/client-ai-bridge.git', 'https://github.com/street567/client-ai-bridge.git.evil', 'http://github.com/street567/client-ai-bridge.git']) {
       git(appDir, 'remote', 'set-url', 'origin', url); const e = await r.u.eligible(); expect(e.ok).toBe(false)
     }
   })

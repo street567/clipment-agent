@@ -22,7 +22,7 @@ export function localTime(iso: unknown, now = Date.now()): string {
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())} (${rel})`
 }
 
-/** claude 가 PATH 에 있고 PLUGIN_ID(app-bridge@street567)가 설치돼 있으면 마켓플레이스 → 플러그인 순으로 갱신. 실패해도 업데이트 전체는 성공으로 둔다. 예전 플러그인(clipment@clipment-agent)만 있으면 이전 방법을 안내한다. */
+/** claude 가 PATH 에 있고 PLUGIN_ID(client-ai-bridge@street567)가 설치돼 있으면 마켓플레이스 → 플러그인 순으로 갱신. 실패해도 업데이트 전체는 성공으로 둔다. 예전 플러그인(clipment@clipment-agent)만 있으면 이전 방법을 안내한다. */
 export function updateClaudePlugin(env: NodeJS.ProcessEnv = process.env): 'skipped' | 'no-claude' | 'not-installed' | 'updated' | 'failed' {
   if (env.CLIPMENT_SKIP_PLUGIN_UPDATE === '1') return 'skipped'
   const list = spawnSync('claude', ['plugin', 'list', '--json'], { encoding: 'utf8', timeout: 60_000, env })

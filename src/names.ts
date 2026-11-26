@@ -1,14 +1,14 @@
 // 배포 이름의 단일 출처 (의존성 없음 — relay/lib.ts 도 가져다 씀). 저장소·마켓플레이스·플러그인 이름을 바꿀 땐 여기와
-// install.sh 위 NAMES 블록, .claude-plugin/*.json, mcpb/manifest.json, 문서( grep -rn "app-bridge" )를 같이 바꾼다.
+// install.sh 위 NAMES 블록, .claude-plugin/*.json, mcpb/manifest.json, 문서( grep -rn "client-ai-bridge" )를 같이 바꾼다.
 export const OWNER = 'street567'
-export const REPO_NAME = 'app-bridge'
+export const REPO_NAME = 'client-ai-bridge'
 /** GitHub 저장소 (owner/name) */
 export const REPO = `${OWNER}/${REPO_NAME}`
 /** 예전 저장소 이름들 — 이 origin 을 가진 기존 클론도 계속 업데이트한다 */
 export const LEGACY_REPOS = ['street567/clipment-agent']
 /** Claude Code 마켓플레이스·플러그인 이름 */
 export const MARKETPLACE = 'street567'
-export const PLUGIN = 'app-bridge'
+export const PLUGIN = 'client-ai-bridge'
 export const PLUGIN_ID = `${PLUGIN}@${MARKETPLACE}`
 /** 예전(0.5.x 이하) 플러그인 — 업그레이드 때 제거 대상 */
 export const LEGACY_PLUGIN_ID = 'clipment@clipment-agent'

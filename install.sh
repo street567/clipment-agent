@@ -4,18 +4,18 @@
 #   기본은 git clone 후 최신 릴리스 태그로 맞추고(릴리스가 없으면 main), 클론이 안 되면 릴리스 tarball(gh 로그인 필요)로 대체합니다.
 #   --update: 질문 없이 코어(소스·의존성·링크)만 최신으로 갱신 (clipment update 가 사용)
 # 환경변수:
-#   CLIPMENT_REPO         저장소 (기본 street567/app-bridge, URL/경로도 가능)
+#   CLIPMENT_REPO         저장소 (기본 street567/client-ai-bridge, URL/경로도 가능)
 #   CLIPMENT_VERSION      설치할 릴리스 태그 (예: v0.1.0, 기본 latest)
 #   CLIPMENT_DIR          설치 위치 (기본 ~/.clipment/agent)
-#   CLIPMENT_MARKETPLACE  Claude Code 마켓플레이스 소스 (기본 street567/app-bridge)
+#   CLIPMENT_MARKETPLACE  Claude Code 마켓플레이스 소스 (기본 street567/client-ai-bridge)
 #   CLIPMENT_ASSUME_NO=1  모든 질문에 n (테스트용)
 #   CLIPMENT_LATEST_TAG   (테스트용) 최신 릴리스 태그를 직접 지정. 없으면 GitHub releases/latest, GitHub 가 아닌 origin 이면 원격 태그 중 최고 버전
 set -euo pipefail
 
-# --- NAMES (이름을 바꿀 땐 여기 + src/names.ts + .claude-plugin/*.json + 문서; grep -rn "app-bridge") ---
-DEFAULT_REPO="street567/app-bridge"       # GitHub 저장소 (owner/name)
+# --- NAMES (이름을 바꿀 땐 여기 + src/names.ts + .claude-plugin/*.json + 문서; grep -rn "client-ai-bridge") ---
+DEFAULT_REPO="street567/client-ai-bridge"       # GitHub 저장소 (owner/name)
 MARKETPLACE_NAME="street567"              # claude 마켓플레이스 이름 (marketplace.json name)
-PLUGIN_NAME="app-bridge"                  # claude 플러그인 이름 (plugin.json name)
+PLUGIN_NAME="client-ai-bridge"                  # claude 플러그인 이름 (plugin.json name)
 LEGACY_PLUGIN_ID="clipment@clipment-agent"    # 0.5.x 이하 플러그인
 LEGACY_MARKETPLACE="clipment-agent"
 PKG_NAME="clipment-agent"                 # package.json name / 릴리스 tar.gz 이름 (옛 업데이터 호환을 위해 그대로 둠)

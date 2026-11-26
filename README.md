@@ -1,6 +1,6 @@
-# app-bridge (street567) — 맥 쪽 에이전트 모음: Clipment + 에이전트 칸반
+# client-ai-bridge (street567) — 아이폰 앱(클립멘트·에이전트 칸반)과 맥의 AI(Claude Code·Codex)를 잇는 플러그인
 
-하나의 Claude Code 플러그인 `app-bridge` 에 두 기능이 들어 있습니다.
+하나의 Claude Code 플러그인 `client-ai-bridge` 에 두 기능이 들어 있습니다.
 - **Clipment** — 아이폰 영상 리뷰 앱의 맥 쪽 (clipment CLI + MCP 서버 `clipment`). 아래 본문 대부분.
 - **에이전트 칸반** — 세션 진행을 폰 칸반 보드로 보여 주고 폰 의견을 세션에 전달 (hooks + 감시 + MCP 서버 `kanban` + `kanban` CLI). [칸반 섹션](#에이전트-칸반)
 
@@ -13,13 +13,13 @@
 
 ### 한 줄 설치
 ```
-curl -fsSL https://raw.githubusercontent.com/street567/app-bridge/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/street567/client-ai-bridge/main/install.sh | bash
 ```
 `~/.clipment/agent` 에 최신 릴리스를 git clone(안 되면 tarball) → `bun install --production` → `~/.local/bin/{clipment,cliprev,kanban}` 링크 → Claude Code 플러그인 / Codex MCP / Claude 데스크톱 MCP / 워크스페이스 등록 / 데몬(+자동 처리, 기본 off)을 y/N 으로 묻습니다. 다시 실행하면 업데이트입니다.
 
 ### 수동 설치
 ```
-git clone https://github.com/street567/app-bridge.git && cd app-bridge
+git clone https://github.com/street567/client-ai-bridge.git && cd client-ai-bridge
 ./install.sh            # 로컬 체크아웃을 그대로 사용 (clone 안 함)
 ./install.sh --yes      # 질문 모두 y
 ./install.sh --uninstall   # 링크와 ~/.clipment/agent 제거 (워크스페이스·영상 폴더는 지우지 않음)
@@ -101,8 +101,8 @@ clipment narration simracing-vertical --out /tmp/n.m4a [--duration 42.5]   # 줄
 
 ## Claude Code 플러그인
 ```
-claude plugin marketplace add street567/app-bridge
-claude plugin install app-bridge@street567
+claude plugin marketplace add street567/client-ai-bridge
+claude plugin install client-ai-bridge@street567
 ```
 (0.5.x 이하에서 올라오는 경우는 아래 [업그레이드](#0.5.x-이하에서-올라오기-플러그인-이름-변경) 참고.)
 개발용 한 세션: `claude --plugin-dir <레포 경로>`, 검증: `claude plugin validate <레포 경로>`. 플러그인 루트는 레포 루트이며 `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `.mcp.json`, `hooks/hooks.json`, `monitors/monitors.json`, `skills/` 를 씁니다.
@@ -126,7 +126,7 @@ MCP 서버 이름은 `clipment` 입니다. 도구: `daemon_status`, `health`, `l
 직접 만든 채널은 승인 목록에 없으므로 개발용 플래그가 필요합니다. 설치된 claude 2.1.325 바이너리에서 플래그 이름 `--dangerously-load-development-channels <servers...>` ("승인 목록에 없는 채널 서버 로드, 로컬 개발 전용, 시작 시 확인 대화상자") 를 확인했습니다(`--help` 에는 숨겨져 있음). 예:
 
 ```
-claude --dangerously-load-development-channels plugin:app-bridge@street567
+claude --dangerously-load-development-channels plugin:client-ai-bridge@street567
 ```
 **값 형식(`server:<이름>` / `plugin:<이름>@<마켓플레이스>`)은 바이너리 문자열만으로는 확인하지 못했습니다.** 동작하지 않으면 시작 시 나오는 안내/대화상자 문구를 확인하세요. 채널 없이도 `wait_for_requests` 도구와 스킬로 동작합니다(수동 시작: "피드백 확인해줘").
 
@@ -147,12 +147,12 @@ Claude Code 세션의 진행(작업·승인 대기·완료)을 hooks 로 기록�
 - `agent-kanban` 레포의 옛 `plugin/` 은 이 레포로 옮겨 왔습니다(그쪽은 대체됨).
 
 ## 0.5.x 이하에서 올라오기 (플러그인 이름 변경)
-저장소가 `street567/clipment-agent` → `street567/app-bridge` 로, 플러그인이 `clipment@clipment-agent` → `app-bridge@street567` 로 바뀌었습니다. 기존 사용자는 한 번만:
+저장소가 `street567/clipment-agent` → `street567/client-ai-bridge` 로, 플러그인이 `clipment@clipment-agent` → `client-ai-bridge@street567` 로 바뀌었습니다. 기존 사용자는 한 번만:
 ```
 claude plugin uninstall clipment@clipment-agent
 claude plugin marketplace remove clipment-agent
-claude plugin marketplace add street567/app-bridge
-claude plugin install app-bridge@street567
+claude plugin marketplace add street567/client-ai-bridge
+claude plugin install client-ai-bridge@street567
 ```
 그다음 Claude 세션을 새로 시작하세요. `install.sh` 를 다시 실행해도 됩니다(예전 플러그인이 있으면 제거할지 물음). 설치 위치 `~/.clipment/agent`, 데이터(`~/.clipment`, `~/.config/cliprev`, 워크스페이스)와 `clipment update` 는 그대로 동작합니다 — 예전 이름(`street567/clipment-agent`)으로 받은 클론도 계속 업데이트됩니다. 예전 `agent-kanban` 플러그인을 쓰고 있었다면 그것도 제거하고(`claude plugin uninstall agent-kanban@…`) 이 플러그인의 칸반을 설정하세요(설정 파일 `~/.config/agent-kanban/config.json` 은 그대로 이어서 쓰입니다).
 
@@ -198,16 +198,16 @@ clipment daemon run            # 포그라운드 실행(launchd 가 쓰는 명�
   git tag v0.1.0 && git push origin v0.1.0
   ```
 - `install.sh` 는 기본으로 git clone 한 뒤 **최신 릴리스 태그**로 맞춥니다(릴리스가 없으면 main, 클론이 안 되면 릴리스 tarball — `gh` 로그인 필요). 자동 업데이트 적용은 git 클론 설치에서만 되고 tarball 설치는 알림만 합니다. 버전 고정: `CLIPMENT_VERSION=v0.1.0 ./install.sh`.
-- 업데이트: `clipment update` — git 클론이면 **최신 릴리스 태그**(GitHub `releases/latest`, 태그 `vX.Y.Z`)로 옮기고(릴리스가 없을 때만 `main` 을 `git pull --ff-only`, 분리 HEAD 에서도 동작, 현재 버전이 더 높으면 그대로 두고 알림 — 다운그레이드 없음), 의존성을 갱신하고 데몬을 재시작합니다. `claude` 가 PATH 에 있고 `app-bridge@street567` 플러그인이 설치돼 있으면 `claude plugin marketplace update street567` → `claude plugin update app-bridge@street567` 도 실행합니다(예전 `clipment@clipment-agent` 만 있으면 갱신하지 않고 이전 방법을 안내)(실패해도 무시, `CLIPMENT_SKIP_PLUGIN_UPDATE=1` 로 생략). 열려 있는 세션은 그대로 두며 새 세션부터 새 버전을 씁니다(자동 업데이트를 켜면 열린 세션도 바뀝니다 — 아래). 확인만: `clipment update --check`. 버전 확인: `clipment --version`.
+- 업데이트: `clipment update` — git 클론이면 **최신 릴리스 태그**(GitHub `releases/latest`, 태그 `vX.Y.Z`)로 옮기고(릴리스가 없을 때만 `main` 을 `git pull --ff-only`, 분리 HEAD 에서도 동작, 현재 버전이 더 높으면 그대로 두고 알림 — 다운그레이드 없음), 의존성을 갱신하고 데몬을 재시작합니다. `claude` 가 PATH 에 있고 `client-ai-bridge@street567` 플러그인이 설치돼 있으면 `claude plugin marketplace update street567` → `claude plugin update client-ai-bridge@street567` 도 실행합니다(예전 `clipment@clipment-agent` 만 있으면 갱신하지 않고 이전 방법을 안내)(실패해도 무시, `CLIPMENT_SKIP_PLUGIN_UPDATE=1` 로 생략). 열려 있는 세션은 그대로 두며 새 세션부터 새 버전을 씁니다(자동 업데이트를 켜면 열린 세션도 바뀝니다 — 아래). 확인만: `clipment update --check`. 버전 확인: `clipment --version`.
 
 ### 자동 업데이트 (선택, 기본 꺼짐)
 Claude 채널 세션을 몇 주씩 열어 두는 경우를 위한 기능입니다. **켜면 새 릴리스 코드가 확인 없이 자동으로 내려받아져 이 맥에서 실행됩니다.** `install.sh` 가 y/N 으로 물으며(기본 N, `--yes`·`CLIPMENT_ASSUME_NO` 는 끈 채로 둠) 나중에는 `clipment autoupdate on|off|status` 로 바꿉니다(`daemon.json` 의 `autoUpdate`).
 - **릴레이**: Claude 는 플러그인의 MCP 서버를 세션당 한 번 띄웁니다. 그래서 `src/mcp.ts` 는 얇은 stdio 릴레이이고 실제 서버는 자식 프로세스 `src/server.ts` 입니다(`.mcp.json`·Codex·데스크톱 설정이 가리키는 경로는 그대로). 켜져 있으면 릴레이가 30초마다 `~/.clipment/agent`(`CLIPMENT_DIR`)를 보고, 그곳 `src/server.ts` 가 있고 이름이 `clipment-agent`, major 가 같고, 버전이 번들 이상이며 나쁜 버전 목록(`~/.clipment/bad-versions.json`)에 없으면 그 서버로 **세션을 끊지 않고 갈아 끼웁니다**: 진행 중 요청이 끝나길 기다리고 → 새 서버를 띄워 initialize 를 재생(같은 protocolVersion, 15초 제한) → 옛 서버를 내리고 → 대기시킨 메시지를 흘려 보내고 → `notifications/tools/list_changed` 를 보냅니다. 새 서버가 실패하면 옛 서버를 유지하고 그 버전을 나쁜 버전으로 기록, 서버가 죽으면 백오프로 재시작(반복되면 번들로 복귀)하고 진행 중 요청에는 JSON-RPC 오류를 돌려줍니다. 꺼져 있으면 항상 번들 `server.ts` 만 쓰며 기존과 동일합니다. 환경변수: `CLIPMENT_RELAY_POLL_MS`(기본 30000, 테스트용).
 - **채널 푸시 인수인계**: 이미 푸시한 요청 id·재푸시 백오프·시작 시각은 `~/.clipment/relay/<릴레이 pid>.json` 로 새 서버에 넘겨(종료 시 삭제, 죽은 pid 는 정리) 중복·누락이 없습니다. 푸시 루프와 하트비트는 클라이언트의 `initialized` 뒤에 시작하므로 두 서버가 동시에 푸시하지 않습니다.
 - **한계 — 지침은 갱신되지 않음**: 열린 세션은 서버 `instructions` 와 `SKILL.md` 를 다시 받지 못합니다. 서버 버전이 세션 시작 버전과 다르면 `wait_for_requests` 결과에 현재 지침이 `guide` 로 붙고, 스왑 뒤 첫 채널 푸시에도 덧붙입니다. `clipment health` 는 세션별 서버 버전과 세션 시작 버전을 보여 줍니다. **릴레이 자체(`mcp.ts`)는 세션 시작 때 한 번 로드되므로 바뀌지 않습니다.**
-- **데몬 업데이터**: 하루 한 번(지터) + 화이트리스트 밖 요청 type 이 보일 때(폰 앱이 더 새롭다는 뜻, 시간당 최대 1회) GitHub `releases/latest`(street567/app-bridge, 비인증 HTTPS, 실패는 조용히 백오프)를 확인합니다. 초안·프리릴리스·`^v\d+\.\d+\.\d+$` 가 아닌 태그·더 낮거나 같은 버전은 무시합니다. 꺼져 있으면 버전당 한 번 "새 버전 vX · clipment update" 알림만(`notify: false` 면 무음), 메이저가 오르면 켜져 있어도 알림만. 켜져 있고 `~/.clipment/agent` 가 **git 클론 + 깨끗한 작업 트리 + origin 이 street567/app-bridge(예전 이름 street567/clipment-agent 도 허용 — https/ssh 형태 모두)** 일 때만 적용합니다: 태그를 임시 폴더(`~/.clipment/update-stage`)에 내보내 → `package.json` 버전 = 태그 확인 → `bun install --production --frozen-lockfile --ignore-scripts` → 격리 환경에서 스모크(`cli.ts --version`, MCP 핸드셰이크 + `tools/list`, `daemon run` 생존) → 실패하면 나쁜 버전으로 기록하고 한 번 알림, 아무것도 바꾸지 않음. 통과하면 **한가할 때만**(대기·진행 중 요청 없음, 작업 없음, 음성 생성 없음) 잠금 파일(`update.lock`)을 잡고 분리 체크아웃 + `bun install` → `~/.clipment/update.json` 에 `{previousRef, version, appliedAt}` 기록 → 데몬이 종료 코드 75 로 나가 launchd KeepAlive 가 새 코드로 되살립니다. 적용 중 실패하면 이전 ref 로 복원합니다. 되돌리기: `clipment update --rollback`(이전 ref 로 복귀 + 그 버전을 나쁜 버전으로). 외부 값은 모두 argv 로만 넘깁니다. 테스트용 환경변수: `CLIPMENT_UPDATE_API`(https 또는 로컬 http), `CLIPMENT_UPDATE_ORIGIN`, `CLIPMENT_NO_UPDATE_CHECK=1`.
+- **데몬 업데이터**: 하루 한 번(지터) + 화이트리스트 밖 요청 type 이 보일 때(폰 앱이 더 새롭다는 뜻, 시간당 최대 1회) GitHub `releases/latest`(street567/client-ai-bridge, 비인증 HTTPS, 실패는 조용히 백오프)를 확인합니다. 초안·프리릴리스·`^v\d+\.\d+\.\d+$` 가 아닌 태그·더 낮거나 같은 버전은 무시합니다. 꺼져 있으면 버전당 한 번 "새 버전 vX · clipment update" 알림만(`notify: false` 면 무음), 메이저가 오르면 켜져 있어도 알림만. 켜져 있고 `~/.clipment/agent` 가 **git 클론 + 깨끗한 작업 트리 + origin 이 street567/client-ai-bridge(예전 이름 street567/clipment-agent 도 허용 — https/ssh 형태 모두)** 일 때만 적용합니다: 태그를 임시 폴더(`~/.clipment/update-stage`)에 내보내 → `package.json` 버전 = 태그 확인 → `bun install --production --frozen-lockfile --ignore-scripts` → 격리 환경에서 스모크(`cli.ts --version`, MCP 핸드셰이크 + `tools/list`, `daemon run` 생존) → 실패하면 나쁜 버전으로 기록하고 한 번 알림, 아무것도 바꾸지 않음. 통과하면 **한가할 때만**(대기·진행 중 요청 없음, 작업 없음, 음성 생성 없음) 잠금 파일(`update.lock`)을 잡고 분리 체크아웃 + `bun install` → `~/.clipment/update.json` 에 `{previousRef, version, appliedAt}` 기록 → 데몬이 종료 코드 75 로 나가 launchd KeepAlive 가 새 코드로 되살립니다. 적용 중 실패하면 이전 ref 로 복원합니다. 되돌리기: `clipment update --rollback`(이전 ref 로 복귀 + 그 버전을 나쁜 버전으로). 외부 값은 모두 argv 로만 넘깁니다. 테스트용 환경변수: `CLIPMENT_UPDATE_API`(https 또는 로컬 http), `CLIPMENT_UPDATE_ORIGIN`, `CLIPMENT_NO_UPDATE_CHECK=1`.
 - **플러그인 자체의 자동 업데이트**(Claude 쪽 토글): Claude Code 에서 `/plugin` → Marketplaces → `street567` → auto-update 를 켜면 Claude 가 시작할 때 플러그인(번들 `server.ts`·스킬)을 새로 받습니다. 이것과 위의 `clipment autoupdate` 는 별개입니다.
-- **0.4.0 으로 올라가는 모두에게 한 번은 수동 업데이트 + 세션 재시작이 필요합니다.** 릴레이는 0.4.0 부터 들어 있어 옛 세션(0.3.x)은 교체할 수 없습니다: `clipment update`(또는 `claude plugin update app-bridge@street567`) 후 Claude 세션을 한 번 다시 시작하세요.
+- **0.4.0 으로 올라가는 모두에게 한 번은 수동 업데이트 + 세션 재시작이 필요합니다.** 릴레이는 0.4.0 부터 들어 있어 옛 세션(0.3.x)은 교체할 수 없습니다: `clipment update`(또는 `claude plugin update client-ai-bridge@street567`) 후 Claude 세션을 한 번 다시 시작하세요.
 
 ## 동작 메모
 - 요청 type 은 `apply_feedback | answer | rerender | cancel | apply_script | write_post` 만 처리하고 나머지는 무시합니다. 요청 내용은 명령으로 실행되지 않습니다.
