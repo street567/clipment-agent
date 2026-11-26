@@ -42,7 +42,7 @@ export function resolveSessionId(): string | null {
 
 async function withBoard<T>(fn: (ctx: Ctx, cfg: Config, store: Store) => T | Promise<T>): Promise<T> {
   const cfg = loadConfig()
-  if (!cfg) throw new UserError('에이전트 칸반이 꺼져 있거나 설정이 없어요. `kanban init` 으로 설정해 주세요.')
+  if (!cfg) throw new UserError('에이전트 칸반이 꺼져 있거나 설정이 없어요(not set up). kanban_setup(root) 또는 `kanban setup --root <폴더>` 로 설정해 주세요.')
   const sid = resolveSessionId()
   if (!sid) throw new UserError('이 세션을 찾지 못했어요(세션 id 없음).')
   if (!loadSession(sid)) throw new UserError('이 세션은 보드에 연결되어 있지 않아요(hooks 가 아직 이 세션을 기록하지 않았거나 제외된 세션).')

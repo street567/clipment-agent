@@ -17,3 +17,5 @@ jobs:
       - run: bun test
       - name: 계약 fixtures 검증 (ajv-cli)
         run: spec/validate.sh
+      - name: 칸반 계약 fixtures 검증 (ajv-cli)
+        run: spec-kanban/validate.sh

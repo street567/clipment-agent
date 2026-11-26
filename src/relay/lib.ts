@@ -4,6 +4,8 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSyn
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
+/** package.json name 허용 목록. 릴레이는 내장 모듈만 쓰므로(번들 복사 단독 실행) names.ts 를 가져오지 않고 복제 — test/names.test.ts 가 같은지 검사 */
+export const PKG_NAMES = ['clipment-agent']
 
 export const clipHome = (): string => {
   const e = process.env.CLIPMENT_HOME
@@ -109,7 +111,7 @@ export interface Target { dir: string; version: string; source: 'bundled' | 'man
 
 /**
  * 어떤 server.ts 를 쓸지. autoUpdate 가 꺼져 있으면 항상 번들(릴레이 자신이 있는 폴더).
- * 켜져 있으면 관리형 설치(managedDir)가 server.ts 를 갖고, 이름이 clipment-agent 이고, major 가 같고,
+ * 켜져 있으면 관리형 설치(managedDir)가 server.ts 를 갖고, 이름이 PKG_NAMES 이고, major 가 같고,
  * 버전이 번들 이상이며, 나쁜 버전 목록에 없을 때만 그쪽.
  */
 export function selectTarget(bundledDir: string, o: { autoUpdate?: boolean; managed?: string; bad?: (v: string) => boolean } = {}): Target {
@@ -120,7 +122,7 @@ export function selectTarget(bundledDir: string, o: { autoUpdate?: boolean; mana
   const dir = o.managed ?? managedDir()
   if (!existsSync(join(dir, 'src/server.ts'))) return bundled
   const mp = readPkg(dir)
-  if (!mp || mp.name !== 'clipment-agent' || !bp) return bundled
+  if (!mp || !PKG_NAMES.includes(mp.name) || !bp) return bundled
   const c = cmpVersion(mp.version, bp.version)
   if (c === null || c < 0 || majorOf(mp.version) !== majorOf(bp.version)) return bundled
   if ((o.bad ?? isBad)(mp.version)) return bundled

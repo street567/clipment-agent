@@ -4,18 +4,26 @@
 #   기본은 git clone 후 최신 릴리스 태그로 맞추고(릴리스가 없으면 main), 클론이 안 되면 릴리스 tarball(gh 로그인 필요)로 대체합니다.
 #   --update: 질문 없이 코어(소스·의존성·링크)만 최신으로 갱신 (clipment update 가 사용)
 # 환경변수:
-#   CLIPMENT_REPO         저장소 (기본 street567/clipment-agent, URL/경로도 가능)
+#   CLIPMENT_REPO         저장소 (기본 street567/app-bridge, URL/경로도 가능)
 #   CLIPMENT_VERSION      설치할 릴리스 태그 (예: v0.1.0, 기본 latest)
 #   CLIPMENT_DIR          설치 위치 (기본 ~/.clipment/agent)
-#   CLIPMENT_MARKETPLACE  Claude Code 마켓플레이스 소스 (기본 street567/clipment-agent)
+#   CLIPMENT_MARKETPLACE  Claude Code 마켓플레이스 소스 (기본 street567/app-bridge)
 #   CLIPMENT_ASSUME_NO=1  모든 질문에 n (테스트용)
 #   CLIPMENT_LATEST_TAG   (테스트용) 최신 릴리스 태그를 직접 지정. 없으면 GitHub releases/latest, GitHub 가 아닌 origin 이면 원격 태그 중 최고 버전
 set -euo pipefail
 
-REPO="${CLIPMENT_REPO:-street567/clipment-agent}"
+# --- NAMES (이름을 바꿀 땐 여기 + src/names.ts + .claude-plugin/*.json + 문서; grep -rn "app-bridge") ---
+DEFAULT_REPO="street567/app-bridge"       # GitHub 저장소 (owner/name)
+MARKETPLACE_NAME="street567"              # claude 마켓플레이스 이름 (marketplace.json name)
+PLUGIN_NAME="app-bridge"                  # claude 플러그인 이름 (plugin.json name)
+LEGACY_PLUGIN_ID="clipment@clipment-agent"    # 0.5.x 이하 플러그인
+LEGACY_MARKETPLACE="clipment-agent"
+PKG_NAME="clipment-agent"                 # package.json name / 릴리스 tar.gz 이름 (옛 업데이터 호환을 위해 그대로 둠)
+# ---------------------------------------------------------------------------------------------------
+REPO="${CLIPMENT_REPO:-$DEFAULT_REPO}"
 DIR="${CLIPMENT_DIR:-$HOME/.clipment/agent}"
-MARKETPLACE_SRC="${CLIPMENT_MARKETPLACE:-street567/clipment-agent}"
-MARKETPLACE_NAME="clipment-agent"
+MARKETPLACE_SRC="${CLIPMENT_MARKETPLACE:-$DEFAULT_REPO}"
+PLUGIN_ID="$PLUGIN_NAME@$MARKETPLACE_NAME"
 VERSION="${CLIPMENT_VERSION:-latest}"
 DESKTOP_CFG="$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 BIN_DIR="$HOME/.local/bin"
@@ -64,7 +72,7 @@ ask() {
 LOCAL_DIR=""
 if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
   _d="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  if [ -f "$_d/package.json" ] && grep -q '"clipment-agent"' "$_d/package.json"; then LOCAL_DIR="$_d"; fi
+  if [ -f "$_d/package.json" ] && grep -q "\"$PKG_NAME\"" "$_d/package.json"; then LOCAL_DIR="$_d"; fi
 fi
 
 # 링크가 우리 설치를 가리키는지
@@ -94,24 +102,24 @@ if [ "$UNINSTALL" = 1 ]; then
   else
     warn "bun 이 없어 데몬/Claude 데스크톱 설정 제거를 건너뜁니다."
   fi
-  for n in clipment cliprev; do
+  for n in clipment cliprev kanban; do
     if points_to_ours "$BIN_DIR/$n"; then rm "$BIN_DIR/$n"; say "링크 제거: $BIN_DIR/$n"
     elif [ -e "$BIN_DIR/$n" ] || [ -L "$BIN_DIR/$n" ]; then warn "$BIN_DIR/$n 은 이 설치의 링크가 아니라 그대로 둡니다."; fi
   done
   if [ -d "$DIR" ]; then
-    # 안전장치: 비어 있지 않은 임의 폴더를 지우지 않도록 clipment-agent 인지 확인
-    if [ -f "$DIR/package.json" ] && grep -q '"clipment-agent"' "$DIR/package.json"; then
+    # 안전장치: 비어 있지 않은 임의 폴더를 지우지 않도록 $PKG_NAME 인지 확인
+    if [ -f "$DIR/package.json" ] && grep -q "\"$PKG_NAME\"" "$DIR/package.json"; then
       rm -rf "$DIR"; say "삭제: $DIR"
     else
-      warn "$DIR 은 clipment-agent 설치가 아닌 것 같아 지우지 않습니다."
+      warn "$DIR 은 $PKG_NAME 설치가 아닌 것 같아 지우지 않습니다."
     fi
   fi
   if command -v claude >/dev/null 2>&1; then
-    if ask "Claude Code 플러그인(clipment@$MARKETPLACE_NAME)과 마켓플레이스를 제거할까요?"; then
-      claude plugin uninstall "clipment@$MARKETPLACE_NAME" || warn "플러그인 제거 실패(설치 안 됐을 수 있음)"
+    if ask "Claude Code 플러그인($PLUGIN_ID)과 마켓플레이스를 제거할까요?"; then
+      claude plugin uninstall "$PLUGIN_ID" || warn "플러그인 제거 실패(설치 안 됐을 수 있음)"
       claude plugin marketplace remove "$MARKETPLACE_NAME" || warn "마켓플레이스 제거 실패(등록 안 됐을 수 있음)"
     else
-      say "직접 제거: claude plugin uninstall clipment@$MARKETPLACE_NAME && claude plugin marketplace remove $MARKETPLACE_NAME"
+      say "직접 제거: claude plugin uninstall $PLUGIN_ID && claude plugin marketplace remove $MARKETPLACE_NAME"
     fi
   fi
   if command -v codex >/dev/null 2>&1; then
@@ -162,20 +170,20 @@ release_install() {
   local tmp tag=()
   tmp="$(mktemp -d)"
   [ "$VERSION" = latest ] || tag=("$VERSION")
-  if ! gh release download ${tag[@]+"${tag[@]}"} --repo "$REPO" --pattern 'clipment-agent-*.tar.gz' --dir "$tmp" >/dev/null 2>&1; then
+  if ! gh release download ${tag[@]+"${tag[@]}"} --repo "$REPO" --pattern "$PKG_NAME-*.tar.gz" --dir "$tmp" >/dev/null 2>&1; then
     rm -rf "$tmp"; return 1
   fi
-  if ! tar -xzf "$tmp"/clipment-agent-*.tar.gz -C "$tmp" || [ ! -f "$tmp/clipment-agent/package.json" ]; then
+  if ! tar -xzf "$tmp"/$PKG_NAME-*.tar.gz -C "$tmp" || [ ! -f "$tmp/$PKG_NAME/package.json" ]; then
     rm -rf "$tmp"; return 1
   fi
   if [ -e "$APP" ]; then
-    # 안전장치: clipment-agent 설치(또는 빈 폴더)만 교체
-    if [ -f "$APP/package.json" ] && grep -q '"clipment-agent"' "$APP/package.json"; then rm -rf "$APP"
+    # 안전장치: $PKG_NAME 설치(또는 빈 폴더)만 교체
+    if [ -f "$APP/package.json" ] && grep -q "\"$PKG_NAME\"" "$APP/package.json"; then rm -rf "$APP"
     elif [ -z "$(ls -A "$APP" 2>/dev/null)" ]; then rmdir "$APP"
-    else rm -rf "$tmp"; die "$APP 이(가) 이미 있고 clipment-agent 설치가 아닙니다. 옮기거나 지운 뒤 다시 실행하세요."; fi
+    else rm -rf "$tmp"; die "$APP 이(가) 이미 있고 $PKG_NAME 설치가 아닙니다. 옮기거나 지운 뒤 다시 실행하세요."; fi
   fi
   mkdir -p "$(dirname "$APP")"
-  mv "$tmp/clipment-agent" "$APP"
+  mv "$tmp/$PKG_NAME" "$APP"
   rm -rf "$tmp"
   say "릴리스 설치: $(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$APP/package.json" | head -1) -> $APP"
 }
@@ -281,13 +289,15 @@ say "의존성 설치: bun install --production"
 (cd "$APP" && bun install --production --no-summary)
 
 # ---------------------------------------------------------------- 링크
-chmod +x "$APP/src/cli.ts" "$APP/src/mcp.ts" "$APP/src/server.ts" 2>/dev/null || true
+chmod +x "$APP/src/cli.ts" "$APP/src/mcp.ts" "$APP/src/server.ts" "$APP/src/kanban/cli.ts" 2>/dev/null || true
 mkdir -p "$BIN_DIR"
-for n in clipment cliprev; do
-  target="$BIN_DIR/$n"
+for n in clipment cliprev kanban; do
+  target="$BIN_DIR/$n"; src="$APP/src/cli.ts"; [ "$n" = kanban ] && src="$APP/src/kanban/cli.ts"
   if [ -e "$target" ] && ! [ -L "$target" ]; then warn "$target 은 일반 파일이라 덮어쓰지 않습니다."; continue; fi
-  ln -sfn "$APP/src/cli.ts" "$target"
-  say "링크: $target -> $APP/src/cli.ts"
+  # kanban 은 흔한 이름이라, 다른 곳을 가리키는 기존 링크(예: 옛 agent-kanban 설치)는 덮어쓰지 않고 알려 준다
+  if [ "$n" = kanban ] && [ -L "$target" ] && ! points_to_ours "$target"; then warn "$target 은 다른 곳을 가리키는 링크라 덮어쓰지 않습니다 (필요하면 직접: ln -sfn $src $target)."; continue; fi
+  ln -sfn "$src" "$target"
+  say "링크: $target -> $src"
 done
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
@@ -302,11 +312,21 @@ fi
 
 # ---------------------------------------------------------------- Claude Code
 if command -v claude >/dev/null 2>&1; then
-  if ask "Claude Code 플러그인을 설치할까요? (마켓플레이스 $MARKETPLACE_SRC)"; then
+  # 예전 이름(clipment@clipment-agent)이 설치돼 있으면 새 플러그인과 이중으로 뜨지 않게 제거를 권한다
+  if claude plugin list 2>/dev/null | grep -q "$LEGACY_PLUGIN_ID"; then
+    if ask "예전 Claude 플러그인($LEGACY_PLUGIN_ID)이 설치돼 있습니다. 제거하고 새 이름($PLUGIN_ID)으로 옮길까요?"; then
+      claude plugin uninstall "$LEGACY_PLUGIN_ID" || warn "예전 플러그인 제거 실패"
+      claude plugin marketplace remove "$LEGACY_MARKETPLACE" || warn "예전 마켓플레이스 제거 실패"
+    else
+      say "예전 플러그인을 그대로 둡니다. 나중에: claude plugin uninstall $LEGACY_PLUGIN_ID && claude plugin marketplace remove $LEGACY_MARKETPLACE"
+    fi
+  fi
+  if ask "Claude Code 플러그인을 설치할까요? (마켓플레이스 $MARKETPLACE_SRC → $PLUGIN_ID)"; then
     claude plugin marketplace add "$MARKETPLACE_SRC" || warn "마켓플레이스 추가 실패(이미 등록됐을 수 있음)"
-    claude plugin install "clipment@$MARKETPLACE_NAME" || warn "플러그인 설치 실패"
+    claude plugin install "$PLUGIN_ID" || warn "플러그인 설치 실패"
+    say "에이전트 칸반은 보드 폴더를 설정하기 전까지 꺼져 있습니다: kanban setup --root <폴더> (또는 Claude 에게 kanban_setup 요청)"
   else
-    say "나중에: claude plugin marketplace add $MARKETPLACE_SRC && claude plugin install clipment@$MARKETPLACE_NAME"
+    say "나중에: claude plugin marketplace add $MARKETPLACE_SRC && claude plugin install $PLUGIN_ID"
   fi
 fi
 

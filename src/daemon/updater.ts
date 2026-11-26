@@ -11,10 +11,10 @@ import type { DaemonConfig } from './config.ts'
 import type { Notifier } from './notify.ts'
 import type { Runner } from './runner.ts'
 import type { Logger } from './util.ts'
+import { EXPECTED_ORIGINS, PKG_NAMES, REPO } from '../names.ts'
 
-export const REPO = 'street567/clipment-agent'
+export { REPO, EXPECTED_ORIGINS }
 export const DEFAULT_API = 'https://api.github.com'
-export const EXPECTED_ORIGINS = [`https://github.com/${REPO}.git`, `https://github.com/${REPO}`, `git@github.com:${REPO}.git`, `ssh://git@github.com/${REPO}.git`]
 const HOUR = 3600_000
 const DAY = 24 * HOUR
 export const EXIT_UPDATE_RESTART = 75 // daemon.ts EXIT_RSS_RESTART 와 같은 값: launchd KeepAlive 가 되살림
@@ -56,7 +56,7 @@ export function updateApi(env: NodeJS.ProcessEnv = process.env): string {
 export async function fetchLatestRelease(fetchFn: FetchLike = fetch as unknown as FetchLike, o: { api?: string; timeoutMs?: number } = {}): Promise<ReleaseInfo> {
   const url = `${o.api ?? updateApi()}/repos/${REPO}/releases/latest`
   const res = await fetchFn(url, {
-    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'clipment-agent-updater', 'X-GitHub-Api-Version': '2022-11-28' },
+    headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'app-bridge-updater', 'X-GitHub-Api-Version': '2022-11-28' },
     signal: AbortSignal.timeout(o.timeoutMs ?? 10_000),
   })
   if (!res.ok) throw new Error(`GitHub 응답 ${res.status}`)
@@ -324,7 +324,7 @@ export class Updater {
       const x = await this.d.run('tar', ['-xf', tar, '-C', tree], { timeoutMs: 60_000 })
       if (x.code !== 0) return fail(`압축 해제 실패: ${x.output.slice(-200)}`)
       const pkg = readPkg(tree)
-      if (!pkg || pkg.name !== 'clipment-agent') return fail('package.json 이름이 clipment-agent 가 아님')
+      if (!pkg || !PKG_NAMES.includes(pkg.name)) return fail(`package.json 이름이 ${PKG_NAMES.join('|')} 가 아님`)
       if (pkg.version !== rel.version) return fail(`package.json 버전(${pkg.version}) 이 태그(${rel.tag}) 와 다름`)
       if (!existsSync(join(tree, 'src/server.ts')) || !existsSync(join(tree, 'src/cli.ts'))) return fail('src/server.ts 또는 src/cli.ts 가 없음')
       const i = await this.installDeps(tree)
