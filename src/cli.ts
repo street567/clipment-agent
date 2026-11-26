@@ -75,6 +75,7 @@ const HELP = `clipment (=cliprev) — Clipment 맥 CLI  (워크스페이스: CLI
   update --check               새 릴리스가 있는지만 확인 (아무것도 바꾸지 않음)
   update --rollback            마지막 자동 적용 전 버전으로 되돌리고 그 버전을 나쁜 버전으로 기록
   autoupdate on|off|status     자동 업데이트(daemon.json autoUpdate, 기본 꺼짐). 켜면 릴리스 코드가 자동으로 실행·적용됨
+  kanban <명령…>               에이전트 칸반 CLI (별도 명령 kanban 과 같음): setup --root <폴더> | status [--json] | board | init | …  (kanban --help)
   --version                    버전
 `
 
@@ -99,6 +100,11 @@ const intOpt = (v: string | undefined, name: string): number | undefined => {
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2)
   if (cmd === '--version' || cmd === '-V' || cmd === 'version') return void console.log(appVersion())
+  if (cmd === 'kanban') { // 에이전트 칸반 CLI 로 그대로 넘김 (별도 bin `kanban` 과 같음): clipment kanban setup --root ...
+    const r = spawnSync(process.execPath, [join(import.meta.dir, 'kanban/cli.ts'), ...rest], { stdio: 'inherit' })
+    process.exitCode = r.status ?? 1
+    return
+  }
   if (!cmd || cmd === '-h' || cmd === '--help' || cmd === 'help') return void console.log(HELP)
 
   const { values: o, positionals: p } = parseArgs({

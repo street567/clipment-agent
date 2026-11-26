@@ -18,6 +18,7 @@ import { Store, type CardRec } from './core/store.ts'
 import { allMembers, cardView, findLabel, findMember, getMember, type Board, type CardView, type Member } from './core/team.ts'
 import { sendTelegram } from './core/telegram.ts'
 import { iso } from './core/fs.ts'
+import { kanbanStatus, setupKanban } from './setup.ts'
 
 export class UserError extends Error {}
 
@@ -424,6 +425,26 @@ export function buildServer(): McpServer {
         return parts.length ? parts.join('\n\n') : '새 의견 없음'
       }),
     ),
+  )
+
+  mcp.registerTool(
+    'kanban_status',
+    { description: '칸반 설정 상태: 설정됐는지, 보드 폴더(root)와 닿는지, hooks·감시(monitor) 상태. 설정이 없어도 동작한다. 설정이 없으면 "not set up".', inputSchema: {} },
+    async () => text(JSON.stringify(kanbanStatus(), null, 1)),
+  )
+
+  mcp.registerTool(
+    'kanban_setup',
+    {
+      description:
+        '칸반을 설정한다(보드 폴더 지정). root 는 이미 있는 폴더(예: iCloud/구글 드라이브 안 폴더)여야 하고, 없으면 만들지 않고 알려 준다(사용자가 만들라고 했을 때만 create=true). ' +
+        '이미 다른 root 로 설정돼 있으면 바꾸지 않고 현재/새 root 를 알려 주니, 사용자에게 확인받은 뒤에만 confirmReplace=true 로 다시 호출한다(config.json.bak 백업). 설정이 없는 세션에서도 쓸 수 있다.',
+      inputSchema: { root: z.string().min(1).max(1000), confirmReplace: z.boolean().optional(), create: z.boolean().optional() },
+    },
+    async (a) => {
+      const r = setupKanban(a)
+      return { ...(r.ok ? {} : { isError: true }), content: [{ type: 'text' as const, text: JSON.stringify(r, null, 1) }] }
+    },
   )
 
   return mcp

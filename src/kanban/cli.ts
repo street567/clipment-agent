@@ -15,6 +15,7 @@ import { clean } from './core/redact.ts'
 import { createHash } from 'node:crypto'
 import { logDir, stateDir, type SessionState } from './core/localstate.ts'
 import { Store } from './core/store.ts'
+import { kanbanStatus, setupKanban } from './setup.ts'
 import { oneLine } from './core/redact.ts'
 import { resolve } from 'node:path'
 
@@ -63,6 +64,21 @@ function cmdInit(args: string[]) {
   if (!cfg) out('(설정의 enabled 가 true 가 아니라 hooks 는 아직 꺼져 있어요)')
 }
 
+function cmdSetup(args: string[]) {
+  const root = flag(args, '--root') ?? args.find((a) => !a.startsWith('--'))
+  if (!root) {
+    out('사용법: kanban setup --root <보드 폴더> [--create] [--confirm-replace]')
+    process.exit(2)
+  }
+  const r = setupKanban({ root, confirmReplace: has(args, '--confirm-replace'), create: has(args, '--create') })
+  out(r.message)
+  if (!r.ok) process.exit(1)
+}
+
+function cmdStatusJson() {
+  out(JSON.stringify(kanbanStatus(), null, 1))
+}
+
 function sessionStates(): SessionState[] {
   const dir = join(stateDir(), 'sessions')
   const res: SessionState[] = []
@@ -79,6 +95,7 @@ function sessionStates(): SessionState[] {
 function cmdStatus() {
   const cfg = loadConfig()
   out(`설정: ${configPath()} → ${cfg ? '켜짐' : '꺼짐/없음'}`)
+  if (!cfg) out('칸반이 아직 설정되지 않았어요(not set up). kanban setup --root <폴더>')
   if (cfg) out(`root: ${cfg.root}  board: ${cfg.board}  텔레그램: ${cfg.telegram.enabled ? '켜짐' : '꺼짐'}`)
   const ss = sessionStates().sort((a, b) => b.updatedMs - a.updatedMs)
   out(`세션 ${ss.length}개`)
@@ -465,7 +482,7 @@ function cmdPrune(args: string[]) {
 }
 
 const USAGE =
-  '사용법: kanban <init [--root DIR] | status | board [--archived] | member <add|list|remove> | label <add|list|remove> | agent <start|progress|ask|report|done|fail> | doctor | probe [-n 30] | upload-probe | prune --days N [--apply]>'
+  '사용법: kanban <init [--root DIR] | setup --root DIR [--create] [--confirm-replace] | status [--json] | board [--archived] | member <add|list|remove> | label <add|list|remove> | agent <start|progress|ask|report|done|fail> | doctor | probe [-n 30] | upload-probe | prune --days N [--apply]>'
 
 async function main() {
   const [cmd, ...args] = process.argv.slice(2)
@@ -473,7 +490,8 @@ async function main() {
   if (args.includes('--help') || args.includes('-h')) return out(USAGE)
   switch (cmd) {
     case 'init': return cmdInit(args)
-    case 'status': return cmdStatus()
+    case 'setup': return cmdSetup(args)
+    case 'status': return has(args, '--json') ? cmdStatusJson() : cmdStatus()
     case 'board': return cmdBoard(args)
     case 'member': return cmdMember(args)
     case 'label': return cmdLabel(args)
