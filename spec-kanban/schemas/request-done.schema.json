@@ -1,0 +1,52 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "request-done",
+ "type": "object",
+ "required": [
+  "schema",
+  "id",
+  "sessionId",
+  "handled",
+  "skipped",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "const": 1
+  },
+  "id": {
+   "type": "string"
+  },
+  "sessionId": {
+   "type": "string"
+  },
+  "handled": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "skipped": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "cardId",
+     "reason"
+    ],
+    "properties": {
+     "cardId": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

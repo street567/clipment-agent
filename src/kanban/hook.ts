@@ -11,6 +11,7 @@ import { checkMine, loadBoard, refreshTaken, scanAvailable } from './core/delega
 import { displayAgent } from './core/agent.ts'
 import { closeAnswered, currentCardId, dropTaken, emit, ensureCard, ensureSessionCard, needsHuman, newCtx, queueNotice, sessionCardId, setNow, setTitle, touchWorking, type Ctx } from './core/board.ts'
 import { claim, collectPending, renderForStop } from './core/deliver.ts'
+import { autoDone, deliverRequests } from './core/requests.ts'
 import { isSessionId } from './core/ids.ts'
 import { clearPidMap, findClaudePid, loadSession, logLine, newSessionState, setPidMap, withSession } from './core/localstate.ts'
 import { agentKeyOf, checkSuperseded, claimLane, detectLane, laneCardId, machineId, resolveMachineName, sessionLooksLive } from './core/lane.ts'
@@ -265,20 +266,28 @@ function onStop(ctx: Ctx, input: any): string | undefined {
   dropInfos(ctx)
   // 전달할 코멘트·처리가 있으면 receipt 를 배타 생성한 것만 넘기고 계속 진행(멈춤 기록 안 함).
   // stop_hook_active 여도 "새(미전달)" 것만 한 번 전달되고 receipt 가 남으므로 무한 루프가 없다.
+  // 반영 요청(1.3 §17)을 먼저: 맡은 요청의 의견은 한 덩어리로, 같은 receipt 규칙이라 아래 일반 전달과 겹치지 않는다.
+  const parts: string[] = []
+  const rq = deliverRequests(ctx, 'stop')
+  if (rq.text) parts.push(rq.text)
   const pending = collectPending(store, st, ctx.cfg.allowAuthors)
   if (pending.length) {
     const won = claim(store, st, pending, 'stop')
     if (won.length) {
       closeAnswered(ctx, won)
-      return renderForStop(won)
+      parts.push(renderForStop(won))
     }
   }
+  if (parts.length) return parts.join('\n\n')
   // 우리 monitor(type monitor 전부)는 빼고, 아직 도는 배경 작업이 있으면 끝난 게 아니다
   const bg = Array.isArray(input.background_tasks) ? input.background_tasks.filter((t: any) => t && t.status === 'running' && t.type !== 'monitor') : []
   if (bg.length) {
     setNow(ctx, { state: 'working', cardId: sc, summary: `배경 작업 ${bg.length}개 기다리는 중` }, true)
     return
   }
+  try {
+    autoDone(store, st.sessionId, ctx.cfg.allowAuthors) // 맡은 반영 요청의 의견이 모두 전달돼 있으면 done(1.3 §17)
+  } catch {}
   verifyTaken(ctx)
   for (const [id, c] of Object.entries(st.cards)) if (pausable(c)) emit(ctx, id, 'paused')
   if (st.cards[sc].status !== 'done') emit(ctx, sc, 'done')

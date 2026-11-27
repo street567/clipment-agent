@@ -1,0 +1,11 @@
+{
+ "schema": 1,
+ "id": "7d1e2f3a-0b4c-4d5e-8f60-718293a4b5c6",
+ "kind": "apply",
+ "cardIds": [
+  "0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9"
+ ],
+ "to": null,
+ "authorName": "개미",
+ "created": "2026-11-28T01:23:45.678Z"
+}

@@ -1,0 +1,42 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "request",
+ "type": "object",
+ "required": [
+  "schema",
+  "id",
+  "kind",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "const": 1
+  },
+  "id": {
+   "type": "string"
+  },
+  "kind": {
+   "const": "apply"
+  },
+  "cardIds": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   },
+   "maxItems": 200
+  },
+  "to": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "authorName": {
+   "type": "string"
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

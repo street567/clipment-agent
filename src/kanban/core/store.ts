@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 import { byCreated, type DAction, type DEvent } from './derive.ts'
 import { ensureDir, iso, listDirs, listIds, readJson, writeNew, writeReplace } from './fs.ts'
-import { readdirSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { assertId, assertSessionId, BOARD_RE, ID_RE, newId, SESSION_RE, type CardKind } from './ids.ts'
 import { clean } from './redact.ts'
 import { validBoardKey, validCardKey, type By, type OpRec } from './team.ts'
@@ -64,6 +64,34 @@ export interface SessionRec {
   created?: string
 }
 
+/** 반영 요청(1.3 §17): 폰이 쓴다 */
+export interface RequestRec {
+  schema: 1
+  id: string
+  kind: 'apply'
+  cardIds?: string[]
+  to?: string | null
+  authorName?: string
+  created: string
+}
+export interface RequestTakenRec {
+  schema: 1
+  id: string
+  sessionId: string
+  agentKey?: string
+  machine?: string
+  lane?: string
+  created: string
+}
+export interface RequestDoneRec {
+  schema: 1
+  id: string
+  sessionId: string
+  handled: string[]
+  skipped: { cardId: string; reason: string }[]
+  created: string
+}
+
 export class Store {
   constructor(public root: string, public board: string) {
     if (!BOARD_RE.test(board)) throw new Error('보드 이름이 올바르지 않습니다')
@@ -79,7 +107,7 @@ export class Store {
   }
   init() {
     ensureDir(this.root)
-    writeNew(join(this.root, 'kanban.json'), { schema: 1, contract: '1.2', name: '에이전트 칸반', created: iso() })
+    writeNew(join(this.root, 'kanban.json'), { schema: 1, contract: '1.3', name: '에이전트 칸반', created: iso() })
     ensureDir(this.boardDir)
     writeNew(join(this.boardDir, 'board.json'), { schema: 1, id: this.board, title: this.board === 'main' ? '내 보드' : this.board, created: iso() })
   }
@@ -235,5 +263,44 @@ export class Store {
     if (holder) return null
     const n = Math.max(0, ...takes.map((t) => t.n)) + 1
     return writeNew(join(this.cardDir(cardId), 'takes', `${n}.json`), { schema: 1, cardId, sessionId: assertSessionId(sessionId), created: iso() }) ? n : null
+  }
+
+  // ── 1.3: 반영 요청 (§17)
+  get requestsDir() {
+    return join(this.boardDir, 'requests')
+  }
+  /** requests/<id>.json 의 id 들 (<id>.taken.json · <id>.done.json 은 id 모양이 아니라 빠진다) */
+  requestIds(): string[] {
+    return listIds(this.requestsDir)
+  }
+  readRequest(id: string): RequestRec | null {
+    const r = readJson<RequestRec>(join(this.requestsDir, `${assertId(id)}.json`))
+    if (!r || typeof r !== 'object' || r.kind !== 'apply' || typeof r.created !== 'string') return null // 모르는 kind 는 무시
+    return {
+      ...r,
+      id,
+      cardIds: Array.isArray(r.cardIds) ? r.cardIds.filter((x): x is string => typeof x === 'string' && ID_RE.test(x)).slice(0, 200) : [],
+      to: typeof r.to === 'string' && /^[0-9a-f]{8,64}$/.test(r.to) ? r.to : null,
+    }
+  }
+  hasTaken(id: string): boolean {
+    return existsSync(join(this.requestsDir, `${assertId(id)}.taken.json`))
+  }
+  readTaken(id: string): RequestTakenRec | null {
+    return readJson<RequestTakenRec>(join(this.requestsDir, `${assertId(id)}.taken.json`))
+  }
+  hasDone(id: string): boolean {
+    return existsSync(join(this.requestsDir, `${assertId(id)}.done.json`))
+  }
+  readDone(id: string): RequestDoneRec | null {
+    return readJson<RequestDoneRec>(join(this.requestsDir, `${assertId(id)}.done.json`))
+  }
+  /** .taken.json 을 배타 생성한 세션만 true */
+  claimRequest(rec: RequestTakenRec): boolean {
+    return writeNew(join(this.requestsDir, `${assertId(rec.id)}.taken.json`), rec)
+  }
+  /** .done.json 을 배타 생성(한 번만). 쓰면 true */
+  writeRequestDone(rec: RequestDoneRec): boolean {
+    return writeNew(join(this.requestsDir, `${assertId(rec.id)}.done.json`), rec)
   }
 }

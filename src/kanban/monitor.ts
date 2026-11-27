@@ -5,7 +5,9 @@ import { join } from 'node:path'
 import { loadAllConfig, loadConfig, type Config } from './config.ts'
 import { bumpAlive, newCtx } from './core/board.ts'
 import { evalAvailable, loadBoard } from './core/delegate.ts'
-import { delegSignalLine, pendingForCard, signalLine, type Pending } from './core/deliver.ts'
+import { delegSignalLine, pendingForCard, requestSignalLine, signalLine, type Pending } from './core/deliver.ts'
+import { readMarkers } from './core/inbound.ts'
+import { autoDone, InboundWatcher, pendingOf } from './core/requests.ts'
 import { isSessionId } from './core/ids.ts'
 import { mtimeMs, readJson, writeReplace } from './core/fs.ts'
 import { getPidMap, loadSession, stateDir, logLine, newSessionState, sessionMtime, withSession, type SessionState } from './core/localstate.ts'
@@ -15,7 +17,7 @@ import { memberForSession, signalsCard, type Board } from './core/team.ts'
 
 const MAX_SIGNALS = 3
 const RESIGNAL_MS = Number(process.env.AGENT_KANBAN_RESIGNAL_MS) || 10 * 60_000 // 환경변수는 테스트용
-const ALIVE_EVERY_MS = Number(process.env.AGENT_KANBAN_ALIVE_MS) || 5 * 60_000 // 환경변수는 테스트용
+const ALIVE_EVERY_MS = Number(process.env.AGENT_KANBAN_ALIVE_MS) || 60_000 // 환경변수는 테스트용. 1.3: 살아 있는 세션 = aliveAt 2분 안(§17)이라 1분마다
 
 function alive(pid: number): boolean {
   try {
@@ -55,6 +57,9 @@ async function main() {
   const firstSeen = new Map<string, number>() // 항목 id → 처음 본 시각
   let lastAlive = Date.now()
   let busy = false
+  let watcher: InboundWatcher | null = null
+  const reqFollow = new Map<string, { key: string; n: number }>() // 맡은 반영 요청 → 남은 미전달 의견 수(카드 폴더 mtime 이 바뀔 때만 다시 센다)
+  const reqFirst = new Map<string, number>()
   // 맡긴 카드(SPEC §14): 수정 시각이 바뀐 카드만 다시 읽는다
   let board: Board | null = null
   let boardKey = ''
@@ -117,6 +122,34 @@ async function main() {
     })
   }
 
+  /** 맡은 반영 요청: 남은 의견이 있으면 신호(항목당 1회, 10분 뒤 재신호 최대 3번), 없고 쉬는 중이면 done. 이번 틱에 신호할 요청 수 */
+  function requestFollow(sid: string, idle: boolean, now: number): number {
+    const markers = readMarkers(sid)
+    let allDone = false
+    const due: string[] = []
+    for (const m of markers) {
+      const key = m.cardIds.flatMap((c) => ['comments', 'actions', 'receipts'].map((d) => mtimeMs(join(store.cardDir(c), d)))).join('|')
+      let f = reqFollow.get(m.id)
+      if (!f || f.key !== key) {
+        f = { key, n: m.cardIds.reduce((n, c) => n + pendingOf(store, c, cfg!.allowAuthors).length, 0) }
+        reqFollow.set(m.id, f)
+      }
+      if (f.n === 0) {
+        if (idle) allDone = true
+        continue
+      }
+      if (!reqFirst.has(m.id)) reqFirst.set(m.id, now)
+      if (!idle && now - reqFirst.get(m.id)! < cfg!.monitor.busyDelaySec * 1000) continue
+      const s = sig[`req:${m.id}`]
+      if (!s || (s.count < MAX_SIGNALS && now - s.lastMs >= RESIGNAL_MS)) due.push(m.id)
+    }
+    if (allDone) for (const id of autoDone(store, sid, cfg!.allowAuthors)) reqFollow.delete(id)
+    if (!due.length) return 0
+    for (const id of due) sig[`req:${id}`] = { count: (sig[`req:${id}`]?.count ?? 0) + 1, lastMs: now }
+    writeReplace(sigFile(sid), sig)
+    return due.length
+  }
+
   async function tick() {
     if (busy) return
     busy = true
@@ -136,6 +169,9 @@ async function main() {
         deleg.clear()
         delegSeen.clear()
         boardKey = ''
+        watcher = null
+        reqFollow.clear()
+        reqFirst.clear()
         cfg = null // 세션이 바뀌면 워크스페이스도 다시 정한다
       }
       const mt = sessionMtime(sid)
@@ -147,6 +183,7 @@ async function main() {
         cfg = resolveCfg(mt === null ? null : st)
         if (!cfg) return // 아직 모름 — 다음 틱에 다시
         store = new Store(cfg.root, cfg.board)
+        watcher = new InboundWatcher(store, cfg.monitor.busyDelaySec * 1000)
         boardKey = ''
         board = null
       }
@@ -177,7 +214,22 @@ async function main() {
       }
 
       // 1) 폴더 mtime 이 바뀐 카드만 다시 읽는다
-      for (const cid of Object.keys(st.cards)) {
+      const nowMs0 = Date.now()
+      const idle0 = st.now?.state !== 'working'
+      // 0b) 반영 요청 맡기 · 주인 없는 카드 이어받기(SPEC 1.3 §17). 이어받은 카드는 아래에서 이 세션 카드처럼 신호한다.
+      let requestDue = 0
+      try {
+        const wc = { cfg: cfg!, store, sid, st, idle: idle0, nowMs: nowMs0 }
+        watcher!.tickRequests(wc)
+        const ad = watcher!.tickOrphans(wc)
+        if (ad) for (const k of [...pending.keys()]) if (!st.cards[k] && !ad.includes(k)) pending.delete(k)
+        const cc = requestFollow(sid, idle0, nowMs0)
+        requestDue = cc
+      } catch (e: any) {
+        logLine('ERROR monitor requests', String(e?.stack ?? e))
+      }
+
+      for (const cid of [...Object.keys(st.cards), ...watcher!.adopted.filter((c) => !st!.cards[c])]) {
         let changed = false
         for (const sub of ['comments', 'actions', 'receipts']) {
           const k = `${cid}/${sub}`
@@ -213,6 +265,8 @@ async function main() {
         writeReplace(sigFile(sid), sig)
         process.stdout.write(signalLine(ready.length) + '\n')
       }
+
+      if (requestDue > 0) process.stdout.write(requestSignalLine(requestDue) + '\n')
 
       if (dueCards.length) {
         for (const id of dueCards) sig[id] = { count: (sig[id]?.count ?? 0) + 1, lastMs: now }

@@ -14,4 +14,12 @@ for kind in $(python3 -c 'import json;print(" ".join(json.load(open("contract.js
     echo "ok   $kind"
   else echo "FAIL $kind"; cat "$err"; fail=1; fi
 done
+# fixtures/invalid/<스키마 이름>.<사례>.json 은 반드시 검증에 실패해야 한다 (1.3: 반영 요청 파일 모양)
+for bad in fixtures/invalid/*.json; do
+  [ -f "$bad" ] || continue
+  name=$(basename "$bad" .json); schema="schemas/${name%%.*}.schema.json"
+  if "${runner[@]}" validate --spec=draft2020 -s "$schema" -d "$bad" >/dev/null 2>&1; then
+    echo "FAIL invalid fixture 가 통과함: $bad"; fail=1
+  else echo "ok   invalid $name"; fi
+done
 exit $fail

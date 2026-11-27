@@ -21,6 +21,8 @@ export interface AllConfig {
   excludePaths: string[]
   includeHeadless: boolean
   allowAuthors?: string[]
+  /** 주인 세션이 없는 카드의 미전달 의견을 살아 있는 다른 세션이 이어받는다(SPEC 1.3 §17, 기본 true) */
+  adoptOrphans: boolean
   /** 이 컴퓨터의 표시 이름(SPEC 1.2). 없으면 ComputerName/hostname */
   machineName?: string
   /** tmux 세션 이름 앞에서 뗄 접두어(기본 없음) */
@@ -39,6 +41,7 @@ export interface Config {
   excludePaths: string[]
   includeHeadless: boolean
   allowAuthors?: string[]
+  adoptOrphans: boolean
   machineName?: string
   laneStripPrefixes: string[]
   monitor: { intervalSec: number; busyDelaySec: number }
@@ -107,6 +110,7 @@ export function loadAllConfig(): AllConfig | null {
     workspaces,
     excludePaths: strs(raw.excludePaths),
     includeHeadless: raw.includeHeadless === true,
+    adoptOrphans: raw.adoptOrphans !== false,
     ...(Array.isArray(raw.allowAuthors) ? { allowAuthors: raw.allowAuthors.filter((x: unknown): x is string => typeof x === 'string') } : {}),
     ...(sanitizeLabel(raw.machineName) ? { machineName: sanitizeLabel(raw.machineName) } : {}),
     laneStripPrefixes: Array.isArray(raw.laneStripPrefixes) ? raw.laneStripPrefixes.filter((x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 40) : [],
@@ -166,6 +170,7 @@ export function configFor(all: AllConfig, w: Workspace): Config {
     includePaths: w.includePaths,
     excludePaths: [...all.excludePaths, ...w.excludePaths],
     includeHeadless: all.includeHeadless,
+    adoptOrphans: all.adoptOrphans,
     ...(all.allowAuthors ? { allowAuthors: all.allowAuthors } : {}),
     ...(all.machineName ? { machineName: all.machineName } : {}),
     laneStripPrefixes: all.laneStripPrefixes,

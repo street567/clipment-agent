@@ -1,0 +1,35 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "title": "request-taken",
+ "type": "object",
+ "required": [
+  "schema",
+  "id",
+  "sessionId",
+  "created"
+ ],
+ "properties": {
+  "schema": {
+   "const": 1
+  },
+  "id": {
+   "type": "string"
+  },
+  "sessionId": {
+   "type": "string"
+  },
+  "agentKey": {
+   "type": "string"
+  },
+  "machine": {
+   "type": "string"
+  },
+  "lane": {
+   "type": "string"
+  },
+  "created": {
+   "type": "string"
+  }
+ },
+ "additionalProperties": true
+}

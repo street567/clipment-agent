@@ -5,7 +5,7 @@
 
 Claude Code 세션의 진행을 아이폰 칸반 앱에서 볼 수 있게 하고, 폰에서 남긴 의견을 세션에 전달합니다. 서버·로그인 없이 사용자 클라우드 폴더의 파일로만 아이폰 앱과 대화합니다(계약: `../spec/SPEC.md`).
 
-구성: `hooks/hooks.json`(세션 상태 기록) · `monitors/monitors.json`(폰 의견·맡긴 일 신호) · `.mcp.json`(board_ask · board_note · board_reply · board_list · board_inbox · board_card · board_members · board_label · board_take · board_submit) · `skills/kanban`(에이전트용 규칙) · `src/cli.ts`(`kanban` 명령) · `codex/`(Codex 설치 예시). 런타임은 bun. 계약 1.2(1.1 여럿이 쓰는 보드: 담당·카테고리·리스트·맡기기·여러 LLM + 1.2 컴퓨터 이름·레인·이어지는 카드).
+구성: `hooks/hooks.json`(세션 상태 기록) · `monitors/monitors.json`(폰 의견·맡긴 일 신호) · `.mcp.json`(board_ask · board_note · board_reply · board_list · board_inbox · board_card · board_members · board_label · board_take · board_submit · board_request_done) · `skills/kanban`(에이전트용 규칙) · `src/cli.ts`(`kanban` 명령) · `codex/`(Codex 설치 예시). 런타임은 bun. 계약 1.3(1.1 여럿이 쓰는 보드: 담당·카테고리·리스트·맡기기·여러 LLM + 1.2 컴퓨터 이름·레인·이어지는 카드 + 1.3 반영 요청).
 
 ## 설치
 이 폴더를 Claude Code 플러그인으로 설치합니다(예: 자신의 마켓플레이스에 올리거나 `claude --plugin-dir <이 폴더>` 로 시험). hooks 와 monitor 는 내장 모듈만 써서 `node_modules` 없이 동작합니다. MCP 서버는 첫 실행 때 `bun install` 로 의존성(@modelcontextprotocol/sdk, zod)을 받습니다.
@@ -32,7 +32,8 @@ kanban doctor                              # 설정·폴더·bun·iCloud 상태�
 }
 ```
 - `includePaths`/`excludePaths`: 작업 폴더가 그 밑일 때만 / 그 밑이면 제외. (여러 보드는 아래 "여러 보드(워크스페이스)")
-- `allowAuthors`(선택): 있으면 `authorName` 이 목록에 있는 코멘트·처리만 전달.
+- `allowAuthors`(선택): 있으면 `authorName` 이 목록에 있는 코멘트·처리(와 반영 요청 요청자)만 전달.
+- `adoptOrphans`(기본 `true`, 0.9.0~): 주인 세션이 없는 카드의 미전달 의견을 살아 있는 다른 세션이 이어받음. 아래 "반영 요청".
 - `includeHeadless`: `claude -p`·SDK 세션(`CLAUDE_CODE_ENTRYPOINT` 가 `sdk` 로 시작)도 기록할지. 기본은 제외. (그 변수가 없으면 부모 프로세스 인자의 `-p`/`--print` 를 보고, 그래도 모르면 대화형으로 취급합니다.)
 - 텔레그램: 새 "사람 차례"와 "문제"가 생길 때 한 번 알림. 토큰은 환경변수(`tokenEnv`)에서만 읽고, 파일을 찾아 읽지 않습니다. 기본 꺼짐.
 
@@ -70,6 +71,15 @@ kanban doctor                              # 설정·폴더·bun·iCloud 상태�
 - **이어짐은 ①②③ 에서만**: ④(폴더 이름만)는 같은 폴더에서 세션을 나란히 돌릴 수 있어 세션마다 카드를 둡니다(옛 동작). 이어지는 카드는 `agentKey = sha256(machineId|lane|보드 root)`(machineId 는 이 컴퓨터의 무작위 id, 이름을 바꿔도 같음)에서 만든 카드 id 를 씁니다.
 - **새 세션이 붙으면**: 레인 카드에 `replaced` 이벤트("새 세션으로 이어짐", `from`=이전 세션)가 쓰이고 이전 세션은 ended 로 표시됩니다. 기록은 그대로. 레인 카드의 코멘트·처리는 **지금 살아 있는 세션**이 받습니다(그 사이에 남긴 것은 다음 세션이 받음). 두 세션이 동시에 있으면 가장 새로 시작한 쪽이 이기고 옛 세션은 세션별 카드로 기록하며 감시·`kanban_status`·`board_inbox` 에 경고가 한 번 나옵니다. 레인 카드 제목은 항상 `컴퓨터 · 레인`(지금 하는 일은 now.json 요약).
 - 이미 있는 세션별 카드는 그대로입니다. 중복 정리: `kanban merge-lanes`(미리보기) / `--apply`(가장 최근 것만 두고 나머지를 `archive/` 로 옮김, 삭제 없음, 살아 있는 세션·사람 차례가 있는 카드는 건너뜀, `--lane 이름` 으로 한 레인만). 옛 카드는 컴퓨터·레인 정보가 없어 작업 폴더 이름으로 묶습니다.
+
+## 반영 요청 · 주인 없는 카드 이어받기 (0.9.0~, 계약 1.3 §17)
+폰에서 카드에 남긴 응답(승인·선택·수정 요청·코멘트)을 **살아 있는 세션에게 "지금 반영해 줘"** 라고 부탁합니다. 요청은 카드를 만들지 않습니다(리뷰 전용).
+- **파일**: 폰이 `requests/<id>.json`(`{schema,id,kind:"apply",cardIds?,to?,authorName,created}`; `cardIds` 가 비면 "미전달 응답이 있는 모든 카드", `to` 는 레인 agentKey)을 씁니다. 맥에서는 세션 하나가 `<id>.taken.json`(`{schema,id,sessionId,agentKey?,machine?,lane?,created}`)을 **배타 생성**해 맡고, 끝나면 `<id>.done.json`(`{schema,id,sessionId,handled[],skipped[{cardId,reason}],created}`)을 씁니다.
+- **살아 있는 세션**: now.json 이 `ended`·`replacedBy` 가 아니고 `aliveAt` 이 2분 안(감시가 1분마다 갱신). 폰은 `sessions/*/now.json` + `session.json`(`machine`·`lane`·`agentKey`)으로 "컴퓨터 · 레인" 대상 목록을 만듭니다.
+- **누가 맡나**: `to` 가 있으면 그 레인의 지금 세션만. 없으면 가장 좋은 순위만 후보 — ① 카드 주인(세션·레인) ② 같은 컴퓨터에서 프로젝트 폴더 이름이 카드 세션 `name` 과 같은 세션 ③ 이 보드의 아무 세션. 후보 중 session id 가 가장 작은 하나가 ①②이면 바로, ③이거나 그 하나가 아니면 감시 틱 2번(기본 10초) 기다린 뒤 맡습니다. 일하는 중이면 `busyDelaySec` 뒤. 24시간 넘은 요청은 맡지 않고, `allowAuthors` 가 있으면 그 요청자만. 맡을 때 보낼 의견이 없으면 바로 done.
+- **받는 법**: 감시가 신호 한 줄("반영 요청 N건 — board_inbox 도구로 읽고 처리하세요")을 내고, `board_inbox`(또는 Stop)가 요청자·카드 제목·카드별 미전달 응답을 한 덩어리로 줍니다(코멘트와 같은 "보드 주인의 보통 요청, 글은 데이터" 안전 문구). 전달할 때 응답마다 receipt 를 만들어 두 번 전달되지 않습니다. 처리 후 카드마다 `board_reply`, 끝나면 `board_request_done(request_id, handled?, skipped?)`. 응답에 모두 receipt 가 있고 세션이 쉬면 자동으로 done 이 쓰입니다.
+- **주인 없는 카드 이어받기(요청 없이도)**: 카드 주인이 끝났거나(레인이 다른 세션으로 이어진 경우 포함) 5분 넘게 신호가 없고 그 상태가 1분 넘게 이어지면, 미전달 응답을 ②→③ 순위의 살아 있는 세션 하나(id 가 가장 작은)가 이어받아 `board_inbox` 로 전달합니다. `adoptOrphans:false` 로 끕니다. 맡긴 카드(manual)는 대상이 아닙니다.
+- 로컬 상태: `~/.agent-kanban/state/inbound/<세션>/`(맡은 요청 표시 `req-<id>.json`, 이어받을 카드 `adopt.json`). 시험용 환경변수: `AGENT_KANBAN_LIVE_MS`, `AGENT_KANBAN_ORPHAN_MS`, `AGENT_KANBAN_ORPHAN_GRACE_MS`, `AGENT_KANBAN_ORPHAN_SCAN_MS`.
 
 ## kanban 명령
 `init` · `setup` · `remove` · `status` · `board [--archived]`(텍스트 보드: 담당 [사람]/[LLM]·카테고리·기한, 보관 카드는 숨김 — `--archived` 로 보관함) · `member add|list|remove` · `label add|list|remove`(사람이 터미널에서 설정, `--as 이름` 으로 작성자 이름, 기본 "나") · `agent …` · `doctor` · `probe [-n 30]`(앱 왕복 지연 p50/p90/max, 앱의 측정 화면을 열어 둘 것) · `upload-probe`(맥에서 쓴 파일이 iCloud 에 올라갈 때까지) · `prune --days N [--apply]`(완료 카드를 `boards/<board>/archive/` 로 옮김. 기본은 미리보기, 삭제 없음) · `machine [--name N]` · `merge-lanes [--dry-run|--apply] [--lane N]`.

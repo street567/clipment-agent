@@ -1,5 +1,13 @@
 # 변경 이력
 
+## Unreleased (0.9.0)
+- **에이전트 칸반: 반영 요청 (계약 1.3, 추가만, SPEC §17)**. 폰이 `boards/<b>/requests/<id>.json`(`{schema,id,kind:"apply",cardIds,to,authorName,created}`)을 쓰면 살아 있는 세션 하나가 `requests/<id>.taken.json` 을 배타 생성해 맡고, 카드에 남긴 사람 응답(승인·선택·수정 요청·코멘트)을 `board_inbox`/Stop 으로 한 덩어리(요청자·카드·미전달 응답·보드 주인의 보통 요청 + 코멘트와 같은 안전 문구)로 받습니다. 처리하면 평소처럼 receipt 가 남아 두 번 전달되지 않고, 끝나면 `requests/<id>.done.json`(`handled`·`skipped`).
+- 맡는 규칙: `to`(레인 agentKey)가 있으면 그 레인의 지금 세션만. 없으면 가장 좋은 순위의 세션 — ① 카드 주인(세션·레인) ② 같은 컴퓨터·프로젝트 폴더 이름이 카드 세션 `name` 과 같은 세션 ③ 아무 세션(감시 틱 2번 기다림). 같은 순위는 session id 가 작은 쪽이 먼저, 나머지는 2틱 뒤. 경주는 `.taken` 배타 생성이 하나만 이기게 함. 24시간 넘은 요청은 맡지 않음.
+- 새 MCP 도구 `board_request_done(request_id, handled?, skipped?)`(이 세션이 맡은 요청만, 한 번만). 의견이 모두 전달되고 세션이 쉬면 자동으로도 done. 요청에 든 다른 세션의 카드에도 `board_reply` 가능. 요청은 카드를 만들지 않음.
+- **주인 없는 카드 이어받기**: 카드 주인 세션이 끝났거나 5분 넘게 신호가 없고(1분 넘게 이어질 때) 미전달 사람 응답이 있으면, 같은 폴더 이름 세션 → 아무 살아 있는 세션 순으로 하나가 `board_inbox` 로 이어받음. 설정 `adoptOrphans`(기본 `true`)로 끔. 전달은 항상 receipt 배타 생성이 정함.
+- "살아 있는 세션" = now.json 이 ended/replacedBy 가 아니고 `aliveAt` 2분 이내. 그래서 감시의 `aliveAt` 갱신 주기를 5분 → 1분으로. 앱이 대상 목록을 만드는 법은 SPEC §17.2.
+- 새 보드의 `kanban.json` 은 `contract:"1.3"`. 스펙 사본 `spec-kanban/` 은 agent-kanban 의 `spec/` 과 동일(스키마 `request`·`request-taken`·`request-done`, 잘못된 픽스처 검사 추가).
+
 ## Unreleased (0.8.0)
 - **에이전트 칸반: 컴퓨터 이름 + 레인으로 카드 이름·이어짐 (계약 1.2, 추가만)**. 카드는 `<컴퓨터 이름> · <레인>`. 같은 컴퓨터·레인의 재시작 세션은 같은 카드에 이어지고(`replaced` 이벤트 "새 세션으로 이어짐", 이전 세션은 ended), 코멘트·처리는 지금 살아 있는 세션이 받음(동시에 둘이면 가장 새 세션이 이기고 옛 세션은 별도 카드+경고).
 - 컴퓨터 이름: 설정 `machineName` → macOS ComputerName → hostname. 새 도구 `kanban_machine(name?)`, CLI `kanban machine [--name N]`, `kanban_status` 에 `machine`(·세션이면 `session` 레인 정보).

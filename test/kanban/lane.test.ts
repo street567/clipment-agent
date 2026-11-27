@@ -310,7 +310,7 @@ describe('이어지는 세션 카드 (hook)', () => {
     for (const ev of c.events) for (const k of ['id', 'cardId', 'sessionId', 'type', 'created']) expect(ev[k]).toBeTruthy()
     // 모르는 type(replaced)을 걸러낸 1.1 리더의 결과와 같다
     expect(derive(c.events.filter((x) => x.type !== 'replaced'), c.actions)).toEqual(derive(c.events, c.actions))
-    expect(readJ(join(e.root, 'kanban.json')).contract).toBe('1.2')
+    expect(readJ(join(e.root, 'kanban.json')).contract).toBe('1.3')
     expect(Number(readJ(join(e.root, 'kanban.json')).contract.split('.')[0])).toBe(Number(readJ(join(SPEC, 'contract.json')).minReaderMajor)) // MAJOR 동일 → 읽기 전용 아님
     // 스키마(1.2)
     const Ajv = (await import('ajv/dist/2020.js')).default
