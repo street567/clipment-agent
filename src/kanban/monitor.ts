@@ -9,6 +9,7 @@ import { delegSignalLine, pendingForCard, signalLine, type Pending } from './cor
 import { isSessionId } from './core/ids.ts'
 import { mtimeMs, readJson, writeReplace } from './core/fs.ts'
 import { getPidMap, loadSession, stateDir, logLine, newSessionState, sessionMtime, withSession, type SessionState } from './core/localstate.ts'
+import { checkSuperseded, laneOwner } from './core/lane.ts'
 import { Store } from './core/store.ts'
 import { memberForSession, signalsCard, type Board } from './core/team.ts'
 
@@ -152,6 +153,28 @@ async function main() {
       if (mt === null || !st) return
       if (st.root && st.root !== cfg.root) { cfg = null; return } // 세션이 다른 워크스페이스로 확정됨 → 다음 틱에 다시 정함
       if (st.boardId !== cfg.board) return
+
+      // 0) 레인: 더 새로운 세션이 이어받았으면(가장 새로운 세션이 이긴다) 이 세션은 레인 카드를 더 받지 않는다. 경고는 한 번
+      if (st.lane) {
+        const owner = st.lane.superseded ? undefined : laneOwner(st.lane.agentKey)
+        const needWarn = !!st.lane.superseded && !st.lane.warned
+        if ((owner && owner !== sid) || needWarn) {
+          let warn = ''
+          await withSession(sid, () => newSessionState(sid, cfg!.board, st!.name), (s) => {
+            checkSuperseded(s)
+            if (s.lane?.superseded && !s.lane.warned) {
+              s.lane.warned = true
+              warn = s.lane.name
+            }
+          })
+          st = loadSession(sid)
+          lastMt = sessionMtime(sid)
+          pending.clear()
+          seenDir.clear()
+          if (warn) process.stdout.write(`[에이전트 칸반] 같은 컴퓨터·레인(${warn.replace(/[\r\n]+/g, ' ')})에 더 새로운 세션이 이어받았어요. 레인 카드의 의견은 이제 그 세션이 받고, 이 세션은 별도 카드로 기록돼요.\n`)
+          if (!st) return
+        }
+      }
 
       // 1) 폴더 mtime 이 바뀐 카드만 다시 읽는다
       for (const cid of Object.keys(st.cards)) {

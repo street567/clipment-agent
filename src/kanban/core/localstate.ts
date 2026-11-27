@@ -20,6 +20,18 @@ export interface CardLocal {
   taken?: boolean // manual: board_take 로 이 세션이 맡은 카드
   recalled?: boolean // manual: 맡았다가 풀렸거나 회수됨(board_list/inbox 에서 한 번 알려 준다)
   submitted?: boolean // manual(taken): board_submit 으로 확인 요청 중(사람이 승인/거절하기 전까지 더 쓰지 않음)
+  lane?: boolean // session: 레인 카드(제목은 "컴퓨터 · 레인" 고정, 프롬프트 제목으로 바꾸지 않음)
+}
+/** 이 세션이 속한 레인(SPEC 1.2 §16). agentKey 가 있는 레인만 카드가 이어진다 */
+export interface LaneLocal {
+  name: string
+  source: 'env' | 'telegram' | 'tmux'
+  agentKey: string
+  cardId: string
+  superseded?: boolean // 더 새로운 세션이 이어받음 → 이 세션은 레인 카드를 받지도 쓰지도 않는다
+  replacedBy?: string
+  warned?: boolean // 감시가 경고를 한 번 냈음
+  pendingFrom?: string // 레인을 이어받은 직전 세션(레인 카드에 "새 세션으로 이어짐"을 쓸 때까지)
 }
 export interface OpenInfo {
   cardId: string
@@ -41,6 +53,8 @@ export interface SessionState {
   boardId: string
   root?: string // 이 세션이 붙은 워크스페이스 root(다중 워크스페이스)
   name: string
+  machine?: string // 이 세션을 만들 때의 컴퓨터 표시 이름(SPEC 1.2)
+  lane?: LaneLocal
   agent?: string // LLM 종류(없으면 claude)
   taken?: string[] // 맡은 카드(맡은 순서)
   inited: boolean
@@ -101,6 +115,21 @@ async function acquire(dir: string): Promise<boolean> {
     }
     if (Date.now() - t0 > LOCK_WAIT_MS) return false
     await sleep(8 + Math.random() * 20)
+  }
+}
+
+/** 이름 있는 락 안에서 fn 을 실행한다(락을 못 얻으면 2초 뒤 락 없이 진행). 레인 소유자 기록용 */
+export async function withLock<T>(name: string, fn: () => Promise<T> | T): Promise<T> {
+  const lock = join(stateDir(), 'locks', `${name.replace(/[^A-Za-z0-9-]/g, '_')}.lock`)
+  const got = await acquire(lock)
+  try {
+    return await fn()
+  } finally {
+    if (got) {
+      try {
+        rmdirSync(lock)
+      } catch {}
+    }
   }
 }
 

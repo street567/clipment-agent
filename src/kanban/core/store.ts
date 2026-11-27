@@ -13,6 +13,7 @@ export interface EventRec extends DEvent {
   sessionId: string
   tool?: string
   via?: 'self'
+  from?: string // replaced 이벤트: 이어받기 전 세션 id (1.2)
 }
 export interface CommentRec {
   id: string
@@ -42,6 +43,9 @@ export interface CardRec {
   detail?: string
   created: string
   by?: By
+  agentKey?: string // 레인 카드(1.2)
+  lane?: string
+  machine?: string
 }
 export interface TakeRec {
   schema: 1
@@ -54,6 +58,10 @@ export interface SessionRec {
   id: string
   name?: string
   agent?: string
+  machine?: string // 1.2
+  lane?: string
+  agentKey?: string
+  created?: string
 }
 
 export class Store {
@@ -71,12 +79,21 @@ export class Store {
   }
   init() {
     ensureDir(this.root)
-    writeNew(join(this.root, 'kanban.json'), { schema: 1, contract: '1.1', name: '에이전트 칸반', created: iso() })
+    writeNew(join(this.root, 'kanban.json'), { schema: 1, contract: '1.2', name: '에이전트 칸반', created: iso() })
     ensureDir(this.boardDir)
     writeNew(join(this.boardDir, 'board.json'), { schema: 1, id: this.board, title: this.board === 'main' ? '내 보드' : this.board, created: iso() })
   }
-  ensureSession(sid: string, name: string, agent?: string) {
-    writeNew(join(this.sessionDir(sid), 'session.json'), { schema: 1, id: sid, name: clean(name, 60) || sid, ...(agent ? { agent } : {}), created: iso() })
+  ensureSession(sid: string, name: string, agent?: string, extra: { machine?: string; lane?: string; agentKey?: string } = {}) {
+    writeNew(join(this.sessionDir(sid), 'session.json'), {
+      schema: 1,
+      id: sid,
+      name: clean(name, 60) || sid,
+      ...(agent ? { agent } : {}),
+      ...(extra.machine ? { machine: extra.machine } : {}),
+      ...(extra.lane ? { lane: extra.lane } : {}),
+      ...(extra.agentKey ? { agentKey: extra.agentKey } : {}),
+      created: iso(),
+    })
   }
   readSession(sid: string): SessionRec | null {
     return readJson<SessionRec>(join(this.sessionDir(sid), 'session.json'))

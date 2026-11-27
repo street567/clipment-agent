@@ -5,7 +5,7 @@
 
 Claude Code 세션의 진행을 아이폰 칸반 앱에서 볼 수 있게 하고, 폰에서 남긴 의견을 세션에 전달합니다. 서버·로그인 없이 사용자 클라우드 폴더의 파일로만 아이폰 앱과 대화합니다(계약: `../spec/SPEC.md`).
 
-구성: `hooks/hooks.json`(세션 상태 기록) · `monitors/monitors.json`(폰 의견·맡긴 일 신호) · `.mcp.json`(board_ask · board_note · board_reply · board_list · board_inbox · board_card · board_members · board_label · board_take · board_submit) · `skills/kanban`(에이전트용 규칙) · `src/cli.ts`(`kanban` 명령) · `codex/`(Codex 설치 예시). 런타임은 bun. 계약 1.1(여럿이 쓰는 보드: 담당·카테고리·리스트·맡기기·여러 LLM).
+구성: `hooks/hooks.json`(세션 상태 기록) · `monitors/monitors.json`(폰 의견·맡긴 일 신호) · `.mcp.json`(board_ask · board_note · board_reply · board_list · board_inbox · board_card · board_members · board_label · board_take · board_submit) · `skills/kanban`(에이전트용 규칙) · `src/cli.ts`(`kanban` 명령) · `codex/`(Codex 설치 예시). 런타임은 bun. 계약 1.2(1.1 여럿이 쓰는 보드: 담당·카테고리·리스트·맡기기·여러 LLM + 1.2 컴퓨터 이름·레인·이어지는 카드).
 
 ## 설치
 이 폴더를 Claude Code 플러그인으로 설치합니다(예: 자신의 마켓플레이스에 올리거나 `claude --plugin-dir <이 폴더>` 로 시험). hooks 와 monitor 는 내장 모듈만 써서 `node_modules` 없이 동작합니다. MCP 서버는 첫 실행 때 `bun install` 로 의존성(@modelcontextprotocol/sdk, zod)을 받습니다.
@@ -63,8 +63,16 @@ kanban doctor                              # 설정·폴더·bun·iCloud 상태�
 - **텔레그램**: 사람 차례 알림 끝에 "담당: 민수, 지연"(없으면 "담당: 미정")이 붙습니다.
 - **여러 LLM**: Codex 는 `codex/README.md`. hooks 를 붙이지 못한 LLM 은 `kanban agent <start|progress|ask|report|done|fail> --agent gemini --session <id> --name <폴더> --text "…"` 로 스스로 남깁니다(이벤트에 `via:"self"`, 앱에는 "자기 보고"로 표시).
 
+## 컴퓨터 이름 · 레인 · 이어지는 카드 (0.8.0~, 계약 1.2)
+카드는 **`<컴퓨터 이름> · <레인>`** 으로 불리고, 같은 컴퓨터·레인의 재시작 세션은 **같은 카드**에 이어집니다(보드가 세션마다 카드로 불어나지 않음). 누구의 개인 설정에도 기대지 않습니다.
+- **컴퓨터 이름**: 설정 `machineName`, 없으면 macOS 컴퓨터 이름(`scutil --get ComputerName`) → hostname(`.local` 제외). 40자·경로 구분자 없음. 도구 `kanban_machine(name?)` / CLI `kanban machine [--name 이름]`(이름 없이 부르면 보기만, 정하면 `config.json.bak` 백업 후 씀. 설정이 없어도 가능하며 칸반은 켜지지 않음). `kanban_status` 가 보여 줍니다.
+- **레인**(먼저 맞는 것): ① 환경변수 `AGENT_KANBAN_LANE` ② 텔레그램 채널 상태 폴더 환경변수 `TELEGRAM_STATE_DIR` 의 폴더 이름(`telegram-<x>` → `x`, `telegram` → `telegram`) ③ `$TMUX` 가 있으면 tmux 세션 이름(설정 `laneStripPrefixes: ["cam-"]` 로 접두어 제거, 숫자만 있는 기본 이름은 무시) ④ 작업 폴더 이름. 공식 텔레그램 채널 플러그인은 훅에 따로 환경변수를 넣지 않습니다 — 세션을 띄울 때의 `TELEGRAM_STATE_DIR` 이 훅에 상속될 때만 ② 가 맞습니다(설정 안 하면 ③ 이나 ④).
+- **이어짐은 ①②③ 에서만**: ④(폴더 이름만)는 같은 폴더에서 세션을 나란히 돌릴 수 있어 세션마다 카드를 둡니다(옛 동작). 이어지는 카드는 `agentKey = sha256(machineId|lane|보드 root)`(machineId 는 이 컴퓨터의 무작위 id, 이름을 바꿔도 같음)에서 만든 카드 id 를 씁니다.
+- **새 세션이 붙으면**: 레인 카드에 `replaced` 이벤트("새 세션으로 이어짐", `from`=이전 세션)가 쓰이고 이전 세션은 ended 로 표시됩니다. 기록은 그대로. 레인 카드의 코멘트·처리는 **지금 살아 있는 세션**이 받습니다(그 사이에 남긴 것은 다음 세션이 받음). 두 세션이 동시에 있으면 가장 새로 시작한 쪽이 이기고 옛 세션은 세션별 카드로 기록하며 감시·`kanban_status`·`board_inbox` 에 경고가 한 번 나옵니다. 레인 카드 제목은 항상 `컴퓨터 · 레인`(지금 하는 일은 now.json 요약).
+- 이미 있는 세션별 카드는 그대로입니다. 중복 정리: `kanban merge-lanes`(미리보기) / `--apply`(가장 최근 것만 두고 나머지를 `archive/` 로 옮김, 삭제 없음, 살아 있는 세션·사람 차례가 있는 카드는 건너뜀, `--lane 이름` 으로 한 레인만). 옛 카드는 컴퓨터·레인 정보가 없어 작업 폴더 이름으로 묶습니다.
+
 ## kanban 명령
-`init` · `setup` · `remove` · `status` · `board [--archived]`(텍스트 보드: 담당 [사람]/[LLM]·카테고리·기한, 보관 카드는 숨김 — `--archived` 로 보관함) · `member add|list|remove` · `label add|list|remove`(사람이 터미널에서 설정, `--as 이름` 으로 작성자 이름, 기본 "나") · `agent …` · `doctor` · `probe [-n 30]`(앱 왕복 지연 p50/p90/max, 앱의 측정 화면을 열어 둘 것) · `upload-probe`(맥에서 쓴 파일이 iCloud 에 올라갈 때까지) · `prune --days N [--apply]`(완료 카드를 `boards/<board>/archive/` 로 옮김. 기본은 미리보기, 삭제 없음).
+`init` · `setup` · `remove` · `status` · `board [--archived]`(텍스트 보드: 담당 [사람]/[LLM]·카테고리·기한, 보관 카드는 숨김 — `--archived` 로 보관함) · `member add|list|remove` · `label add|list|remove`(사람이 터미널에서 설정, `--as 이름` 으로 작성자 이름, 기본 "나") · `agent …` · `doctor` · `probe [-n 30]`(앱 왕복 지연 p50/p90/max, 앱의 측정 화면을 열어 둘 것) · `upload-probe`(맥에서 쓴 파일이 iCloud 에 올라갈 때까지) · `prune --days N [--apply]`(완료 카드를 `boards/<board>/archive/` 로 옮김. 기본은 미리보기, 삭제 없음) · `machine [--name N]` · `merge-lanes [--dry-run|--apply] [--lane N]`.
 
 ## 끄기
 - 잠깐: 설정의 `"enabled": false` (hooks·monitor 가 즉시 아무것도 안 함).

@@ -36,6 +36,9 @@
   },
   "aliveAt": {
    "type": "string"
+  },
+  "replacedBy": {
+   "type": "string"
   }
  },
  "additionalProperties": true

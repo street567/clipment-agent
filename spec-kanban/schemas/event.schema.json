@@ -31,7 +31,8 @@
     "resolved",
     "report",
     "done",
-    "failed"
+    "failed",
+    "replaced"
    ]
   },
   "summary": {
@@ -87,6 +88,9 @@
    "enum": [
     "self"
    ]
+  },
+  "from": {
+   "type": "string"
   }
  },
  "additionalProperties": true

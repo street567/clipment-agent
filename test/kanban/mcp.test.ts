@@ -37,7 +37,7 @@ describe('MCP 왕복', () => {
     await ready(e)
     const { c } = await connect(e)
     const names = (await c.listTools()).tools.map((t) => t.name).sort()
-    expect(names).toEqual(['board_ask', 'board_card', 'board_inbox', 'board_label', 'board_list', 'board_members', 'board_note', 'board_reply', 'board_submit', 'board_take', 'kanban_remove',
+    expect(names).toEqual(['board_ask', 'board_card', 'board_inbox', 'board_label', 'board_list', 'board_members', 'board_note', 'board_reply', 'board_submit', 'board_take', 'kanban_machine', 'kanban_remove',
       'kanban_setup', 'kanban_status'])
     expect(names.some((n) => /done|complete|(^|_)move|finish/.test(n))).toBe(false)
   })

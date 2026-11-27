@@ -1,6 +1,6 @@
 # 에이전트 칸반 폴더 계약 (맥 플러그인 ↔ iPhone 앱)
 
-**계약 버전 1.1.0** (`spec/contract.json` 과 같아야 함)
+**계약 버전 1.2.0** (`spec/contract.json` 과 같아야 함)
 
 서버·로그인 없음. 두 쪽은 **사용자 클라우드 폴더의 파일로만** 대화한다. 이 문서가 두 구현의 유일한 계약이다.
 기존 클립멘트 계약(`../clip-review/spec/SPEC.md`)의 규칙을 그대로 따른다(§1). 원래 PRD 와 다른 점과 이유는 `docs/기존구조-비교.md`.
@@ -21,13 +21,13 @@
 ## 2. 구조
 ```
 <root>/
-  kanban.json                                  # {schema,contract:"1.0"|"1.1",name,created} 불변(1.1 리더는 둘 다 읽는다)
+  kanban.json                                  # {schema,contract:"1.0"|"1.1"|"1.2",name,created} 불변(리더는 MAJOR 만 본다 §10)
   boards/<boardId>/                            # 기본 "main" ([a-z0-9-]{1,32})
     board.json                                 # {schema,id,title,created}
     ops/<opId>.json                            # 보드 설정 변경 (1.1, §11)
-    sessions/<sessionId>/session.json          # {schema,id,name,agent?,created}  name=작업 폴더 이름(전체 경로 아님), agent=LLM 종류(1.1, 없으면 "claude")
+    sessions/<sessionId>/session.json          # {schema,id,name,agent?,created}  name=작업 폴더 이름(전체 경로 아님), agent=LLM 종류(1.1, 없으면 "claude"), machine?·lane?·agentKey?(1.2, §16)
     sessions/<sessionId>/now.json              # 고쳐 쓰는 파일 (§3)
-    cards/<cardId>/card.json                   # {schema,id,sessionId,kind,title,detail?,created}
+    cards/<cardId>/card.json                   # {schema,id,sessionId,kind,title,detail?,created, agentKey?,lane?,machine?(1.2 레인 카드, §16)}
     cards/<cardId>/events/<eventId>.json       # 맥만 (§5)
     cards/<cardId>/comments/<commentId>.json   # 사람(앱)·에이전트(맥) (§6)
     cards/<cardId>/actions/<actionId>.json     # 앱만 (§7)
@@ -45,6 +45,7 @@
 ```
 - `state`: `working` | `idle` | `ended`. 도구 호출마다 갱신하되 최소 간격 5초(상태가 바뀌면 즉시). `aliveAt` 은 감시 스크립트가 5분마다 갱신한다.
 - 카드의 "지금 하는 일" = 그 카드가 `AI 작업 중`이고 세션 now.json 의 `cardId` 가 그 카드일 때 `summary`. 아니면 마지막 progress 이벤트의 `summary`.
+- 1.2: 새 세션이 레인을 이어받으면 맥이 이전 세션의 now.json 을 `state:"ended"` + `replacedBy`(새 세션 id)로 고쳐 쓴다(같은 맥이 도는 세션이라 "쓰는 쪽이 하나"를 지킨다).
 - 앱: `aliveAt`·`ts` 중 최근이 15분보다 오래되면 "세션 신호 없음"으로 표시한다(카드는 옮기지 않는다).
 
 ## 4. 도구 요약 (맥)
@@ -57,6 +58,7 @@ Bash=입력의 `description`(없으면 "명령 실행") · Read/Edit/Write/Noteb
 ```
 `type`:
 - `created` 만들어짐 → 대기
+- `replaced` (1.2) 레인 카드를 새 세션이 이어받음. `from`=이어받기 전 세션 id, `sessionId`=새 세션. 리스트·상태를 바꾸지 않는다(§16)
 - `progress` 일하기 시작/이어서(상태가 바뀔 때만 쓴다; 매 도구 호출은 now.json) → AI 작업 중. `title` 이 있으면 카드 제목을 바꾼다(가장 최근 것).
 - `paused` 세션이 멈췄는데 일이 안 끝남 → 대기(라벨 "멈춤")
 - `needs_human` 내 차례를 연다. `ask.kind`: `approve` 승인 · `decide` 결정(`options` 2~6) · `do` 사람이 할 일 · `info` 터미널에서만 답할 수 있음(권한 확인 등 — 앱은 처리 버튼을 보이지 않는다)
@@ -98,6 +100,7 @@ Bash=입력의 `description`(없으면 "명령 실행") · Read/Edit/Write/Noteb
 맥이 `probes/<id>.json` `{schema,id,n,sentAt}` 를 쓰고, 앱(측정 화면이 열려 있을 때)이 보이는 즉시 `probes/<id>.echo.json` `{schema,id,seenAt}` 를 쓴다. 맥은 자기 시계로 왕복을 잰다(시계 차이와 무관).
 
 ## 10. 버전
+- 1.2.0 (2026-11-27): 컴퓨터 이름·레인·이어지는 세션 카드(§16). 선택 필드 `machine`·`lane`·`agentKey`(session.json), `agentKey`·`lane`·`machine`(card.json), `from`(event), `replacedBy`(now.json)와 이벤트 type `replaced` 추가뿐이다. 1.1 리더는 모르는 필드·type 을 무시하므로 그대로 읽는다. `kanban.json` 의 `contract` 는 새로 만드는 폴더가 "1.2" 로 쓰고(옛 폴더는 불변이라 "1.0"/"1.1" 그대로) 리더는 MAJOR 만 비교하므로 1.2 폴더도 1.x 리더가 읽기 전용으로 바뀌지 않는다.
 - 1.1.0 (2026-11-25): 담당자(사람·LLM 여럿)·카테고리·리스트 설정·직접 순서·사람 카드·여러 LLM. 전부 추가뿐이라 1.0 폴더를 그대로 읽는다.
 클립멘트 §10 과 같다: MAJOR 깨짐 / MINOR 추가 / PATCH 문구. 폴더 MAJOR > 리더 MAJOR 면 읽기 전용.
 
@@ -179,3 +182,16 @@ Bash=입력의 `description`(없으면 "명령 실행") · Read/Edit/Write/Noteb
 - **Claude Code**: 플러그인 hooks. **Codex**: 같은 hook 스크립트를 `--agent codex` 로(이벤트 이름·필드가 거의 같다: `turn_id`=prompt_id, Stop 은 `{"decision":"block","reason":…}` 로 이어 감, Task 이벤트 없음). Codex 의 hook 신뢰 확인은 사용자가 직접 한다.
 - **그 밖의 LLM**(hooks 를 붙이지 못한 것): `kanban agent <start|progress|ask|report|done|fail>` 명령으로 스스로 남긴다. 이런 이벤트는 `via:"self"` 이고 앱은 "자기 보고"로 구분해 보인다(강제 기록이 아니므로).
 - 세션 id 는 LLM 이 준 것을 쓰되, 형식이 다르면 `sha256(agent|원래 id)` 로 만든 UUID 모양.
+
+# 1.2 — 이름과 이어짐
+
+## 16. 컴퓨터 이름 · 레인 · 이어지는 세션 카드
+오래 도는 어시스턴트(예: tmux 안의 텔레그램 채널 세션)를 다시 띄워도 보드에 카드가 늘지 않게, 카드를 **컴퓨터 + 레인(채널)** 으로 부른다. 모든 필드는 선택이라 옛 앱·옛 맥은 그대로 동작한다.
+- **컴퓨터 이름(`machine`)**: 컴퓨터마다 하나인 표시 이름(최대 40자, 경로 구분자 없음). 맥 설정 `machineName`, 없으면 macOS ComputerName → hostname. 이름은 표시용이라 바뀔 수 있다.
+- **레인(`lane`)**: 세션의 안정된 이름. 맥이 먼저 맞는 것으로 정한다: ① 환경변수 `AGENT_KANBAN_LANE` ② 텔레그램 채널 상태 폴더(`TELEGRAM_STATE_DIR` 폴더 이름 `telegram-<x>` → `x`, `telegram` → `telegram`) ③ tmux 세션 이름(설정 `laneStripPrefixes` 로 접두어 제거, 숫자만 있는 기본 이름은 무시) ④ 작업 폴더 이름. **①②③ 만 이어진다.** ④(폴더 이름만)는 같은 폴더에서 세션을 나란히 돌릴 수 있으므로 세션마다 카드를 따로 둔다(옛 방식 그대로, `lane` 은 표시용으로만 session.json 에 적는다).
+- **agentKey**: `sha256("<machineId>|<lane>|<보드 폴더 root>")` 앞 32 hex. machineId 는 그 컴퓨터에만 있는 무작위 id 라 컴퓨터 이름을 바꿔도 같은 카드다. 클라우드에는 agentKey 만 올라가고 machineId 는 올라가지 않는다.
+- **레인 카드**: `kind:"session"` 이며 카드 id = `sha256("lane|<agentKey>")` 앞 32 hex 를 UUID 모양(8-4-4-4-12)으로(§2 와 같은 방식). `card.json` 에 `agentKey`·`lane`·`machine` 이 있고 `sessionId` 는 처음 만든 세션이다. **제목은 `"<machine> · <lane>"` 로 고정**(프롬프트로 바꾸지 않는다. 지금 하는 일은 now.json `summary`). 같은 컴퓨터·레인에서 세션이 다시 뜨면 같은 카드에 이어 쓰고 이벤트 기록은 그대로 둔다.
+- **이어받기**: 새 세션이 레인 카드에 붙으면 맥은 ① 새 세션의 session.json 에 `machine`·`lane`·`agentKey` 를 쓰고 ② 카드에 `replaced` 이벤트(`sessionId`=새 세션, `from`=이전 세션, `summary`="새 세션으로 이어짐")를 쓰고, 이전 세션이 "AI 작업 중"으로 끊긴 채였다면 `paused` 를 이어 쓰고 ③ 이전 세션의 now.json 을 `state:"ended"`+`replacedBy` 로 바꾼다. 카드의 **현재 세션** = 가장 최근 `replaced` 이벤트의 `sessionId`, 없으면 `card.sessionId`(앱은 이 세션의 now.json 으로 "세션 신호 없음"을 판단한다).
+- **전달**: 레인 카드의 코멘트·처리·요청 답은 그 레인의 **현재 살아 있는 세션 하나**가 받는다(§8 의 receipt 규칙은 그대로). 같은 레인에서 두 세션이 동시에 살아 있으면 **가장 최근에 시작한 세션이 이기고**, 밀려난 세션은 레인 카드를 더 받지도 쓰지도 않으며(세션별 카드로 기록하고 경고를 받는다) 그 세션 id 는 `replaced` 이벤트로 남는다. 새 세션이 뜨기 전에 남긴 코멘트는 새 세션이 이어서 받는다.
+- **앱 표시**: 카드 이름 = `machine · lane`(레인 카드는 `card.machine`·`card.lane`, 그 밖은 세션의 `session.machine` 과 `session.lane ?? session.name`). `agentKey` 가 같은 카드는 하나로 본다. 없으면 옛 방식. `replaced` 이벤트는 활동 기록에 "새 세션으로 이어짐"으로 보이고 상태는 바꾸지 않는다. 옛 세션의 now.json 이 `ended`+`replacedBy` 면 살아 있는 것으로 보이지 않는다.
+- **정리(맥, 선택)**: `kanban merge-lanes` 는 같은 컴퓨터·레인(옛 카드는 작업 폴더 이름)의 세션 카드가 여럿일 때 가장 최근 것만 두고 나머지를 `archive/` 로 옮긴다(삭제 없음, 살아 있는 세션·사람 차례가 있는 카드는 건너뜀).

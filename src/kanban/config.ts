@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import { sanitizeLabel } from './core/lane.ts'
 
 /** 한 보드 폴더(워크스페이스). includePaths 가 없으면 "기본" 워크스페이스 */
 export interface Workspace {
@@ -20,6 +21,10 @@ export interface AllConfig {
   excludePaths: string[]
   includeHeadless: boolean
   allowAuthors?: string[]
+  /** 이 컴퓨터의 표시 이름(SPEC 1.2). 없으면 ComputerName/hostname */
+  machineName?: string
+  /** tmux 세션 이름 앞에서 뗄 접두어(기본 없음) */
+  laneStripPrefixes: string[]
   monitor: { intervalSec: number; busyDelaySec: number }
   telegram: { enabled: boolean; chatId: string; tokenEnv: string; apiBase: string }
 }
@@ -34,6 +39,8 @@ export interface Config {
   excludePaths: string[]
   includeHeadless: boolean
   allowAuthors?: string[]
+  machineName?: string
+  laneStripPrefixes: string[]
   monitor: { intervalSec: number; busyDelaySec: number }
   telegram: { enabled: boolean; chatId: string; tokenEnv: string; apiBase: string }
 }
@@ -101,6 +108,8 @@ export function loadAllConfig(): AllConfig | null {
     excludePaths: strs(raw.excludePaths),
     includeHeadless: raw.includeHeadless === true,
     ...(Array.isArray(raw.allowAuthors) ? { allowAuthors: raw.allowAuthors.filter((x: unknown): x is string => typeof x === 'string') } : {}),
+    ...(sanitizeLabel(raw.machineName) ? { machineName: sanitizeLabel(raw.machineName) } : {}),
+    laneStripPrefixes: Array.isArray(raw.laneStripPrefixes) ? raw.laneStripPrefixes.filter((x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 40) : [],
     monitor: { intervalSec: num(m.intervalSec, 5, 0.1), busyDelaySec: num(m.busyDelaySec, 30, 0) },
     telegram: {
       enabled: t.enabled === true,
@@ -158,6 +167,8 @@ export function configFor(all: AllConfig, w: Workspace): Config {
     excludePaths: [...all.excludePaths, ...w.excludePaths],
     includeHeadless: all.includeHeadless,
     ...(all.allowAuthors ? { allowAuthors: all.allowAuthors } : {}),
+    ...(all.machineName ? { machineName: all.machineName } : {}),
+    laneStripPrefixes: all.laneStripPrefixes,
     monitor: all.monitor,
     telegram: all.telegram,
   }

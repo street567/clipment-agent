@@ -133,7 +133,7 @@ claude --dangerously-load-development-channels plugin:client-ai-bridge@street567
 참고: `wait_for_requests` 는 최대 600초 롱폴입니다. MCP 클라이언트의 도구 타임아웃이 짧다면 `timeout_sec` 를 줄이세요.
 
 ## 에이전트 칸반
-Claude Code 세션의 진행(작업·승인 대기·완료)을 hooks 로 기록해 클라우드 폴더의 보드로 남기고, 폰에서 남긴 의견을 세션에 전달합니다. 코드는 `src/kanban/`, 테스트 `test/kanban/`, 계약 `spec-kanban/`(칸반 계약 1.1, 이 레포에서는 바꾸지 않음), 자세한 설명 [docs/kanban.md](docs/kanban.md), Codex 예시 `docs/kanban-codex/`.
+Claude Code 세션의 진행(작업·승인 대기·완료)을 hooks 로 기록해 클라우드 폴더의 보드로 남기고, 폰에서 남긴 의견을 세션에 전달합니다. 코드는 `src/kanban/`, 테스트 `test/kanban/`, 계약 `spec-kanban/`(칸반 계약 1.2, 원본은 agent-kanban 레포 `spec/` — 이 레포에서는 직접 바꾸지 않음), 자세한 설명 [docs/kanban.md](docs/kanban.md), Codex 예시 `docs/kanban-codex/`.
 
 **설정하기 전에는 완전히 꺼져 있습니다**: hook 은 아무 출력 없이 exit 0, 감시(monitor)는 아무것도 내보내지 않고, 칸반 MCP 도구는 "not set up" 이라고 답합니다. 보드 폴더(이미 있는 iCloud/구글 드라이브 등의 폴더)를 지정하면 켜집니다.
 - 설정: Claude 에게 "칸반 설정해줘, 폴더는 …" → MCP 도구 `kanban_setup(root, name?, includePaths?, create?, confirmReplace?)`. 또는 터미널 `kanban setup --root <폴더> [--name 이름] [--include <프로젝트 폴더>]...`.

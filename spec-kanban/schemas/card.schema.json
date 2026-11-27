@@ -56,6 +56,18 @@
      "pattern": "^[a-z0-9-]{1,64}$"
     }
    }
+  },
+  "agentKey": {
+   "type": "string",
+   "pattern": "^[0-9a-f]{8,64}$"
+  },
+  "lane": {
+   "type": "string",
+   "maxLength": 40
+  },
+  "machine": {
+   "type": "string",
+   "maxLength": 40
   }
  },
  "additionalProperties": true

@@ -2,5 +2,8 @@
  "schema": 1,
  "id": "4f1c2a3b-aaaa-4bbb-8ccc-123456789abc",
  "name": "zippy-react",
- "created": "2026-11-25T01:23:45.678Z"
+ "created": "2026-11-25T01:23:45.678Z",
+ "machine": "맥미니",
+ "lane": "core",
+ "agentKey": "3c9d5e7f1a2b4c6d8e0f1a2b3c4d5e6f"
 }

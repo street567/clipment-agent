@@ -3,6 +3,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { configPath, expandHome, loadAllConfig, normalizeWorkspaces, routeWorkspace, type Workspace } from './config.ts'
+import { resolveMachineName, sanitizeLabel, type MachineSource } from './core/lane.ts'
 import { writeReplace } from './core/fs.ts'
 import { Store } from './core/store.ts'
 
@@ -50,6 +51,8 @@ export interface WorkspaceStatus extends WorkspaceInfo {
 }
 
 export interface StatusResult {
+  /** 이 컴퓨터의 표시 이름(카드 제목 "컴퓨터 · 레인"). source: config | computername | hostname */
+  machine?: { name: string; source: MachineSource; configured?: string; defaultName: string; laneStripPrefixes?: string[] }
   configured: boolean
   configPath: string
   configExists: boolean
@@ -149,6 +152,8 @@ export function setupKanban(o: { root: string; name?: string; includePaths?: str
   const list: Workspace[] = cur && !cur.broken ? normalizeWorkspaces(cur.raw) : []
   const existing = list.find((w) => w.root === root)
   const enabled = !!cur && !cur.broken && cur.raw.enabled === true
+  // 컴퓨터 이름만 먼저 정해 둔 설정(enabled·워크스페이스 없음)은 "아직 설정 안 됨"과 같다
+  const blank = !!cur && !cur.broken && cur.raw.enabled === undefined && !Array.isArray(cur.raw.workspaces) && typeof cur.raw.root !== 'string'
   const ensureDir = (): SetupResult | null => {
     if (isDir(root)) return null
     if (!o.create) return { ok: false, result: 'error', message: `폴더가 없어요: ${root}. 폴더를 먼저 만들거나(클라우드 폴더라면 동기화 앱에서) create=true 로 만들라고 명시하세요. 아무것도 바꾸지 않았어요.`, ...base }
@@ -182,10 +187,12 @@ export function setupKanban(o: { root: string; name?: string; includePaths?: str
       const warn = scopeWarnings(next)
       return { ok: true, result: r, message: message + (warn.length ? ` 경고: ${warn.join(' ')}` : ''), ...base, ...(backup ? { backup } : {}), workspaces: next.map(info), ...extra }
     }
-    if (!cur) {
+    if (!cur || blank) {
       const w: Workspace = { ...(name ? { name } : {}), root, board: 'main', includePaths: scope, excludePaths: [] }
       mkdirSync(dirname(path), { recursive: true })
-      writeReplace(path, defaultConfig([w]))
+      // kanban_machine 이 먼저 만든 설정(machineName 만 있음)이면 그 값들을 보존하고 백업
+      if (blank && existsSync(path)) copyFileSync(path, `${path}.bak`)
+      writeReplace(path, blank ? { ...cur!.raw, ...defaultConfig([w]) } : defaultConfig([w]))
       return finish('created', [w], `설정을 만들었어요: ${path} (root=${root}${scope.length ? `, includePaths=${scope.join(', ')}` : ', 기본 워크스페이스'}). hooks 는 다음 이벤트부터 바로 동작하고, 의견 전달 감시(monitor)는 새 세션부터 켜져요.`, '', w)
     }
     if (cur.broken || !enabled) {
@@ -260,7 +267,66 @@ export function removeWorkspace(o: { root: string; confirm?: boolean }): RemoveR
   }
 }
 
+// ── 컴퓨터 이름 (SPEC 1.2): kanban_machine · `kanban machine`
+export interface MachineResult {
+  ok: boolean
+  /** shown | set | unchanged | error */
+  result: 'shown' | 'set' | 'unchanged' | 'error'
+  message: string
+  configPath: string
+  /** 지금 카드에 쓰이는 이름 */
+  name?: string
+  source?: MachineSource
+  /** 설정 파일의 machineName(없으면 생략: 기본값을 쓰는 중) */
+  configured?: string
+  previous?: string
+  backup?: string
+}
+
+/** 현재 컴퓨터 이름과 출처. 설정이 꺼져 있어도 읽는다 */
+export function machineInfo(): { name: string; source: MachineSource; configured?: string; defaultName: string } {
+  const cur = readRaw(configPath())
+  const configured = cur && !cur.broken ? sanitizeLabel(cur.raw.machineName) || undefined : undefined
+  const r = resolveMachineName(configured)
+  return { name: r.name, source: r.source, ...(configured ? { configured } : {}), defaultName: resolveMachineName(undefined).name }
+}
+
+/** name 없이 부르면 보여 주기만. 있으면 정리(공백·40자·경로 구분자 제거)해서 설정에 쓴다(바꾸기 전 config.json.bak 백업). 설정이 없으면 machineName 만 든 설정을 만든다(칸반은 켜지지 않음) */
+export function setMachine(o: { name?: string } = {}): MachineResult {
+  const path = configPath()
+  if (o.name === undefined) {
+    const i = machineInfo()
+    return { ok: true, result: 'shown', configPath: path, name: i.name, source: i.source, ...(i.configured ? { configured: i.configured } : {}), message: i.configured ? `이 컴퓨터 이름: ${i.name} (설정)` : `이 컴퓨터 이름: ${i.name} (설정 안 함 — 기본값: ${i.source === 'computername' ? 'macOS 컴퓨터 이름' : 'hostname'}). 바꾸려면 name 을 주세요.` }
+  }
+  const name = sanitizeLabel(o.name)
+  if (!name) return { ok: false, result: 'error', configPath: path, message: '이름이 비어 있어요(공백·경로 구분자만 있으면 안 돼요). 최대 40자.' }
+  const cur = readRaw(path)
+  if (cur?.broken) return { ok: false, result: 'error', configPath: path, message: '설정 파일이 깨져 있어 아무것도 바꾸지 않았어요.' }
+  const previous = cur ? sanitizeLabel(cur.raw.machineName) || undefined : undefined
+  if (cur && previous === name) return { ok: true, result: 'unchanged', configPath: path, name, source: 'config', configured: name, message: `이미 이 이름이에요: ${name}` }
+  try {
+    mkdirSync(dirname(path), { recursive: true })
+    let backup = ''
+    if (cur) { backup = `${path}.bak`; copyFileSync(path, backup) }
+    writeReplace(path, { ...(cur?.raw ?? {}), machineName: name })
+    return {
+      ok: true, result: 'set', configPath: path, name, source: 'config', configured: name, ...(previous ? { previous } : {}), ...(backup ? { backup } : {}),
+      message: `이 컴퓨터 이름을 "${name}" 로 정했어요${backup ? `(이전 설정은 ${backup} 에 백업)` : ''}. 이미 있는 카드 제목은 그대로이고, 새로 이어받는 세션부터 새 이름을 써요.`,
+    }
+  } catch (e: any) {
+    return { ok: false, result: 'error', configPath: path, message: `설정을 쓰지 못했어요: ${e?.code ?? e?.message ?? e}` }
+  }
+}
+
 export function kanbanStatus(o: { cwd?: string; sessionRoot?: string } = {}): StatusResult {
+  const r = kanbanStatusCore(o)
+  const m = machineInfo()
+  const raw = readRaw(configPath())
+  const strip = raw && !raw.broken && Array.isArray(raw.raw.laneStripPrefixes) ? raw.raw.laneStripPrefixes.filter((x: unknown) => typeof x === 'string') : []
+  return { machine: { name: m.name, source: m.source, ...(m.configured ? { configured: m.configured } : {}), defaultName: m.defaultName, ...(strip.length ? { laneStripPrefixes: strip } : {}) }, ...r }
+}
+
+function kanbanStatusCore(o: { cwd?: string; sessionRoot?: string } = {}): StatusResult {
   const path = configPath()
   const all = loadAllConfig()
   const exists = existsSync(path)

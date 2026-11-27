@@ -9,10 +9,11 @@ import { loadConfig, pathAllowed, type Config } from './config.ts'
 import { formatSessionStart, formatStop, normalizeInput, resolveAgent } from './core/agent.ts'
 import { checkMine, loadBoard, refreshTaken, scanAvailable } from './core/delegate.ts'
 import { displayAgent } from './core/agent.ts'
-import { closeAnswered, currentCardId, dropTaken, emit, ensureCard, needsHuman, newCtx, queueNotice, sessionCardId, setNow, setTitle, touchWorking, type Ctx } from './core/board.ts'
+import { closeAnswered, currentCardId, dropTaken, emit, ensureCard, ensureSessionCard, needsHuman, newCtx, queueNotice, sessionCardId, setNow, setTitle, touchWorking, type Ctx } from './core/board.ts'
 import { claim, collectPending, renderForStop } from './core/deliver.ts'
 import { isSessionId } from './core/ids.ts'
 import { clearPidMap, findClaudePid, loadSession, logLine, newSessionState, setPidMap, withSession } from './core/localstate.ts'
+import { agentKeyOf, checkSuperseded, claimLane, detectLane, laneCardId, machineId, resolveMachineName, sessionLooksLive } from './core/lane.ts'
 import { clean } from './core/redact.ts'
 import { Store } from './core/store.ts'
 import { summarizeTool } from './core/summarize.ts'
@@ -201,7 +202,7 @@ function onUserPrompt(ctx: Ctx, input: any) {
   const pid = typeof input.prompt_id === 'string' ? input.prompt_id : undefined
   if (pid) st.submitPromptId = st.lastPromptId = pid
   const title = promptTitle(input.prompt)
-  const sc = ensureCard(ctx, 'session', '', title ?? st.name)
+  const sc = ensureSessionCard(ctx, title ?? st.name)
   if (title) setTitle(ctx, sc, title)
   dropInfos(ctx)
   touchWorking(ctx, sc)
@@ -339,6 +340,42 @@ function delegatedNote(ctx: Ctx): string {
   }
 }
 
+/** 컴퓨터 이름·레인 정하기(세션 처음 한 번). 레인이 (a)(b)(c) 에서 나오면 st.lane(카드가 이어짐), 폴더 이름뿐이면 session.json 의 lane 표시만 */
+function resolveIdentity(ctx: Ctx, cwd: unknown): { machine: string; lane?: string; agentKey?: string } {
+  const { st, cfg } = ctx
+  st.machine = resolveMachineName(cfg.machineName).name
+  const d = detectLane({ stripPrefixes: cfg.laneStripPrefixes, cwd: typeof cwd === 'string' ? cwd : undefined })
+  if (!d) return { machine: st.machine }
+  if (d.source === 'folder') return { machine: st.machine, lane: d.lane }
+  const agentKey = agentKeyOf(machineId(), d.lane, cfg.root)
+  st.lane = { name: d.lane, source: d.source, agentKey, cardId: laneCardId(agentKey) }
+  return { machine: st.machine, lane: d.lane, agentKey }
+}
+
+/** 이 세션이 레인을 가져간다(가장 새로운 세션이 이김). SessionStart 가 아닌 첫 이벤트는 살아 있는 소유자를 밀어내지 않는다 */
+async function claimLaneFor(ctx: Ctx, force: boolean) {
+  const { st, store } = ctx
+  const l = st.lane
+  if (!l) return
+  const r = await claimLane(l.agentKey, st.sessionId, l.name, { force, isLive: (o) => sessionLooksLive(loadSession(o)) })
+  if (!r.owned) {
+    l.superseded = true
+    l.replacedBy = r.prev
+    return
+  }
+  l.superseded = false
+  l.replacedBy = undefined
+  l.warned = false
+  if (r.prev) {
+    l.pendingFrom = r.prev
+    // 앱이 이전 세션을 살아 있는 것으로 보이지 않게(같은 컴퓨터에서 도는 세션이라 이 맥이 쓴다)
+    try {
+      const n = store.readNow(r.prev)
+      if (n && n.state !== 'ended') store.writeNow(r.prev, { ...n, state: 'ended', replacedBy: st.sessionId, ts: new Date().toISOString() })
+    } catch {}
+  }
+}
+
 async function run(cfg: Config, rawInput: any, agent: string): Promise<string | undefined> {
   const input = normalizeInput(agent, rawInput)
   const sid = input.session_id
@@ -356,8 +393,13 @@ async function run(cfg: Config, rawInput: any, agent: string): Promise<string | 
     const ctx = newCtx(cfg, store, st)
     if (!st.inited) {
       store.init()
-      store.ensureSession(sid, st.name, agent)
+      const id = resolveIdentity(ctx, input.cwd)
+      store.ensureSession(sid, st.name, agent, id)
       st.inited = true
+      await claimLaneFor(ctx, ev === 'SessionStart')
+    } else if (st.lane) {
+      if (ev === 'SessionStart') await claimLaneFor(ctx, true) // 같은 세션 재개(resume)도 가장 새로운 세션
+      else checkSuperseded(st)
     }
     try {
       switch (ev) {
@@ -366,6 +408,10 @@ async function run(cfg: Config, rawInput: any, agent: string): Promise<string | 
           const pid = findClaudePid()
           st.pid = pid
           setPidMap(pid, sid)
+          if (st.lane && !st.lane.superseded) {
+            // 레인 세션은 시작하자마자 레인 카드에 붙는다(새로 만들거나 이어받음). 앱이 이 세션을 "지금 세션"으로 본다
+            setNow(ctx, { state: 'idle', cardId: sessionCardId(ctx) }, true)
+          }
           return formatSessionStart(agent, (agent === 'claude' ? SESSION_START_NOTE : CODEX_NOTE) + delegatedNote(ctx))
         }
         case 'UserPromptSubmit':

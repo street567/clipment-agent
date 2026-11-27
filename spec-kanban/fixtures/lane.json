@@ -1,0 +1,8 @@
+{
+ "note": "1.2 §16 레인 카드 id 계산 예시. agentKey = sha256(machineId|lane|root) 앞 32 hex, cardId = sha256(\"lane|\"+agentKey) 앞 32 hex 를 8-4-4-4-12 로",
+ "machineId": "8f2b6c1e-4d3a-4e5f-9a7b-0c1d2e3f4a5b",
+ "lane": "core",
+ "root": "/Users/me/Library/Mobile Documents/com~apple~CloudDocs/Agent Kanban",
+ "agentKey": "b10f9be7738d7543155f3276b8654f8a",
+ "cardId": "e15da08f-26e5-4c2c-5fcc-c1a0c4ad5477"
+}

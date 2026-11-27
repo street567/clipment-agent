@@ -2,6 +2,8 @@
 // 반드시 withSession 락 안에서 호출한다(로컬 상태와 클라우드 쓰기를 같이 바꾼다).
 import type { Config } from '../config.ts'
 import { iso } from './fs.ts'
+import { derive } from './derive.ts'
+import { laneTitle } from './lane.ts'
 import { cardId as mkCardId, newId, type CardKind } from './ids.ts'
 import { clean } from './redact.ts'
 import type { CardStatus, SessionState } from './localstate.ts'
@@ -44,7 +46,7 @@ export function emit(
   ctx: Ctx,
   cardId: string,
   type: EventRec['type'],
-  f: { summary?: string; tool?: string; title?: string; ref?: string; ask?: { kind: string; options?: string[]; to?: string[] } } = {},
+  f: { summary?: string; tool?: string; title?: string; ref?: string; from?: string; ask?: { kind: string; options?: string[]; to?: string[] } } = {},
 ): EventRec {
   const { st, store } = ctx
   const c = st.cards[cardId]
@@ -59,6 +61,7 @@ export function emit(
     ...(f.tool ? { tool: clean(f.tool, 80) } : {}),
     ...(f.title ? { title: clean(f.title, 120) } : {}),
     ...(f.ref ? { ref: f.ref } : {}),
+    ...(f.from ? { from: f.from } : {}),
     ...(f.ask ? { ask: f.ask } : {}),
     ...(ctx.via ? { via: ctx.via } : {}),
     created: iso(ms),
@@ -85,11 +88,46 @@ export function touchWorking(ctx: Ctx, cardId: string, force = false): boolean {
 
 export function setTitle(ctx: Ctx, cardId: string, title: string) {
   const c = ctx.st.cards[cardId]
+  if (c?.lane) return // 레인 카드 제목은 "컴퓨터 · 레인" 으로 고정(지금 하는 일은 now.json summary)
   if (c && title) c.title = clean(title, 120) || c.title
 }
 
 export function sessionCardId(ctx: Ctx): string {
-  return ensureCard(ctx, 'session', '', ctx.st.name)
+  return ensureSessionCard(ctx, ctx.st.name)
+}
+
+/** 세션 카드. 레인(채널)이 있으면 레인 카드(세션이 바뀌어도 같은 카드, SPEC 1.2 §16), 없거나 밀려났으면 세션별 카드 */
+export function ensureSessionCard(ctx: Ctx, title: string): string {
+  const l = ctx.st.lane
+  if (l && !l.superseded) return ctx.st.cards[l.cardId] ? l.cardId : attachLaneCard(ctx)
+  return ensureCard(ctx, 'session', '', title)
+}
+
+/** 레인 카드를 만들거나(첫 세션) 이어받는다(다음 세션: 이벤트 기록은 그대로, "replaced" 이벤트 추가). 락(withSession) 안에서만 */
+function attachLaneCard(ctx: Ctx): string {
+  const { st, store } = ctx
+  const l = st.lane!
+  const id = l.cardId
+  const title = clean(laneTitle(st.machine ?? 'computer', l.name), 120)
+  const made = store.writeCard({ id, sessionId: st.sessionId, kind: 'session', title, created: iso(), agentKey: l.agentKey, lane: l.name, ...(st.machine ? { machine: st.machine } : {}) })
+  if (made) {
+    st.cards[id] = { kind: 'session', status: 'waiting', title, shownTitle: title, lastMs: 0, lane: true }
+    emit(ctx, id, 'created')
+    l.pendingFrom = undefined
+    return id
+  }
+  const events = store.events(id)
+  const d = derive(events, store.actions(id))
+  const last = events.length ? Date.parse(events[events.length - 1].created) : 0
+  const card = store.readCard(id)
+  st.cards[id] = { kind: 'session', status: d.base === 'working' ? 'working' : d.base === 'done' ? 'done' : d.base === 'failed' ? 'failed' : 'waiting', title, shownTitle: d.title ?? card?.title ?? title, lastMs: isFinite(last) ? last : 0, lane: true }
+  const from = l.pendingFrom ?? [...events].reverse().find((e) => e.type !== 'replaced')?.sessionId
+  l.pendingFrom = undefined
+  if (from && from !== st.sessionId) {
+    emit(ctx, id, 'replaced', { summary: '새 세션으로 이어짐', from })
+    if (st.cards[id].status === 'working') emit(ctx, id, 'paused') // 이전 세션이 일하다 끊긴 채 남은 "AI 작업 중"을 거둔다
+  }
+  return id
 }
 
 /** 맡은 카드 중 지금 쓸 수 있는 것(가장 나중에 맡은 순): 끝나지 않았고 확인 요청 중이 아닌 것 */

@@ -72,7 +72,7 @@ describe('카드 흐름', () => {
     expect(s.card.title).toBe('로그인 화면 고쳐 줘')
     expect(s.derived.list).toBe('working')
     expect(readJ(join(e.root, 'boards/main/sessions', SID, 'session.json')).name).toBe('proj')
-    expect(readJ(join(e.root, 'kanban.json')).contract).toBe('1.1')
+    expect(readJ(join(e.root, 'kanban.json')).contract).toBe('1.2')
   })
   test('새 사람 입력은 제목을 바꾸고, 짧은 답("ㅇㅇ")은 제목 유지', async () => {
     const e = setup({})

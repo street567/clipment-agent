@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// kanban CLI: init · status · board · member · label · agent · doctor · probe · upload-probe · prune
+// kanban CLI: init · status · board · member · label · agent · doctor · probe · upload-probe · prune · machine · merge-lanes
 import { spawnSync } from 'node:child_process'
 import { accessSync, constants, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -15,7 +15,7 @@ import { clean } from './core/redact.ts'
 import { createHash } from 'node:crypto'
 import { logDir, stateDir, type SessionState } from './core/localstate.ts'
 import { Store } from './core/store.ts'
-import { kanbanStatus, removeWorkspace, setupKanban } from './setup.ts'
+import { kanbanStatus, removeWorkspace, setMachine, setupKanban } from './setup.ts'
 import { oneLine } from './core/redact.ts'
 import { resolve } from 'node:path'
 
@@ -118,6 +118,7 @@ function cmdStatus() {
   const st = kanbanStatus()
   out(`설정: ${configPath()} → ${st.configured ? '켜짐' : '꺼짐/없음'}`)
   if (!st.configured) out('칸반이 아직 설정되지 않았어요(not set up). kanban setup --root <폴더>')
+  if (st.machine) out(`컴퓨터 이름: ${st.machine.name} (${st.machine.source === 'config' ? '설정' : st.machine.source === 'computername' ? '기본값: macOS 컴퓨터 이름' : '기본값: hostname'}) — 바꾸기: kanban machine --name <이름>`)
   const cfg = loadConfig()
   if (st.configured) {
     for (const w of st.workspaces ?? []) out(` - ${w.name ?? '(이름 없음)'}  ${w.root}  board=${w.board}  ${w.reachable ? '닿음' : '닿지 않음'}  ${w.hasKanbanJson ? 'kanban.json 있음' : 'kanban.json 없음'}  ${w.includePaths.length ? 'include: ' + w.includePaths.join(', ') : '(기본)'}`)
@@ -129,7 +130,7 @@ function cmdStatus() {
   out(`세션 ${ss.length}개`)
   for (const s of ss.slice(0, 20)) {
     const ago = Math.round((Date.now() - s.updatedMs) / 60000)
-    out(` - ${s.name} [${s.now?.state ?? '-'}] ${ago}분 전 · 카드 ${Object.keys(s.cards).length}개${s.openInfos.length ? ` · 열린 확인 ${s.openInfos.length}` : ''}`)
+    out(` - ${s.lane ? `${s.machine ?? ''} · ${s.lane.name}${s.lane.superseded ? '(밀려남)' : ''}` : s.name} [${s.now?.state ?? '-'}] ${ago}분 전 · 카드 ${Object.keys(s.cards).length}개${s.openInfos.length ? ` · 열린 확인 ${s.openInfos.length}` : ''}`)
   }
 }
 
@@ -509,8 +510,75 @@ function cmdPrune(args: string[]) {
   out(apply ? `${n}개를 archive/ 로 옮겼어요(삭제 없음).` : `${n}개 대상. 실제로 옮기려면 --apply`)
 }
 
+function cmdMachine(args: string[]) {
+  const i = args.indexOf('--name')
+  if (i >= 0 && args[i + 1] === undefined) {
+    out('사용법: kanban machine [--name <이름>]')
+    process.exit(2)
+  }
+  const r = setMachine(i >= 0 ? { name: args[i + 1] } : {})
+  out(r.message)
+  if (!r.ok) process.exit(1)
+}
+
+/** 같은 컴퓨터·레인(옛 카드는 작업 폴더 이름)의 세션 카드가 여럿이면 가장 최근 것만 두고 나머지를 archive/ 로 옮긴다(삭제 없음, 기본은 미리보기) */
+function cmdMergeLanes(args: string[]) {
+  const cfg = needConfig()
+  const apply = has(args, '--apply')
+  if (apply && has(args, '--dry-run')) {
+    out('--apply 와 --dry-run 은 같이 쓸 수 없어요.')
+    process.exit(2)
+  }
+  const only = flag(args, '--lane')
+  const store = new Store(cfg.root, cfg.board)
+  const now = Date.now()
+  interface Cand { id: string; title: string; last: number; movable: boolean; why: string }
+  const groups = new Map<string, Cand[]>()
+  for (const id of store.cardIds()) {
+    const card = store.readCard(id)
+    if (!card || card.kind !== 'session' || card.agentKey || !card.sessionId) continue // 레인 카드는 건드리지 않음
+    const sess = store.readSession(card.sessionId)
+    if (!sess) continue
+    const laneName = sess.lane ?? sess.name ?? ''
+    if (!laneName || (only && laneName !== only)) continue
+    const events = store.events(id)
+    const d = derive(events, store.actions(id))
+    const times = [...events, ...store.comments(id), ...store.actions(id)].map((x) => Date.parse(x.created)).filter((t) => isFinite(t))
+    const last = Math.max(0, ...times)
+    const n = store.readNow(sess.id)
+    const alive = Math.max(Date.parse(n?.aliveAt ?? '') || 0, Date.parse(n?.ts ?? '') || 0)
+    const live = !!n && n.state !== 'ended' && now - alive < 15 * 60_000
+    const why = live ? '세션이 아직 살아 있음' : d.list === 'mine' ? '사람 차례(열린 요청/문제)가 있음' : d.list === 'working' ? 'AI 작업 중으로 남아 있음' : ''
+    const key = `${sess.machine ?? ''}|${laneName}|${sess.agent ?? 'claude'}`
+    const g = groups.get(key) ?? []
+    g.push({ id, title: card.title, last, movable: !why, why })
+    groups.set(key, g)
+  }
+  let n = 0
+  for (const [key, g] of groups) {
+    if (g.length < 2) continue
+    g.sort((a, b) => b.last - a.last)
+    const [machine, lane] = key.split('|')
+    out(`${machine ? machine + ' · ' : ''}${lane}: 세션 카드 ${g.length}개 — 가장 최근 것만 둡니다 (${g[0].id.slice(0, 8)}, ${iso(g[0].last).slice(0, 16)})`)
+    for (const c of g.slice(1)) {
+      if (!c.movable) {
+        out(`  건너뜀: ${oneLine(c.title, 50)} (${c.id.slice(0, 8)}) — ${c.why}`)
+        continue
+      }
+      n++
+      out(`  ${apply ? '이동' : '대상'}: ${oneLine(c.title, 50)} (${c.id}, 마지막 ${iso(c.last).slice(0, 10)})`)
+      if (apply) {
+        const dest = join(store.boardDir, 'archive')
+        mkdirSync(dest, { recursive: true })
+        if (!existsSync(join(dest, c.id))) renameSync(store.cardDir(c.id), join(dest, c.id))
+      }
+    }
+  }
+  out(apply ? `${n}개를 archive/ 로 옮겼어요(삭제 없음).` : `${n}개 대상(미리보기). 실제로 옮기려면 --apply`)
+}
+
 const USAGE =
-  '사용법: kanban <init [--root DIR] | setup --root DIR [--name N] [--include DIR]... [--create] [--confirm-replace] | remove --root DIR [--confirm] | status [--json] | board [--archived] | member <add|list|remove> | label <add|list|remove> | agent <start|progress|ask|report|done|fail> | doctor | probe [-n 30] | upload-probe | prune --days N [--apply]>'
+  '사용법: kanban <init [--root DIR] | setup --root DIR [--name N] [--include DIR]... [--create] [--confirm-replace] | remove --root DIR [--confirm] | status [--json] | board [--archived] | member <add|list|remove> | label <add|list|remove> | agent <start|progress|ask|report|done|fail> | doctor | probe [-n 30] | upload-probe | prune --days N [--apply] | machine [--name N] | merge-lanes [--dry-run|--apply] [--lane NAME]>'
 
 async function main() {
   const [cmd, ...args] = process.argv.slice(2)
@@ -529,6 +597,8 @@ async function main() {
     case 'probe': return cmdProbe(args)
     case 'upload-probe': return cmdUploadProbe(args)
     case 'prune': return cmdPrune(args)
+    case 'machine': return cmdMachine(args)
+    case 'merge-lanes': return cmdMergeLanes(args)
     default:
       out(USAGE)
       process.exit(cmd ? 2 : 0)
