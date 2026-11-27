@@ -259,13 +259,17 @@ describe('이어지는 세션 카드 (hook)', () => {
     expect(rb.stdout).toContain('동시 실행 중 의견')
     expect(readJ(join(boardDir(e), 'cards', LC, 'receipts', `${comment}.json`)).sessionId).toBe(B)
     // 상태 경고: kanban_status 쪽 정보(로컬 상태) + 감시가 한 번 알림
-    const m = Bun.spawn([process.execPath, join(PLUGIN, 'src/kanban/monitor.ts')], { env: { ...e.env, CLAUDE_PID: String(process.pid), CLAUDE_CODE_SESSION_ID: A }, stdout: 'pipe', stderr: 'ignore' })
+    // hook 들은 테스트 러너를 부모로 공유해 pid 매핑이 마지막 세션(B)으로 잡힐 수 있다(ps 조상에 claude 가 없는 CI).
+    // 감시는 별도 부모로 띄워 env 의 세션 A 로 붙게 한다.
+    const parent = Bun.spawn(['sleep', '60'])
+    const m = Bun.spawn([process.execPath, join(PLUGIN, 'src/kanban/monitor.ts')], { env: { ...e.env, CLAUDE_PID: String(parent.pid), CLAUDE_CODE_SESSION_ID: A }, stdout: 'pipe', stderr: 'ignore' })
     const out: string[] = []
     ;(async () => { for await (const ch of m.stdout as any) out.push(new TextDecoder().decode(ch)) })()
     const t0 = Date.now()
     while (!out.join('').includes('더 새로운 세션') && Date.now() - t0 < 15000) await sleep(50)
     await sleep(700)
     m.kill()
+    parent.kill()
     expect(out.join('').match(/더 새로운 세션/g)?.length).toBe(1)
   }, 20000) // CI 러너가 느려 감시 신호까지 5초를 넘길 수 있다
   test('감시(monitor): 재시작한 새 세션이 레인 카드의 코멘트 신호를 받는다', async () => {
