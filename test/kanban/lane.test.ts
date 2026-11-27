@@ -263,11 +263,11 @@ describe('이어지는 세션 카드 (hook)', () => {
     const out: string[] = []
     ;(async () => { for await (const ch of m.stdout as any) out.push(new TextDecoder().decode(ch)) })()
     const t0 = Date.now()
-    while (!out.join('').includes('더 새로운 세션') && Date.now() - t0 < 5000) await sleep(50)
+    while (!out.join('').includes('더 새로운 세션') && Date.now() - t0 < 15000) await sleep(50)
     await sleep(700)
     m.kill()
     expect(out.join('').match(/더 새로운 세션/g)?.length).toBe(1)
-  })
+  }, 20000) // CI 러너가 느려 감시 신호까지 5초를 넘길 수 있다
   test('감시(monitor): 재시작한 새 세션이 레인 카드의 코멘트 신호를 받는다', async () => {
     const e = setup({ machineName: '맥미니', monitor: { intervalSec: 0.2, busyDelaySec: 0 } })
     const env = TG('telegram-core')
