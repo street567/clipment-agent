@@ -1,5 +1,8 @@
 # 변경 이력
 
+## Unreleased (0.9.1)
+- **새 프로젝트를 올릴 워크스페이스를 짐작하지 않기** (MCP 지침·`skills/apply-feedback`). 사람이 이름을 말했거나 연동 프롬프트·요청에 적힌 워크스페이스만 쓰고, 정해지지 않았으면 `list_workspaces` 후보를 보여 주고 먼저 묻는다. 제목·파일 이름이 워크스페이스 이름과 비슷하다고 고르지 않는다("슬라이드 …" 영상이 `slide-base` 로 들어간 일).
+
 ## Unreleased (0.9.0)
 - **에이전트 칸반: 반영 요청 (계약 1.3, 추가만, SPEC §17)**. 폰이 `boards/<b>/requests/<id>.json`(`{schema,id,kind:"apply",cardIds,to,authorName,created}`)을 쓰면 살아 있는 세션 하나가 `requests/<id>.taken.json` 을 배타 생성해 맡고, 카드에 남긴 사람 응답(승인·선택·수정 요청·코멘트)을 `board_inbox`/Stop 으로 한 덩어리(요청자·카드·미전달 응답·보드 주인의 보통 요청 + 코멘트와 같은 안전 문구)로 받습니다. 처리하면 평소처럼 receipt 가 남아 두 번 전달되지 않고, 끝나면 `requests/<id>.done.json`(`handled`·`skipped`).
 - 맡는 규칙: `to`(레인 agentKey)가 있으면 그 레인의 지금 세션만. 없으면 가장 좋은 순위의 세션 — ① 카드 주인(세션·레인) ② 같은 컴퓨터·프로젝트 폴더 이름이 카드 세션 `name` 과 같은 세션 ③ 아무 세션(감시 틱 2번 기다림). 같은 순위는 session id 가 작은 쪽이 먼저, 나머지는 2틱 뒤. 경주는 `.taken` 배타 생성이 하나만 이기게 함. 24시간 넘은 요청은 맡지 않음.
