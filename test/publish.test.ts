@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -120,6 +120,24 @@ describe('업로드용 영상 (SPEC §12)', () => {
     expect(b.original).toBeUndefined()
     expect(readdirSync(join(root, 'up', 'versions', 'v002')).sort()).toEqual(['meta.json', 'preview.mp4'])
     expect(readdirSync(join(root, 'up', 'versions')).every(n => !n.startsWith('.'))).toBe(true)   // staging 정리
+  })
+
+  test('원본은 미리보기·meta 공개 뒤에 복사, 실패하면 원본 없는 meta', async () => {
+    const root = tempRoot(); setDownloader(null)
+    await initProject('ord')
+    const vdir = join(root, 'ord', 'versions', 'v001')
+    let seen: string[] = []
+    const m = await publishVersion('ord', rotated, {
+      copyOriginal: async (src, dst) => { seen = readdirSync(vdir).sort(); copyFileSync(src, dst) },
+    })
+    expect(seen).toEqual(['meta.json', 'preview.mp4'])   // 복사 시작 시점: 작은 파일만 있고 원본 없음
+    expect(m.original?.file).toBe('original.mp4')
+    expect(readdirSync(vdir).sort()).toEqual(['meta.json', 'original.mp4', 'preview.mp4'])   // 임시 이름 정리
+
+    await expect(publishVersion('ord', rotated, { copyOriginal: async (_s, d) => { writeFileSync(d, 'x'); throw new Error('디스크 가득') } })).rejects.toThrow('원본 복사 실패')
+    const v2 = join(root, 'ord', 'versions', 'v002')
+    expect(readdirSync(v2).sort()).toEqual(['meta.json', 'preview.mp4'])
+    expect(JSON.parse(readFileSync(join(v2, 'meta.json'), 'utf8')).original).toBeUndefined()
   })
 
   test('확장자는 소문자 유지(.mov), 이상하면 mp4', () => {

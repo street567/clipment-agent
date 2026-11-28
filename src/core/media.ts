@@ -109,6 +109,8 @@ export interface PublishOptions {
   lite?: boolean
   /** true 면 원본을 복사하지 않는다 (용량이 큰 소스용). 기본: 원본 포함 (SPEC §12) */
   noOriginal?: boolean
+  /** 테스트용: 원본 복사 함수 교체 (미리보기·meta 가 먼저 공개됐는지 관찰) */
+  copyOriginal?: (src: string, dst: string) => Promise<void>
   /** true 면 이 새 버전을 업로드용으로 지정한다 */
   upload?: boolean
 }
@@ -148,13 +150,12 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
     await mkdir(stage, { recursive: true })
     await copyFile(tmpOut, join(stage, 'preview.mp4'))
     let original: VersionMeta['original']
+    const originalName = originalFileName(video)
     if (!opts.noOriginal) {
-      // 소스를 변환 없이 그대로 복사 (staging 안이라 폴더 rename 때 함께 나타난다)
-      const file = originalFileName(video)
-      await copyFile(video, join(stage, file))
+      // 원본은 미리보기·meta 가 공개된 뒤에 복사한다 (아래). 여기선 메타 정보만 만든다
       const d = targetSize(src, Number.MAX_SAFE_INTEGER)   // 회전 적용 후 표시 크기
       original = {
-        file, bytes: statSync(join(stage, file)).size, width: d.displayW, height: d.displayH,
+        file: originalName, bytes: statSync(video).size, width: d.displayW, height: d.displayH,
         fps: Math.round(src.fps * 100) / 100, duration: Math.round(src.duration * 100) / 100,
       }
     }
@@ -171,6 +172,24 @@ export async function publishVersion(slug: string, video: string, opts: PublishO
     if (existsSync(scriptFile) && !isPlaceholder(scriptFile)) await copyFile(scriptFile, join(stage, 'script.json'))
     await writeFile(join(stage, 'meta.json'), JSON.stringify(meta, null, 2) + '\n')
     await rename(stage, finalDir) // 폴더째 원자적 공개: 앱은 meta.json 이 있는 완성 폴더만 본다
+    if (original) {
+      // 구글 드라이브·iCloud 클라이언트는 나타난 순서대로 올리므로, 작은 미리보기·meta 를 먼저 공개하고
+      // 큰 원본은 그 뒤에 숨김 임시 이름으로 복사한 다음 rename 한다 (복사 중 반쪽 파일이 원본 이름으로 보이지 않게)
+      const tmpName = `.${originalName}.tmp`
+      const tmpPath = join(finalDir, tmpName)
+      try {
+        await (opts.copyOriginal ?? copyFile)(video, tmpPath)
+        await rename(tmpPath, join(finalDir, originalName))
+      } catch (e) {
+        // 실패하면 meta 가 없는 파일을 가리키지 않도록 원본 없는 meta 로 되돌린다 (원자적 교체)
+        await rm(tmpPath, { force: true })
+        const { original: _o, ...bare } = meta
+        const metaTmp = join(finalDir, '.meta.json.tmp')
+        await writeFile(metaTmp, JSON.stringify(bare, null, 2) + '\n')
+        await rename(metaTmp, join(finalDir, 'meta.json'))
+        throw new Error(`원본 복사 실패 (미리보기만 게시됨, v${n}): ${(e as Error).message}`)
+      }
+    }
     if (opts.upload) {
       await writeUploadDesignation(projectDir(slug), {
         schema: 1, version: n, author: agentName(), via: 'mac', updated: new Date().toISOString(),

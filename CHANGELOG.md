@@ -1,6 +1,7 @@
 # 변경 이력
 
 ## Unreleased (0.9.1)
+- **게시 순서: 미리보기·meta 먼저, 원본은 나중** (`publish`/`publish_version`). 구글 드라이브·iCloud 클라이언트가 나타난 순서대로 올려 큰 원본이 작은 미리보기를 막던 문제. 이제 `preview.mp4`·`meta.json`(·`script.json`)이 든 버전 폴더를 먼저 rename 으로 공개하고, 원본은 그 뒤 `.original.<ext>.tmp` 로 복사해 rename. 원본 복사가 끝나야 명령이 반환됨. 복사가 실패하면 meta 에서 `original` 을 뺀 채(미리보기만) 오류 반환. 주의: 복사 중에는 meta.original 이 아직 없는 파일을 가리킴(원본은 요청 시에만 받으므로 영향 작음). `--no-original` 은 그대로.
 - **새 프로젝트를 올릴 워크스페이스를 짐작하지 않기** (MCP 지침·`skills/apply-feedback`). 사람이 이름을 말했거나 연동 프롬프트·요청에 적힌 워크스페이스만 쓰고, 정해지지 않았으면 `list_workspaces` 후보를 보여 주고 먼저 묻는다. 제목·파일 이름이 워크스페이스 이름과 비슷하다고 고르지 않는다("슬라이드 …" 영상이 `slide-base` 로 들어간 일).
 
 ## Unreleased (0.9.0)
